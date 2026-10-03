@@ -1,0 +1,19 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+export const isSupabaseAdminConfigured = Boolean(
+  supabaseUrl && 
+  supabaseServiceKey && 
+  !supabaseUrl.includes('your-project')
+);
+
+export const supabaseAdmin = isSupabaseAdminConfigured
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : createClient('https://placeholder.supabase.co', 'placeholder-service-key');
