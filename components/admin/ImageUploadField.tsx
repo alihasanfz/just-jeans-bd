@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Upload, Image as ImageIcon, X, Loader2, Check, Link as LinkIcon, Laptop } from 'lucide-react';
+import { compressImageFile } from '@/lib/utils/db';
 
 interface ImageUploadFieldProps {
   value: string;
@@ -42,52 +43,37 @@ export default function ImageUploadField({
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          onChange(data.url);
-          setUploadSuccess(true);
-          setTimeout(() => setUploadSuccess(false), 3000);
-          setIsUploading(false);
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            onChange(data.url);
+            setUploadSuccess(true);
+            setTimeout(() => setUploadSuccess(false), 3000);
+            setIsUploading(false);
+            return;
+          }
         }
+      } catch (e) {
+        // server upload unavailable, fallback to compressed image
       }
 
-      // 2. Fallback to Base64 Data URL if server upload fails
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          onChange(result);
-          setUploadSuccess(true);
-          setTimeout(() => setUploadSuccess(false), 3000);
-        }
-        setIsUploading(false);
-      };
-      reader.onerror = () => {
-        setIsUploading(false);
-        alert('Failed to read image file from your computer.');
-      };
-      reader.readAsDataURL(file);
+      // 2. High-performance compressed image fallback
+      const compressed = await compressImageFile(file, 900, 1200, 0.78);
+      if (compressed) {
+        onChange(compressed);
+        setUploadSuccess(true);
+        setTimeout(() => setUploadSuccess(false), 3000);
+      }
+      setIsUploading(false);
     } catch (err) {
       console.error('File upload error:', err);
-      // Fallback to FileReader
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          onChange(result);
-          setUploadSuccess(true);
-          setTimeout(() => setUploadSuccess(false), 3000);
-        }
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
+      setIsUploading(false);
     }
   };
 

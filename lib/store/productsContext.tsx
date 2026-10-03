@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, ProductReview, Category, SiteSettings } from '@/types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, DEFAULT_SITE_SETTINGS } from '@/lib/data/mockData';
 
+import { idbGet, idbSet } from '@/lib/utils/db';
+
 interface ProductsContextType {
   products: Product[];
   categories: Category[];
@@ -32,48 +34,75 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedProds = localStorage.getItem('jeansbd_products');
-      if (savedProds) setProducts(JSON.parse(savedProds));
+    async function loadAllData() {
+      try {
+        // Try IndexedDB first (holds unlimited products and images)
+        const idbProds = await idbGet<Product[]>('jeansbd_products');
+        if (idbProds && Array.isArray(idbProds) && idbProds.length > 0) {
+          setProducts(idbProds);
+        } else {
+          const savedProds = localStorage.getItem('jeansbd_products');
+          if (savedProds) setProducts(JSON.parse(savedProds));
+        }
 
-      const savedCats = localStorage.getItem('jeansbd_categories');
-      if (savedCats) setCategories(JSON.parse(savedCats));
+        const idbCats = await idbGet<Category[]>('jeansbd_categories');
+        if (idbCats && Array.isArray(idbCats) && idbCats.length > 0) {
+          setCategories(idbCats);
+        } else {
+          const savedCats = localStorage.getItem('jeansbd_categories');
+          if (savedCats) setCategories(JSON.parse(savedCats));
+        }
 
-      const savedSettings = localStorage.getItem('jeansbd_settings');
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings);
-        const merged: SiteSettings = {
-          ...DEFAULT_SITE_SETTINGS,
-          ...parsed,
-          phone: parsed.phone === '+880 1700-000000' ? DEFAULT_SITE_SETTINGS.phone : (parsed.phone || DEFAULT_SITE_SETTINGS.phone),
-          email: parsed.email === 'support@jeansbd.com' ? DEFAULT_SITE_SETTINGS.email : (parsed.email || DEFAULT_SITE_SETTINGS.email),
-          address: parsed.address?.includes('Banani') ? DEFAULT_SITE_SETTINGS.address : (parsed.address || DEFAULT_SITE_SETTINGS.address),
-          googleMapUrl: parsed.googleMapUrl || DEFAULT_SITE_SETTINGS.googleMapUrl,
-          banners: parsed.banners || DEFAULT_SITE_SETTINGS.banners,
-          promoBanner: parsed.promoBanner || DEFAULT_SITE_SETTINGS.promoBanner,
-          customerReviews: parsed.customerReviews || DEFAULT_SITE_SETTINGS.customerReviews,
-          instagramFeed: parsed.instagramFeed || DEFAULT_SITE_SETTINGS.instagramFeed,
-          trustBadges: parsed.trustBadges || DEFAULT_SITE_SETTINGS.trustBadges,
-          footerBrandDescription: parsed.footerBrandDescription || DEFAULT_SITE_SETTINGS.footerBrandDescription,
-          copyrightText: parsed.copyrightText || DEFAULT_SITE_SETTINGS.copyrightText,
-        };
-        setSiteSettings(merged);
+        const savedSettings = localStorage.getItem('jeansbd_settings');
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          const merged: SiteSettings = {
+            ...DEFAULT_SITE_SETTINGS,
+            ...parsed,
+            phone: parsed.phone === '+880 1700-000000' ? DEFAULT_SITE_SETTINGS.phone : (parsed.phone || DEFAULT_SITE_SETTINGS.phone),
+            email: parsed.email === 'support@jeansbd.com' ? DEFAULT_SITE_SETTINGS.email : (parsed.email || DEFAULT_SITE_SETTINGS.email),
+            address: parsed.address?.includes('Banani') ? DEFAULT_SITE_SETTINGS.address : (parsed.address || DEFAULT_SITE_SETTINGS.address),
+            googleMapUrl: parsed.googleMapUrl || DEFAULT_SITE_SETTINGS.googleMapUrl,
+            banners: parsed.banners || DEFAULT_SITE_SETTINGS.banners,
+            promoBanner: parsed.promoBanner || DEFAULT_SITE_SETTINGS.promoBanner,
+            customerReviews: parsed.customerReviews || DEFAULT_SITE_SETTINGS.customerReviews,
+            instagramFeed: parsed.instagramFeed || DEFAULT_SITE_SETTINGS.instagramFeed,
+            trustBadges: parsed.trustBadges || DEFAULT_SITE_SETTINGS.trustBadges,
+            footerBrandDescription: parsed.footerBrandDescription || DEFAULT_SITE_SETTINGS.footerBrandDescription,
+            copyrightText: parsed.copyrightText || DEFAULT_SITE_SETTINGS.copyrightText,
+          };
+          setSiteSettings(merged);
+        }
+      } catch (e) {
+        console.error('Failed to load products context', e);
+      } finally {
+        setIsLoaded(true);
       }
-    } catch (e) {
-      console.error('Failed to load products context', e);
-    } finally {
-      setIsLoaded(true);
     }
+
+    loadAllData();
   }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
+
+    // 1. High capacity IndexedDB storage
+    idbSet('jeansbd_products', products);
+    idbSet('jeansbd_categories', categories);
+    idbSet('jeansbd_settings', siteSettings);
+
+    // 2. LocalStorage backup with quota guard
     try {
       localStorage.setItem('jeansbd_products', JSON.stringify(products));
+    } catch (e) {
+      console.warn('LocalStorage limit reached. Products safely saved in IndexedDB.');
+    }
+
+    try {
       localStorage.setItem('jeansbd_categories', JSON.stringify(categories));
       localStorage.setItem('jeansbd_settings', JSON.stringify(siteSettings));
     } catch (e) {
-      console.error('Failed to save products context', e);
+      // ignore
     }
   }, [products, categories, siteSettings, isLoaded]);
 

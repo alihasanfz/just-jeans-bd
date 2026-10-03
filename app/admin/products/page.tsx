@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { useProducts } from '@/lib/store/productsContext';
 import { Product, ProductFit, GenderCategory } from '@/types';
 import { formatPrice } from '@/lib/utils';
+import { compressImageFile } from '@/lib/utils/db';
 
 const ANGLE_SLOTS = [
   { id: 0, label: '1. FRONT VIEW (MAIN)', hint: 'Front angle' },
@@ -95,8 +96,8 @@ function AdminProductsContent() {
     setFormFit('Straight Fit');
     setFormGender('men');
     setFormCategory("Men's Straight Leg Jeans");
-    setFormPrice(4500);
-    setFormDiscountPrice(3890);
+    setFormPrice(2500);
+    setFormDiscountPrice(0);
     setFormStock(30);
     setFormWash('Raw Deep Indigo');
     setFormFabric('100% Ring-Spun Cotton');
@@ -123,7 +124,11 @@ function AdminProductsContent() {
     setFormGender(product.gender);
     setFormCategory(product.category);
     setFormPrice(product.price);
-    setFormDiscountPrice(product.discountPrice || product.price);
+    setFormDiscountPrice(
+      product.discountPrice && product.discountPrice < product.price
+        ? product.discountPrice
+        : 0
+    );
     setFormStock(product.totalStock);
     setFormWash(product.washColor || 'Vintage Wash');
     setFormFabric(product.fabricComposition || '100% Cotton Denim');
@@ -140,7 +145,7 @@ function AdminProductsContent() {
     setIsModalOpen(true);
   };
 
-  // Upload handler for single slot
+  // Upload handler for single slot with client-side compression
   const handleSlotFile = async (slotIndex: number, file: File) => {
     if (!file || !file.type.startsWith('image/')) {
       alert('Please select a valid image file');
@@ -150,42 +155,38 @@ function AdminProductsContent() {
     setUploadingSlot(slotIndex);
 
     try {
+      // 1. Try uploading to /api/upload
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          applySlotUrl(slotIndex, data.url);
-          setUploadingSlot(null);
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            applySlotUrl(slotIndex, data.url);
+            setUploadingSlot(null);
+            return;
+          }
         }
+      } catch (e) {
+        // Fallback to client-side compression below
       }
 
-      // Fallback
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          applySlotUrl(slotIndex, e.target.result as string);
-        }
-        setUploadingSlot(null);
-      };
-      reader.readAsDataURL(file);
+      // 2. High-performance client-side image compression
+      // Compresses 10MB camera photo to ~40KB high-res JPEG to prevent quota errors
+      const compressed = await compressImageFile(file, 900, 1200, 0.78);
+      if (compressed) {
+        applySlotUrl(slotIndex, compressed);
+      }
+      setUploadingSlot(null);
     } catch (err) {
       console.error('Upload slot error:', err);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          applySlotUrl(slotIndex, e.target.result as string);
-        }
-        setUploadingSlot(null);
-      };
-      reader.readAsDataURL(file);
+      setUploadingSlot(null);
     }
   };
 
@@ -215,10 +216,11 @@ function AdminProductsContent() {
     e.preventDefault();
 
     const slug = formName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const discountPct =
-      formPrice > formDiscountPrice
-        ? Math.round(((formPrice - formDiscountPrice) / formPrice) * 100)
-        : 0;
+    const hasDiscount = formDiscountPrice > 0 && formDiscountPrice < formPrice;
+    const finalDiscountPrice = hasDiscount ? formDiscountPrice : undefined;
+    const discountPct = hasDiscount
+      ? Math.round(((formPrice - formDiscountPrice) / formPrice) * 100)
+      : 0;
 
     // Filter non-empty images from slots
     const validImages = formImages.filter((img) => img && img.trim() !== '');
@@ -241,8 +243,9 @@ function AdminProductsContent() {
         washColor: formWash,
         fabricComposition: formFabric,
         price: formPrice,
-        discountPrice: formDiscountPrice,
+        discountPrice: finalDiscountPrice,
         discountPercentage: discountPct,
+        isOnSale: hasDiscount,
         totalStock: formStock,
         thumbnail: mainThumbnail,
         images: validImages.length > 0 ? validImages : [mainThumbnail],
@@ -267,7 +270,7 @@ function AdminProductsContent() {
         ],
         fabricCare: ['Machine wash cold inside out', 'Hang dry in shade to preserve indigo tone'],
         price: formPrice,
-        discountPrice: formDiscountPrice,
+        discountPrice: finalDiscountPrice,
         discountPercentage: discountPct,
         thumbnail: mainThumbnail,
         images: validImages.length > 0 ? validImages : [mainThumbnail],
@@ -276,7 +279,7 @@ function AdminProductsContent() {
         isNewArrival: true,
         isBestSeller: false,
         isFeatured: true,
-        isOnSale: formDiscountPrice < formPrice,
+        isOnSale: hasDiscount,
         totalStock: formStock,
         tags: [formFit.toLowerCase().replace(/\s+/g, '-'), formGender, 'denim-atelier'],
         variants,
@@ -387,9 +390,13 @@ function AdminProductsContent() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="font-bold text-white text-sm">৳{prod.discountPrice || prod.price}</div>
-                    {prod.discountPrice && prod.discountPrice < prod.price && (
-                      <span className="text-[10px] text-slate-500 line-through">৳{prod.price}</span>
+                    {prod.discountPrice && prod.discountPrice < prod.price ? (
+                      <div>
+                        <div className="font-bold text-white text-sm">৳{prod.discountPrice}</div>
+                        <span className="text-[10px] text-slate-500 line-through">৳{prod.price}</span>
+                      </div>
+                    ) : (
+                      <div className="font-bold text-white text-sm">৳{prod.price}</div>
                     )}
                   </td>
                   <td className="px-5 py-3.5">
@@ -550,18 +557,42 @@ function AdminProductsContent() {
                   </div>
 
                   {/* Price & Initial Stock Count */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1.5">
-                        PRICE (BDT ৳) *
+                        REGULAR PRICE (BDT ৳) *
                       </label>
                       <input
                         type="number"
                         required
-                        min={100}
-                        placeholder="4500"
-                        value={formPrice}
-                        onChange={(e) => setFormPrice(Number(e.target.value))}
+                        min={1}
+                        placeholder="e.g. 2500"
+                        value={formPrice || ''}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setFormPrice(val);
+                          if (formDiscountPrice && formDiscountPrice >= val) {
+                            setFormDiscountPrice(0);
+                          }
+                        }}
+                        className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-4 py-2.5 text-white font-mono placeholder-slate-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1.5 flex items-center justify-between">
+                        <span>OFFER PRICE (BDT ৳)</span>
+                        <span className="text-[9px] text-[#f59e0b] font-normal">OPTIONAL</span>
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Optional discount price"
+                        value={formDiscountPrice > 0 ? formDiscountPrice : ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value);
+                          setFormDiscountPrice(val);
+                        }}
                         className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-4 py-2.5 text-white font-mono placeholder-slate-500 focus:outline-none"
                       />
                     </div>
@@ -572,12 +603,30 @@ function AdminProductsContent() {
                       </label>
                       <input
                         type="number"
-                        min={1}
+                        min={0}
                         placeholder="30"
                         value={formStock}
                         onChange={(e) => setFormStock(Number(e.target.value))}
                         className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-4 py-2.5 text-white font-mono placeholder-slate-500 focus:outline-none"
                       />
+                    </div>
+                  </div>
+
+                  {/* Live Final Price Preview */}
+                  <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs flex items-center justify-between">
+                    <span className="text-slate-400 font-medium">Customer Selling Price:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#f59e0b] text-sm font-mono">
+                        ৳{formDiscountPrice > 0 && formDiscountPrice < formPrice ? formDiscountPrice : formPrice}
+                      </span>
+                      {formDiscountPrice > 0 && formDiscountPrice < formPrice && (
+                        <span className="text-slate-500 line-through text-[11px] font-mono">৳{formPrice}</span>
+                      )}
+                      {formDiscountPrice > 0 && formDiscountPrice < formPrice && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+                          {Math.round(((formPrice - formDiscountPrice) / formPrice) * 100)}% OFF
+                        </span>
+                      )}
                     </div>
                   </div>
 
