@@ -18,6 +18,11 @@ import {
   ExternalLink,
   Loader2,
   AlertCircle,
+  Download,
+  Copy,
+  Database,
+  RefreshCw,
+  Cloud,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProducts } from '@/lib/store/productsContext';
@@ -44,12 +49,85 @@ export default function AdminProductsPage() {
 
 function AdminProductsContent() {
   const searchParams = useSearchParams();
-  const { products, addProduct, updateProduct, deleteProduct, categories } = useProducts();
+  const { products, addProduct, updateProduct, deleteProduct, categories, isCloudConnected, syncLocalProductsToSupabase } = useProducts();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [copiedJson, setCopiedJson] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showCloudModal, setShowCloudModal] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleSyncCloud = async () => {
+    if (!isCloudConnected) {
+      setShowCloudModal(true);
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const res = await syncLocalProductsToSupabase();
+      if (res.success) {
+        alert(`Success! ${res.count} products synced to Supabase Cloud Database! They are now visible to everyone across all devices.`);
+      } else {
+        alert(res.message || 'Sync failed');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Sync error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleExportJSON = () => {
+    if (!products || products.length === 0) {
+      alert('No products to export.');
+      return;
+    }
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(products, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `jeansbd-products-${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleCopyJSON = () => {
+    if (!products || products.length === 0) {
+      alert('No products to copy.');
+      return;
+    }
+    navigator.clipboard.writeText(JSON.stringify(products, null, 2));
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2500);
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const imported = JSON.parse(event.target?.result as string);
+        if (Array.isArray(imported)) {
+          let count = 0;
+          for (const p of imported) {
+            if (p.name && !products.some((existing) => existing.id === p.id)) {
+              addProduct(p);
+              count++;
+            }
+          }
+          alert(`Successfully imported ${count} products!`);
+        }
+      } catch (err) {
+        alert('Invalid JSON file format.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Form states matching screenshot
   const [formName, setFormName] = useState('');
@@ -315,13 +393,81 @@ function AdminProductsContent() {
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="bg-[#f59e0b] hover:bg-[#d97706] text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Add New Denim Product</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleExportJSON}
+            className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow hover:border-slate-600"
+            title="Download JSON backup of your current products"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Backup (JSON)</span>
+          </button>
+
+          <button
+            onClick={handleCopyJSON}
+            className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow hover:border-slate-600"
+            title="Copy all product data to clipboard"
+          >
+            {copiedJson ? (
+              <>
+                <Check className="w-4 h-4 text-green-400" />
+                <span className="text-green-400">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-blue-400" />
+                <span>Copy Data</span>
+              </>
+            )}
+          </button>
+
+          <input
+            type="file"
+            ref={importInputRef}
+            onChange={handleImportFile}
+            accept=".json"
+            className="hidden"
+          />
+
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow hover:border-slate-600"
+            title="Import/restore products from JSON backup"
+          >
+            <Upload className="w-4 h-4 text-amber-400" />
+            <span>Restore</span>
+          </button>
+
+          <button
+            onClick={handleSyncCloud}
+            disabled={isSyncing}
+            className={`font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow border ${
+              isCloudConnected
+                ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/60'
+                : 'bg-amber-950/50 border-amber-500/50 text-amber-300 hover:bg-amber-900/60'
+            }`}
+            title={
+              isCloudConnected
+                ? 'Sync your local products to Supabase Cloud Database'
+                : 'Connect Supabase for multi-device live sync'
+            }
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+            ) : (
+              <Cloud className={`w-4 h-4 ${isCloudConnected ? 'text-emerald-400' : 'text-amber-400'}`} />
+            )}
+            <span>{isCloudConnected ? (isSyncing ? 'Syncing...' : 'Sync to Cloud') : 'Cloud Setup'}</span>
+          </button>
+
+          <button
+            onClick={openCreateModal}
+            className="bg-[#f59e0b] hover:bg-[#d97706] text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Add New Denim Product</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -809,6 +955,66 @@ function AdminProductsContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Supabase Cloud Setup Modal */}
+      {showCloudModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0f172a] border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowCloudModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Supabase Cloud Database Setup</h3>
+                <p className="text-xs text-slate-400">Connect cloud database for multi-device sync</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-300 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+              <p className="font-bold text-amber-400">
+                কেন অন্য ডিভাইসে আপনার ডিলিট করা প্রোডাক্টগুলো দেখাচ্ছিল?
+              </p>
+              <p>
+                আপনার প্রোডাক্টগুলো বর্তমানে আপনার এই ব্রাউজারের মেমোরিতে (IndexedDB) সেভ করা আছে। সবার জন্য লাইভ করতে একটি সেন্ট্রাল ক্লাউড ডাটাবেজ (Supabase) প্রয়োজন।
+              </p>
+              <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                <p className="font-semibold text-white">সহজ সেটআপের ধাপ:</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-400">
+                  <li><a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-amber-400 underline">supabase.com</a> এ গিয়ে একটি ফ্রি একাউন্ট ও প্রজেক্ট তৈরি করুন।</li>
+                  <li>Project Settings &gt; API থেকে <strong>Project URL</strong> এবং <strong>anon/public key</strong> কপি করুন।</li>
+                  <li>প্রজেক্টের <code>.env.local</code> ফাইল অথবা Vercel Settings &gt; Environment Variables-এ কী দুটি দিয়ে দিন।</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setShowCloudModal(false)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2.5 rounded-xl transition"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  handleExportJSON();
+                  setShowCloudModal(false);
+                }}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black px-4 py-2.5 rounded-xl transition flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Backup Now</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
