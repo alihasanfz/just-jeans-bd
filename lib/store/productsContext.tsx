@@ -104,19 +104,37 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 2. Try IndexedDB if Supabase didn't have products
+        // 2. Try IndexedDB if Supabase didn't have products (purge old demo products)
         if (!loadedFromSupabase) {
           const idbProds = await idbGet<Product[]>('jeansbd_products');
-          if (idbProds && Array.isArray(idbProds) && idbProds.length > 0) {
-            setProducts(idbProds);
+          const cleanIdbProds = (idbProds || []).filter(
+            (p) => !p.id?.startsWith('prod-00') && !p.slug?.includes('vintage-washed-slim')
+          );
+
+          if (cleanIdbProds.length > 0) {
+            setProducts(cleanIdbProds);
           } else {
             const savedProds = localStorage.getItem('jeansbd_products');
+            let cleanSaved: Product[] = [];
             if (savedProds) {
               try {
                 const parsed = JSON.parse(savedProds);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  setProducts(parsed);
+                if (Array.isArray(parsed)) {
+                  cleanSaved = parsed.filter(
+                    (p) => !p.id?.startsWith('prod-00') && !p.slug?.includes('vintage-washed-slim')
+                  );
                 }
+              } catch (e) {}
+            }
+
+            if (cleanSaved.length > 0) {
+              setProducts(cleanSaved);
+            } else {
+              // Completely clear the old demo cache from browser memory
+              setProducts([]);
+              await idbSet('jeansbd_products', []);
+              try {
+                localStorage.removeItem('jeansbd_products');
               } catch (e) {}
             }
           }
