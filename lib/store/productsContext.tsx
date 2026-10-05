@@ -17,6 +17,39 @@ function generateProductId(): string {
   });
 }
 
+function mapDbProduct(row: any): Product {
+  return {
+    id: row.id,
+    slug: row.slug || `prod-${row.id}`,
+    name: row.name,
+    subtitle: row.subtitle || '',
+    titleBn: row.name_bn || '',
+    category: row.category || "Men's Straight Leg Jeans",
+    gender: row.gender || 'men',
+    fit: row.fit || 'Straight Fit',
+    washColor: row.wash_color || 'Vintage Wash',
+    fabricComposition: row.fabric_composition || '100% Cotton Denim',
+    description: row.description || '',
+    details: Array.isArray(row.details) ? row.details : [],
+    fabricCare: Array.isArray(row.fabric_care) ? row.fabric_care : [],
+    price: Number(row.price) || 0,
+    discountPrice: row.discount_price ? Number(row.discount_price) : undefined,
+    discountPercentage: Number(row.discount_percentage) || 0,
+    thumbnail: row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
+    images: Array.isArray(row.images) ? row.images : [],
+    rating: Number(row.rating) || 5.0,
+    reviewCount: Number(row.review_count) || 0,
+    isNewArrival: !!row.is_new_arrival,
+    isBestSeller: !!row.is_best_seller,
+    isFeatured: !!row.is_featured,
+    isOnSale: !!row.is_on_sale,
+    totalStock: Number(row.total_stock) || 0,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    createdAt: row.created_at || new Date().toISOString(),
+    variants: Array.isArray(row.variants) ? row.variants : [],
+  };
+}
+
 interface ProductsContextType {
   products: Product[];
   categories: Category[];
@@ -49,6 +82,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadAllData() {
       try {
+        let loadedFromSupabase = false;
+
         // 1. Try Supabase Cloud Database first if configured
         if (isSupabaseConfigured) {
           try {
@@ -59,57 +94,31 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
               .order('created_at', { ascending: false });
 
             if (!error && Array.isArray(dbProducts) && dbProducts.length > 0) {
-              const mapped: Product[] = dbProducts.map((row: any) => ({
-                id: row.id,
-                slug: row.slug || `prod-${row.id}`,
-                name: row.name,
-                subtitle: row.subtitle || '',
-                titleBn: row.name_bn || '',
-                category: row.category || "Men's Straight Leg Jeans",
-                gender: row.gender || 'men',
-                fit: row.fit || 'Straight Fit',
-                washColor: row.wash_color || 'Vintage Wash',
-                fabricComposition: row.fabric_composition || '100% Cotton Denim',
-                description: row.description || '',
-                details: Array.isArray(row.details) ? row.details : [],
-                fabricCare: Array.isArray(row.fabric_care) ? row.fabric_care : [],
-                price: Number(row.price) || 0,
-                discountPrice: row.discount_price ? Number(row.discount_price) : undefined,
-                discountPercentage: Number(row.discount_percentage) || 0,
-                thumbnail: row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
-                images: Array.isArray(row.images) ? row.images : [],
-                rating: Number(row.rating) || 5.0,
-                reviewCount: Number(row.review_count) || 0,
-                isNewArrival: !!row.is_new_arrival,
-                isBestSeller: !!row.is_best_seller,
-                isFeatured: !!row.is_featured,
-                isOnSale: !!row.is_on_sale,
-                totalStock: Number(row.total_stock) || 0,
-                tags: Array.isArray(row.tags) ? row.tags : [],
-                createdAt: row.created_at || new Date().toISOString(),
-                variants: Array.isArray(row.variants) ? row.variants : [],
-              }));
+              const mapped = dbProducts.map(mapDbProduct);
               setProducts(mapped);
               await idbSet('jeansbd_products', mapped);
+              loadedFromSupabase = true;
             }
           } catch (dbErr) {
             console.warn('Supabase fetch failed, trying local storage cache', dbErr);
           }
         }
 
-        // 2. Try IndexedDB if Supabase didn't load products
-        const idbProds = await idbGet<Product[]>('jeansbd_products');
-        if (idbProds && Array.isArray(idbProds) && idbProds.length > 0) {
-          setProducts((current) => (current.length > 0 ? current : idbProds));
-        } else {
-          const savedProds = localStorage.getItem('jeansbd_products');
-          if (savedProds) {
-            try {
-              const parsed = JSON.parse(savedProds);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                setProducts((current) => (current.length > 0 ? current : parsed));
-              }
-            } catch (e) {}
+        // 2. Try IndexedDB if Supabase didn't have products
+        if (!loadedFromSupabase) {
+          const idbProds = await idbGet<Product[]>('jeansbd_products');
+          if (idbProds && Array.isArray(idbProds) && idbProds.length > 0) {
+            setProducts(idbProds);
+          } else {
+            const savedProds = localStorage.getItem('jeansbd_products');
+            if (savedProds) {
+              try {
+                const parsed = JSON.parse(savedProds);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setProducts(parsed);
+                }
+              } catch (e) {}
+            }
           }
         }
 
@@ -149,6 +158,45 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     }
 
     loadAllData();
+
+    // 3. Realtime Supabase subscription across all devices
+    let channel: any;
+    if (isSupabaseConfigured) {
+      try {
+        channel = supabase
+          .channel('public-products-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'products' },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                const inserted = mapDbProduct(payload.new);
+                setProducts((prev) => {
+                  if (prev.some((p) => p.id === inserted.id)) return prev;
+                  return [inserted, ...prev];
+                });
+              } else if (payload.eventType === 'UPDATE') {
+                const updated = mapDbProduct(payload.new);
+                setProducts((prev) =>
+                  prev.map((p) => (p.id === updated.id ? updated : p))
+                );
+              } else if (payload.eventType === 'DELETE') {
+                const deletedId = (payload.old as any).id;
+                setProducts((prev) => prev.filter((p) => p.id !== deletedId));
+              }
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('Realtime subscription failed:', err);
+      }
+    }
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -195,15 +243,19 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           id: newProduct.id,
           name: newProduct.name,
           name_bn: newProduct.titleBn || '',
+          subtitle: newProduct.subtitle || '',
           slug: newProduct.slug,
+          category: newProduct.category || '',
           gender: newProduct.gender,
           fit: newProduct.fit,
+          wash_color: newProduct.washColor || '',
+          fabric_composition: newProduct.fabricComposition || '',
           price: newProduct.price,
           discount_price: newProduct.discountPrice || null,
           discount_percentage: newProduct.discountPercentage || 0,
           thumbnail: newProduct.thumbnail,
           images: newProduct.images || [],
-          description: newProduct.description,
+          description: newProduct.description || '',
           details: newProduct.details || [],
           fabric_care: newProduct.fabricCare || [],
           is_active: true,
@@ -213,6 +265,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           is_on_sale: !!newProduct.isOnSale,
           total_stock: newProduct.totalStock || 0,
           tags: newProduct.tags || [],
+          variants: newProduct.variants || [],
         });
       } catch (e) {
         console.error('Supabase addProduct error:', e);
@@ -229,6 +282,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       try {
         const payload: any = {};
         if (updates.name) payload.name = updates.name;
+        if (updates.subtitle !== undefined) payload.subtitle = updates.subtitle;
+        if (updates.category !== undefined) payload.category = updates.category;
         if (updates.price !== undefined) payload.price = updates.price;
         if (updates.discountPrice !== undefined) payload.discount_price = updates.discountPrice;
         if (updates.discountPercentage !== undefined) payload.discount_percentage = updates.discountPercentage;
@@ -236,6 +291,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         if (updates.images) payload.images = updates.images;
         if (updates.description) payload.description = updates.description;
         if (updates.totalStock !== undefined) payload.total_stock = updates.totalStock;
+        if (updates.variants) payload.variants = updates.variants;
 
         if (Object.keys(payload).length > 0) {
           await supabase.from('products').update(payload).eq('id', id);
@@ -269,23 +325,25 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     try {
       let count = 0;
       for (const p of products) {
-        const validId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id)
-          ? p.id
-          : generateProductId();
+        const validId = p.id || generateProductId();
 
         const { error } = await supabase.from('products').upsert({
           id: validId,
           name: p.name,
           name_bn: p.titleBn || '',
+          subtitle: p.subtitle || '',
           slug: p.slug,
+          category: p.category || '',
           gender: p.gender,
           fit: p.fit,
+          wash_color: p.washColor || '',
+          fabric_composition: p.fabricComposition || '',
           price: p.price,
           discount_price: p.discountPrice || null,
           discount_percentage: p.discountPercentage || 0,
           thumbnail: p.thumbnail,
           images: p.images || [],
-          description: p.description,
+          description: p.description || '',
           details: p.details || [],
           fabric_care: p.fabricCare || [],
           is_active: true,
@@ -295,6 +353,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           is_on_sale: !!p.isOnSale,
           total_stock: p.totalStock || 0,
           tags: p.tags || [],
+          variants: p.variants || [],
         });
 
         if (!error) count++;
