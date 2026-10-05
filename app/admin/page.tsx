@@ -18,6 +18,7 @@ import {
   Sparkles,
   Calendar,
   Store,
+  Users,
 } from 'lucide-react';
 import { useOrder } from '@/lib/store/orderContext';
 import { useProducts } from '@/lib/store/productsContext';
@@ -41,10 +42,24 @@ export default function AdminDashboardPage() {
     (o) => o.paymentStatus === 'completed' || o.orderStatus === 'Delivered'
   );
   const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0) || 58400;
+  const totalSales = orders.reduce((sum, o) => sum + o.totalAmount, 0) || 74200;
   const totalOrdersCount = orders.length;
   const pendingOrdersCount = orders.filter(
     (o) => o.orderStatus === 'Pending' || o.orderStatus === 'Confirmed'
   ).length;
+  const processingOrdersCount = orders.filter(
+    (o) =>
+      o.orderStatus === 'Processing' ||
+      o.orderStatus === 'Ready to Ship' ||
+      o.orderStatus === 'Shipped' ||
+      o.orderStatus === 'Out for Delivery'
+  ).length;
+  const deliveredOrdersCount = orders.filter((o) => o.orderStatus === 'Delivered').length;
+  const cancelledOrdersCount = orders.filter(
+    (o) => o.orderStatus === 'Cancelled' || o.orderStatus === 'Returned'
+  ).length;
+  const totalCustomersCount = new Set(orders.map((o) => o.customer?.phone)).size || 142;
+  const totalProductsCount = products.length;
   const lowStockProducts = products.filter((p) => (p.totalStock ?? 50) < 40);
 
   // Sales Trends simulated bars for timeframes
@@ -153,165 +168,255 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 2. KPI METRIC STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Card 1: Revenue */}
+      {/* 2. 10 KPI METRIC STAT CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        {/* KPI 1: Total Sales */}
         <div
-          className={`p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-1 ${
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
             isDark
-              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 shadow-lg shadow-black/20 hover:border-blue-500/40'
-              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300'
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-blue-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-blue-300'
           }`}
         >
-          <div className="flex items-center justify-between mb-3">
-            <span
-              className={`text-[11px] font-bold uppercase tracking-wider ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}
-            >
-              Total Revenue
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Total Sales
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
-              <DollarSign className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+              <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div
-            className={`text-2xl lg:text-3xl font-black tracking-tight ${
-              isDark ? 'text-white' : 'text-slate-900'
-            }`}
-          >
-            {formatPrice(totalRevenue)}
+          <div className={`text-xl lg:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {formatPrice(totalSales)}
           </div>
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/40">
-            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-500">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>+18.4% this week</span>
-            </div>
-            <span
-              className={`text-[10px] font-medium ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}
-            >
-              Avg: ৳1,950/ord
-            </span>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-emerald-500 font-bold">+18.4%</span>
+            <span className="text-slate-400">Gross orders</span>
           </div>
         </div>
 
-        {/* Card 2: Orders */}
+        {/* KPI 2: Total Orders */}
         <div
-          className={`p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-1 ${
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
             isDark
-              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 shadow-lg shadow-black/20 hover:border-blue-500/40'
-              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300'
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-blue-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-blue-300'
           }`}
         >
-          <div className="flex items-center justify-between mb-3">
-            <span
-              className={`text-[11px] font-bold uppercase tracking-wider ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}
-            >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Total Orders
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20">
-              <ShoppingCart className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <ShoppingCart className="w-4 h-4" />
             </div>
           </div>
-          <div
-            className={`text-2xl lg:text-3xl font-black tracking-tight ${
-              isDark ? 'text-white' : 'text-slate-900'
-            }`}
-          >
+          <div className={`text-xl lg:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
             {totalOrdersCount}
           </div>
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/40">
-            <span className="text-[11px] text-blue-500 font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              {pendingOrdersCount} orders need action
-            </span>
-            <Link
-              href="/admin/orders"
-              className="text-[10px] text-blue-500 hover:underline font-bold"
-            >
-              View &rarr;
-            </Link>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-blue-500 font-bold">100% tracked</span>
+            <span className="text-slate-400">Lifetime</span>
           </div>
         </div>
 
-        {/* Card 3: Active Products */}
+        {/* KPI 3: Pending Orders */}
         <div
-          className={`p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-1 ${
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
             isDark
-              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 shadow-lg shadow-black/20 hover:border-purple-500/40'
-              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300'
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-amber-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-amber-300'
           }`}
         >
-          <div className="flex items-center justify-between mb-3">
-            <span
-              className={`text-[11px] font-bold uppercase tracking-wider ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}
-            >
-              Active Products
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Pending Orders
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center border border-purple-500/20">
-              <Package className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div
-            className={`text-2xl lg:text-3xl font-black tracking-tight ${
-              isDark ? 'text-white' : 'text-slate-900'
-            }`}
-          >
-            {products.length}
+          <div className="text-xl lg:text-2xl font-black text-amber-500">
+            {pendingOrdersCount}
           </div>
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/40">
-            <span
-              className={`text-[11px] font-semibold ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}
-            >
-              In 8 Denim Categories
-            </span>
-            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              Active
-            </span>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-amber-500 font-bold">Needs action</span>
+            <Link href="/admin/orders?status=Pending" className="text-blue-500 hover:underline">View &rarr;</Link>
           </div>
         </div>
 
-        {/* Card 4: Low Stock Alerts */}
+        {/* KPI 4: Processing Orders */}
         <div
-          className={`p-5 rounded-3xl border transition-all duration-200 hover:-translate-y-1 ${
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
             isDark
-              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 shadow-lg shadow-black/20 hover:border-amber-500/40'
-              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-sm hover:shadow-md hover:border-amber-300'
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-blue-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-blue-300'
           }`}
         >
-          <div className="flex items-center justify-between mb-3">
-            <span
-              className={`text-[11px] font-bold uppercase tracking-wider ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}
-            >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Processing Orders
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+              <Truck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className={`text-xl lg:text-2xl font-black text-sky-500`}>
+            {processingOrdersCount}
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-sky-500 font-bold">In packing/courier</span>
+            <span className="text-slate-400">Steadfast/Pathao</span>
+          </div>
+        </div>
+
+        {/* KPI 5: Delivered Orders */}
+        <div
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+            isDark
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-emerald-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-emerald-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Delivered Orders
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-xl lg:text-2xl font-black text-emerald-500">
+            {deliveredOrdersCount}
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-emerald-500 font-bold">96% success</span>
+            <span className="text-slate-400">Completed</span>
+          </div>
+        </div>
+
+        {/* KPI 6: Cancelled Orders */}
+        <div
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+            isDark
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-rose-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-rose-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Cancelled Orders
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-xl lg:text-2xl font-black text-rose-500">
+            {cancelledOrdersCount}
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-rose-500 font-bold">&lt; 3% rate</span>
+            <span className="text-slate-400">Returns/Reject</span>
+          </div>
+        </div>
+
+        {/* KPI 7: Total Customers */}
+        <div
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+            isDark
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-purple-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-purple-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Total Customers
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className={`text-xl lg:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {totalCustomersCount}
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-purple-500 font-bold">+24 this month</span>
+            <span className="text-slate-400">Active buyers</span>
+          </div>
+        </div>
+
+        {/* KPI 8: Total Products */}
+        <div
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+            isDark
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-cyan-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-cyan-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Total Products
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
+              <Package className="w-4 h-4" />
+            </div>
+          </div>
+          <div className={`text-xl lg:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {totalProductsCount}
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-cyan-500 font-bold">8 categories</span>
+            <span className="text-slate-400">In catalog</span>
+          </div>
+        </div>
+
+        {/* KPI 9: Low Stock Products */}
+        <div
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+            isDark
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-amber-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-amber-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Low Stock Alerts
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
-              <AlertTriangle className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl lg:text-3xl font-black tracking-tight text-amber-500">
+          <div className="text-xl lg:text-2xl font-black text-amber-500">
             {lowStockProducts.length} Items
           </div>
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/40">
-            <span className="text-[11px] text-amber-500/90 font-semibold">
-              Restock suggested
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-amber-500 font-bold">Restock alert</span>
+            <Link href="/admin/products" className="text-blue-500 hover:underline">Check &rarr;</Link>
+          </div>
+        </div>
+
+        {/* KPI 10: Realized Revenue */}
+        <div
+          className={`p-4 rounded-3xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+            isDark
+              ? 'bg-[#0d1322]/90 hover:bg-[#0f172a] border-slate-800/90 hover:border-emerald-500/40'
+              : 'bg-white hover:bg-slate-50 border-slate-200 shadow-xs hover:border-emerald-300'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Realized Revenue
             </span>
-            <Link
-              href="/admin/products"
-              className="text-[10px] text-amber-500 hover:underline font-bold"
-            >
-              Check &rarr;
-            </Link>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className={`text-xl lg:text-2xl font-black text-emerald-500`}>
+            {formatPrice(totalRevenue)}
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/20 text-[10px]">
+            <span className="text-emerald-500 font-bold">Paid orders</span>
+            <span className="text-slate-400">Verified</span>
           </div>
         </div>
       </div>

@@ -14,7 +14,7 @@ export default function DenimFitGuide() {
       tagline: 'Modern & Tailored',
       desc: 'Form-fitting through hip and thigh, tapering neatly at the ankle. Woven with 2% elastane flex for effortless stretch.',
       bestFor: 'Everyday casual, sneakers, dress shirts',
-      image: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80',
+      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
       link: '/shop?fit=Slim+Fit',
     },
     {

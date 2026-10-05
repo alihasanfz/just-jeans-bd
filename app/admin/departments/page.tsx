@@ -36,7 +36,7 @@ const INITIAL_DEPARTMENTS: Department[] = [
     description: 'Men slim, straight, baggy, cargo fits & denim trucker jackets.',
     status: 'Active',
     featured: true,
-    bannerUrl: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'dept-2',
@@ -127,7 +127,7 @@ export default function AdminDepartmentsPage() {
     setFormDesc('');
     setFormStatus('Active');
     setFormFeatured(false);
-    setFormBanner('https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80');
+    setFormBanner('https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80');
     setIsModalOpen(true);
   };
 

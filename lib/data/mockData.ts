@@ -7,7 +7,7 @@ export const INITIAL_CATEGORIES: Category[] = [
     slug: 'mens-slim-fit-jeans',
     gender: 'men',
     description: 'Tailored modern slim cut with comfortable flex denim for everyday styling.',
-    image: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
     itemCount: 18,
   },
   {
@@ -154,7 +154,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
         buttonLink: '/shop?gender=men',
         button2Text: 'Season Sale - Up to 30% Off',
         button2Link: '/shop?filter=sale',
-        imageUrl: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=1920&q=85',
+        imageUrl: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1920&q=85',
       },
       {
         id: 'slide-3',
@@ -176,7 +176,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     couponCode: 'JEANS10',
     buttonText: 'Claim Discount Now',
     buttonLink: '/shop?filter=sale',
-    imageUrl: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
     imageTag: 'SIGNATURE FIT COLLECTION',
   },
   customerReviews: {
@@ -219,7 +219,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
       'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=600&q=80',
     ],
   },

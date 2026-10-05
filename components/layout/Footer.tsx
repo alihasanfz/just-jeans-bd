@@ -307,6 +307,14 @@ export default function Footer() {
                 </div>
               )}
             </form>
+
+            <div className="pt-4 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+              <Link href="/shop" className="hover:text-slate-300 transition-colors">Privacy Policy</Link>
+              <span>•</span>
+              <Link href="/shop" className="hover:text-slate-300 transition-colors">Terms & Conditions</Link>
+              <span>•</span>
+              <Link href="/track-order" className="hover:text-slate-300 transition-colors">Delivery Info</Link>
+            </div>
           </div>
         </div>
 

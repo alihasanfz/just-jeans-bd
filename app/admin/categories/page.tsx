@@ -19,7 +19,7 @@ import { Category, GenderCategory } from '@/types';
 import ImageUploadField from '@/components/admin/ImageUploadField';
 
 export default function AdminCategoriesPage() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useProducts();
+  const { categories, addCategory, updateCategory, deleteCategory, syncCategoriesToSupabase, isCloudConnected } = useProducts();
   const { theme } = useAdminTheme();
   const isDark = theme === 'dark';
 
@@ -28,6 +28,8 @@ export default function AdminCategoriesPage() {
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   // Sync cats whenever productsContext categories change
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function AdminCategoriesPage() {
     setFormSlug('');
     setFormGender('men');
     setFormDesc('');
-    setFormImage('https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80');
+    setFormImage('https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80');
     setIsModalOpen(true);
   };
 
@@ -61,14 +63,32 @@ export default function AdminCategoriesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSyncToCloud = async () => {
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await syncCategoriesToSupabase();
+      if (res.success) {
+        setSyncStatus(`Successfully synced ${res.count} categories to live website!`);
+      } else {
+        setSyncStatus(`Sync error: ${res.message}`);
+      }
+    } catch (e: any) {
+      setSyncStatus(`Sync error: ${e?.message}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncStatus(null), 5000);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) return;
 
     const slug = formSlug.trim() || formName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
     if (editingCat) {
-      updateCategory(editingCat.id, {
+      await updateCategory(editingCat.id, {
         name: formName,
         slug,
         gender: formGender,
@@ -85,7 +105,7 @@ export default function AdminCategoriesPage() {
         image: formImage,
         itemCount: 0,
       };
-      addCategory(newCategory);
+      await addCategory(newCategory);
     }
     setIsModalOpen(false);
   };
@@ -117,17 +137,70 @@ export default function AdminCategoriesPage() {
             Denim Categories
           </h1>
           <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Manage primary product categories (Slim, Baggy, Mom, Cargo, Wide Leg)
+            Manage Homepage &quot;Shop by Category&quot; cards, photos, and fits
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {isCloudConnected && (
+            <button
+              onClick={handleSyncToCloud}
+              disabled={isSyncing}
+              className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all border shadow-xs active:scale-95 ${
+                isDark
+                  ? 'bg-slate-900 hover:bg-slate-800 text-blue-400 border-slate-700'
+                  : 'bg-white hover:bg-slate-50 text-blue-600 border-slate-200'
+              } ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Push all categories to Supabase cloud database to update live website across all devices"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>{isSyncing ? 'Syncing to Cloud...' : 'Sync to Live Site'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={openCreateModal}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Category</span>
+          </button>
+        </div>
+      </div>
+
+      {syncStatus && (
+        <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-fade-in ${
+          syncStatus.includes('error') || syncStatus.includes('Error')
+            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        }`}>
+          <span>{syncStatus}</span>
+        </div>
+      )}
+
+      {/* Homepage Integration Info Banner */}
+      <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 flex-wrap ${
+        isDark ? 'bg-blue-950/20 border-blue-900/40 text-blue-300' : 'bg-blue-50/80 border-blue-200/70 text-blue-900'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider">Homepage &quot;Shop by Category&quot; Control</h4>
+            <p className="text-[11px] opacity-80 mt-0.5">
+              Editing these categories immediately updates the 8 cards shown in the &quot;Shop by Category&quot; grid on the Homepage.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/#shop-by-category"
+          target="_blank"
+          className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
         >
-          <Plus className="w-4 h-4" />
-          <span>Add Category</span>
-        </button>
+          <span>View on Homepage</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       {/* Filter and Search Bar */}

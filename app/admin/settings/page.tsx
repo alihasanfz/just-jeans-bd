@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   Store,
   Truck,
@@ -26,6 +27,8 @@ import {
   Sparkles,
   ArrowRight,
   Eye,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { formatPrice } from '@/lib/utils';
@@ -43,7 +46,7 @@ function AdminSettingsContent() {
   const searchParams = useSearchParams();
   const urlTab = searchParams.get('tab') || 'store';
 
-  const { siteSettings, updateSiteSettings } = useProducts();
+  const { siteSettings, updateSiteSettings, categories, isLoaded } = useProducts();
 
   const [activeTab, setActiveTab] = useState<'store' | 'shipping' | 'payments' | 'home' | 'header-footer'>(
     (urlTab as any) || 'store'
@@ -54,6 +57,8 @@ function AdminSettingsContent() {
       setActiveTab(urlTab as any);
     }
   }, [urlTab]);
+
+  const hasInitializedRef = React.useRef(false);
 
   // Tab 1: Store states
   const [siteName, setSiteName] = useState(siteSettings.siteName);
@@ -93,7 +98,7 @@ function AdminSettingsContent() {
   const [promoBtnLink, setPromoBtnLink] = useState(siteSettings.promoBanner?.buttonLink || '/shop?filter=sale');
   const [promoImgUrl, setPromoImgUrl] = useState(
     siteSettings.promoBanner?.imageUrl ||
-      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80'
+      'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80'
   );
   const [promoImgTag, setPromoImgTag] = useState(siteSettings.promoBanner?.imageTag || 'SIGNATURE FIT COLLECTION');
 
@@ -115,7 +120,7 @@ function AdminSettingsContent() {
       'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=600&q=80',
     ]
   );
@@ -124,6 +129,7 @@ function AdminSettingsContent() {
   const [announcementText, setAnnouncementText] = useState(siteSettings.announcementText);
   const [facebookUrl, setFacebookUrl] = useState(siteSettings.socialLinks.facebook || 'https://www.facebook.com/share/1F7Qzp3uzD/');
   const [instagramUrl, setInstagramUrl] = useState(siteSettings.socialLinks.instagram || 'https://instagram.com/jeansbd');
+  const [tiktokUrl, setTiktokUrl] = useState(siteSettings.socialLinks.tiktok || 'https://tiktok.com/@jeansbd');
   const [youtubeUrl, setYoutubeUrl] = useState(siteSettings.socialLinks.youtube || 'https://youtube.com/@jeansbd');
 
   // Trust Badges
@@ -146,6 +152,67 @@ function AdminSettingsContent() {
   );
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && siteSettings && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      if (siteSettings.siteName) setSiteName(siteSettings.siteName);
+      if (siteSettings.tagline) setTagline(siteSettings.tagline);
+      if (siteSettings.logoUrl) setLogoUrl(siteSettings.logoUrl);
+      if (siteSettings.phone) setPhone(siteSettings.phone);
+      if (siteSettings.email) setEmail(siteSettings.email);
+      if (siteSettings.address) setAddress(siteSettings.address);
+      if (siteSettings.googleMapUrl) setGoogleMapUrl(siteSettings.googleMapUrl);
+      if (siteSettings.freeShippingThreshold !== undefined) setFreeShippingThreshold(siteSettings.freeShippingThreshold);
+      if (siteSettings.deliveryChargeDhaka !== undefined) setDeliveryChargeDhaka(siteSettings.deliveryChargeDhaka);
+      if (siteSettings.deliveryChargeOutsideDhaka !== undefined) setDeliveryChargeOutsideDhaka(siteSettings.deliveryChargeOutsideDhaka);
+      if (siteSettings.bkashNumber) setBkashNumber(siteSettings.bkashNumber);
+      if (siteSettings.nagadNumber) setNagadNumber(siteSettings.nagadNumber);
+      if (siteSettings.banners?.heroSlides?.length) setHeroSlides(siteSettings.banners.heroSlides);
+      if (siteSettings.promoBanner) {
+        if (siteSettings.promoBanner.badge) setPromoBadge(siteSettings.promoBanner.badge);
+        if (siteSettings.promoBanner.title) setPromoTitle(siteSettings.promoBanner.title);
+        if (siteSettings.promoBanner.description) setPromoDesc(siteSettings.promoBanner.description);
+        if (siteSettings.promoBanner.couponCode) setPromoCode(siteSettings.promoBanner.couponCode);
+        if (siteSettings.promoBanner.buttonText) setPromoBtnText(siteSettings.promoBanner.buttonText);
+        if (siteSettings.promoBanner.buttonLink) setPromoBtnLink(siteSettings.promoBanner.buttonLink);
+        if (siteSettings.promoBanner.imageUrl) setPromoImgUrl(siteSettings.promoBanner.imageUrl);
+        if (siteSettings.promoBanner.imageTag) setPromoImgTag(siteSettings.promoBanner.imageTag);
+      }
+      if (siteSettings.customerReviews) {
+        if (siteSettings.customerReviews.badge) setReviewsBadge(siteSettings.customerReviews.badge);
+        if (siteSettings.customerReviews.title) setReviewsTitle(siteSettings.customerReviews.title);
+        if (siteSettings.customerReviews.subtitle) setReviewsSubtitle(siteSettings.customerReviews.subtitle);
+        if (siteSettings.customerReviews.items?.length) setReviewItems(siteSettings.customerReviews.items);
+      }
+      if (siteSettings.instagramFeed) {
+        if (siteSettings.instagramFeed.handle) setIgHandle(siteSettings.instagramFeed.handle);
+        if (siteSettings.instagramFeed.title) setIgTitle(siteSettings.instagramFeed.title);
+        if (siteSettings.instagramFeed.url) setIgUrl(siteSettings.instagramFeed.url);
+        if (siteSettings.instagramFeed.images?.length) setIgImages(siteSettings.instagramFeed.images);
+      }
+      if (siteSettings.announcementText) setAnnouncementText(siteSettings.announcementText);
+      if (siteSettings.socialLinks) {
+        if (siteSettings.socialLinks.facebook) setFacebookUrl(siteSettings.socialLinks.facebook);
+        if (siteSettings.socialLinks.instagram) setInstagramUrl(siteSettings.socialLinks.instagram);
+        if (siteSettings.socialLinks.tiktok) setTiktokUrl(siteSettings.socialLinks.tiktok);
+        if (siteSettings.socialLinks.youtube) setYoutubeUrl(siteSettings.socialLinks.youtube);
+      }
+      if (siteSettings.trustBadges) {
+        if (siteSettings.trustBadges.deliveryTitle) setBadgeDeliveryTitle(siteSettings.trustBadges.deliveryTitle);
+        if (siteSettings.trustBadges.deliverySubtitle) setBadgeDeliverySub(siteSettings.trustBadges.deliverySubtitle);
+        if (siteSettings.trustBadges.cottonTitle) setBadgeCottonTitle(siteSettings.trustBadges.cottonTitle);
+        if (siteSettings.trustBadges.cottonSubtitle) setBadgeCottonSub(siteSettings.trustBadges.cottonSubtitle);
+        if (siteSettings.trustBadges.exchangeTitle) setBadgeExchangeTitle(siteSettings.trustBadges.exchangeTitle);
+        if (siteSettings.trustBadges.exchangeSubtitle) setBadgeExchangeSub(siteSettings.trustBadges.exchangeSubtitle);
+        if (siteSettings.trustBadges.paymentTitle) setBadgePaymentTitle(siteSettings.trustBadges.paymentTitle);
+        if (siteSettings.trustBadges.paymentSubtitle) setBadgePaymentSub(siteSettings.trustBadges.paymentSubtitle);
+      }
+      if (siteSettings.footerBrandDescription) setFooterBrandDesc(siteSettings.footerBrandDescription);
+      if (siteSettings.copyrightText) setCopyrightText(siteSettings.copyrightText);
+    }
+  }, [isLoaded, siteSettings]);
 
   // Slide management handlers
   const handleUpdateSlide = (index: number, field: string, val: string) => {
@@ -166,7 +233,7 @@ function AdminSettingsContent() {
       buttonLink: '/shop',
       button2Text: 'Season Sale',
       button2Link: '/shop?filter=sale',
-      imageUrl: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=1920&q=85',
+      imageUrl: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=1920&q=85',
     };
     setHeroSlides((prev) => [...prev, newSlide]);
   };
@@ -213,69 +280,84 @@ function AdminSettingsContent() {
     });
   };
 
-  // Save handler
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateSiteSettings({
-      siteName,
-      tagline,
-      logoUrl,
-      phone,
-      email,
-      address,
-      googleMapUrl,
-      announcementText,
-      freeShippingThreshold,
-      deliveryChargeDhaka,
-      deliveryChargeOutsideDhaka,
-      bkashNumber,
-      nagadNumber,
-      socialLinks: {
-        facebook: facebookUrl,
-        instagram: instagramUrl,
-        youtube: youtubeUrl,
-      },
-      banners: {
-        heroSlides,
-      },
-      promoBanner: {
-        badge: promoBadge,
-        title: promoTitle,
-        description: promoDesc,
-        couponCode: promoCode,
-        buttonText: promoBtnText,
-        buttonLink: promoBtnLink,
-        imageUrl: promoImgUrl,
-        imageTag: promoImgTag,
-      },
-      customerReviews: {
-        badge: reviewsBadge,
-        title: reviewsTitle,
-        subtitle: reviewsSubtitle,
-        items: reviewItems,
-      },
-      instagramFeed: {
-        handle: igHandle,
-        title: igTitle,
-        url: igUrl,
-        images: igImages,
-      },
-      trustBadges: {
-        deliveryTitle: badgeDeliveryTitle,
-        deliverySubtitle: badgeDeliverySub,
-        cottonTitle: badgeCottonTitle,
-        cottonSubtitle: badgeCottonSub,
-        exchangeTitle: badgeExchangeTitle,
-        exchangeSubtitle: badgeExchangeSub,
-        paymentTitle: badgePaymentTitle,
-        paymentSubtitle: badgePaymentSub,
-      },
-      footerBrandDescription: footerBrandDesc,
-      copyrightText: copyrightText,
-    });
+  const [isSaving, setIsSaving] = useState(false);
 
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3500);
+  // Save handler
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    setIsSaving(true);
+    setSaveErrorMessage(null);
+    try {
+      await updateSiteSettings({
+        siteName,
+        tagline,
+        logoUrl,
+        phone,
+        email,
+        address,
+        googleMapUrl,
+        announcementText,
+        freeShippingThreshold: Number(freeShippingThreshold) || 2500,
+        deliveryChargeDhaka: Number(deliveryChargeDhaka) || 80,
+        deliveryChargeOutsideDhaka: Number(deliveryChargeOutsideDhaka) || 150,
+        bkashNumber,
+        nagadNumber,
+        socialLinks: {
+          facebook: facebookUrl,
+          instagram: instagramUrl,
+          tiktok: tiktokUrl,
+          youtube: youtubeUrl,
+        },
+        banners: {
+          heroSlides,
+        },
+        promoBanner: {
+          badge: promoBadge,
+          title: promoTitle,
+          description: promoDesc,
+          couponCode: promoCode,
+          buttonText: promoBtnText,
+          buttonLink: promoBtnLink,
+          imageUrl: promoImgUrl,
+          imageTag: promoImgTag,
+        },
+        customerReviews: {
+          badge: reviewsBadge,
+          title: reviewsTitle,
+          subtitle: reviewsSubtitle,
+          items: reviewItems,
+        },
+        instagramFeed: {
+          handle: igHandle,
+          title: igTitle,
+          url: igUrl,
+          images: igImages,
+        },
+        trustBadges: {
+          deliveryTitle: badgeDeliveryTitle,
+          deliverySubtitle: badgeDeliverySub,
+          cottonTitle: badgeCottonTitle,
+          cottonSubtitle: badgeCottonSub,
+          exchangeTitle: badgeExchangeTitle,
+          exchangeSubtitle: badgeExchangeSub,
+          paymentTitle: badgePaymentTitle,
+          paymentSubtitle: badgePaymentSub,
+        },
+        footerBrandDescription: footerBrandDesc,
+        copyrightText: copyrightText,
+      });
+
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 5000);
+      alert('সফলভাবে সেভ হয়েছে! (All changes saved & synced to live store successfully)');
+    } catch (err: any) {
+      console.error('Failed to save site settings', err);
+      const msg = err?.message || 'Unknown save error';
+      setSaveErrorMessage(msg);
+      alert('Save error: ' + msg);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tabs = [
@@ -310,13 +392,29 @@ function AdminSettingsContent() {
               Changes saved successfully!
             </span>
           )}
+          {saveErrorMessage && (
+            <span className="text-xs text-red-400 font-bold flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-3.5 py-2 rounded-xl animate-fade-in shadow-lg">
+              <AlertCircle className="w-4 h-4" />
+              {saveErrorMessage}
+            </span>
+          )}
           <button
             type="button"
-            onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+            onClick={() => handleSave()}
+            disabled={isSaving}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            <span>Save All Changes</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving Changes...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Save All Changes</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -345,7 +443,7 @@ function AdminSettingsContent() {
       </div>
 
       {/* Form Content */}
-      <form onSubmit={handleSave} className="space-y-6">
+      <div className="space-y-6">
         {/* TAB 1: Store Details */}
         {activeTab === 'store' && (
           <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-5 animate-fade-in">
@@ -750,7 +848,65 @@ function AdminSettingsContent() {
               </div>
             </div>
 
-            {/* 2. FLASH OFFER / PROMO BANNER (Screenshot 2) */}
+            {/* 2. SHOP BY CATEGORY (Curated Denim Fits - 8 Cards) */}
+            <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                <div>
+                  <h3 className="font-black text-base uppercase text-white tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-blue-400" />
+                    <span>Shop by Category (Homepage Fit Cards)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Controls the 8 curated category cards displayed under the Hero Banner on the homepage
+                  </p>
+                </div>
+                <Link
+                  href="/admin/categories"
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-md self-start"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Edit Categories &amp; Photos</span>
+                </Link>
+              </div>
+
+              {/* Category Mini Grid Preview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {categories.slice(0, 8).map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="p-2.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-2.5 group hover:border-blue-500/50 transition-all"
+                  >
+                    <img
+                      src={cat.image || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=400&q=80'}
+                      alt={cat.name}
+                      className="w-12 h-12 rounded-xl object-cover border border-slate-700/60 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] uppercase font-bold text-blue-400">
+                        {cat.gender}
+                      </div>
+                      <div className="text-xs font-bold text-white truncate">
+                        {cat.name}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-blue-950/20 border border-blue-900/40 flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-xs text-blue-300">
+                  Want to change card titles, replace photos, or upload custom imagery? Use the dedicated <strong>Denim Categories Manager</strong>.
+                </span>
+                <Link
+                  href="/admin/categories"
+                  className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Open Category Manager &rarr;
+                </Link>
+              </div>
+            </div>
+
+            {/* 3. FLASH OFFER / PROMO BANNER (Screenshot 2) */}
             <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-6">
               <div className="pb-3 border-b border-slate-800/80">
                 <h3 className="font-black text-base uppercase text-white tracking-wider flex items-center gap-2">
@@ -1293,19 +1449,44 @@ function AdminSettingsContent() {
         )}
 
         {/* Global Save Button at bottom */}
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
-          <span className="text-xs text-slate-400">
-            Clicking Save will update the frontend and synchronize your live store immediately.
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+          <div>
+            <span className="text-xs text-slate-400 block">
+              Clicking Save will update the frontend and synchronize your live store immediately across all devices.
+            </span>
+            {savedSuccess && (
+              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 mt-1">
+                <Check className="w-3.5 h-3.5" />
+                All changes saved &amp; synced to live store!
+              </span>
+            )}
+            {saveErrorMessage && (
+              <span className="text-xs text-red-400 font-bold flex items-center gap-1.5 mt-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {saveErrorMessage}
+              </span>
+            )}
+          </div>
           <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-500 text-white px-7 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+            type="button"
+            onClick={() => handleSave()}
+            disabled={isSaving}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-7 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50 shrink-0"
           >
-            <Save className="w-4 h-4" />
-            <span>Save All Changes</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving Changes...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Save All Changes</span>
+              </>
+            )}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

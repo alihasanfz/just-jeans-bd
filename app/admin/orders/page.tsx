@@ -106,7 +106,7 @@ function AdminOrdersContent() {
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-          {['all', 'Pending', 'Confirmed', 'Processing', 'Ready to Ship', 'Shipped', 'Delivered', 'Cancelled'].map((st) => (
+          {['all', 'Pending', 'Confirmed', 'Processing', 'Ready to Ship', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled', 'Returned'].map((st) => (
             <button
               key={st}
               onClick={() => setSelectedStatus(st)}
@@ -140,7 +140,7 @@ function AdminOrdersContent() {
                 <th className="py-3.5 px-4">Items</th>
                 <th className="py-3.5 px-4">Total Amount</th>
                 <th className="py-3.5 px-4">Courier & Tracking</th>
-                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Quick Status</th>
                 <th className="py-3.5 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -164,7 +164,11 @@ function AdminOrdersContent() {
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`font-bold block ${isDark ? 'text-white' : 'text-slate-900'}`}>{ord.customer.fullName}</span>
-                      <a href={`tel:${ord.customer.phone}`} className="text-[11px] text-blue-500 hover:underline font-mono block">{ord.customer.phone}</a>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <a href={`tel:${ord.customer.phone}`} className="text-[11px] text-blue-500 hover:underline font-mono">
+                          {ord.customer.phone}
+                        </a>
+                      </div>
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`font-semibold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{ord.customer.district}</span>
@@ -191,19 +195,29 @@ function AdminOrdersContent() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                      <select
+                        value={ord.orderStatus}
+                        onChange={(e) => updateOrderStatus(ord.id, e.target.value as OrderStatus, `Status updated from table`)}
+                        className={`text-[11px] font-bold px-2 py-1 rounded-xl border focus:outline-none transition-all ${
                           ord.orderStatus === 'Delivered'
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                            : ord.orderStatus === 'Shipped'
-                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                            : ord.orderStatus === 'Cancelled'
-                            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
-                            : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                        }`}
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                            : ord.orderStatus === 'Shipped' || ord.orderStatus === 'Out for Delivery'
+                            ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+                            : ord.orderStatus === 'Cancelled' || ord.orderStatus === 'Returned'
+                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                            : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                        } ${isDark ? 'bg-slate-900' : 'bg-white'}`}
                       >
-                        {ord.orderStatus}
-                      </span>
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Ready to Ship">Ready to Ship</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Out for Delivery">Out for Delivery</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Returned">Returned</option>
+                      </select>
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">

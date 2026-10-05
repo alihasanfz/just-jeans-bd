@@ -50,12 +50,25 @@ function mapDbProduct(row: any): Product {
   };
 }
 
+function mapDbCategory(row: any): Category {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    gender: (row.gender as any) || 'men',
+    description: row.description || '',
+    image: row.image_url || row.image || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
+    itemCount: row.item_count || 12,
+  };
+}
+
 interface ProductsContextType {
   products: Product[];
   categories: Category[];
   siteSettings: SiteSettings;
   isCloudConnected: boolean;
-  updateSiteSettings: (settings: Partial<SiteSettings>) => void;
+  isLoaded: boolean;
+  updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
   getProductBySlug: (slug: string) => Product | undefined;
   getProductById: (id: string) => Product | undefined;
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
@@ -65,6 +78,7 @@ interface ProductsContextType {
   addCategory: (category: Category) => void;
   updateCategory: (id: string, updates: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
+  syncCategoriesToSupabase: () => Promise<{ success: boolean; count?: number; message?: string }>;
   quickViewProduct: Product | null;
   setQuickViewProduct: (product: Product | null) => void;
   syncLocalProductsToSupabase: () => Promise<{ success: boolean; count?: number; message?: string }>;
@@ -98,6 +112,32 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
               setProducts(mapped);
               await idbSet('jeansbd_products', mapped);
               loadedFromSupabase = true;
+            }
+
+            // Fetch categories from Supabase
+            const { data: dbCats, error: catError } = await supabase
+              .from('categories')
+              .select('*')
+              .eq('is_active', true)
+              .order('display_order', { ascending: true });
+
+            if (!catError && Array.isArray(dbCats) && dbCats.length > 0) {
+              const mappedCats = dbCats.map(mapDbCategory);
+              setCategories(mappedCats);
+              await idbSet('jeansbd_categories', mappedCats);
+            } else if (!catError && Array.isArray(dbCats) && dbCats.length === 0) {
+              // Auto-seed initial categories to Supabase
+              const toInsert = INITIAL_CATEGORIES.map((cat, idx) => ({
+                id: cat.id,
+                name: cat.name,
+                slug: cat.slug,
+                gender: cat.gender,
+                description: cat.description,
+                image_url: cat.image,
+                display_order: idx + 1,
+                is_active: true,
+              }));
+              await supabase.from('categories').insert(toInsert);
             }
           } catch (dbErr) {
             console.warn('Supabase fetch failed, trying local storage cache', dbErr);
@@ -145,28 +185,64 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           setCategories(idbCats);
         } else {
           const savedCats = localStorage.getItem('jeansbd_categories');
-          if (savedCats) setCategories(JSON.parse(savedCats));
+          if (savedCats) {
+            try {
+              setCategories(JSON.parse(savedCats));
+            } catch (e) {}
+          }
         }
 
-        const savedSettings = localStorage.getItem('jeansbd_settings');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          const merged: SiteSettings = {
-            ...DEFAULT_SITE_SETTINGS,
-            ...parsed,
-            phone: parsed.phone === '+880 1700-000000' ? DEFAULT_SITE_SETTINGS.phone : (parsed.phone || DEFAULT_SITE_SETTINGS.phone),
-            email: parsed.email === 'support@jeansbd.com' ? DEFAULT_SITE_SETTINGS.email : (parsed.email || DEFAULT_SITE_SETTINGS.email),
-            address: parsed.address?.includes('Banani') ? DEFAULT_SITE_SETTINGS.address : (parsed.address || DEFAULT_SITE_SETTINGS.address),
-            googleMapUrl: parsed.googleMapUrl || DEFAULT_SITE_SETTINGS.googleMapUrl,
-            banners: parsed.banners || DEFAULT_SITE_SETTINGS.banners,
-            promoBanner: parsed.promoBanner || DEFAULT_SITE_SETTINGS.promoBanner,
-            customerReviews: parsed.customerReviews || DEFAULT_SITE_SETTINGS.customerReviews,
-            instagramFeed: parsed.instagramFeed || DEFAULT_SITE_SETTINGS.instagramFeed,
-            trustBadges: parsed.trustBadges || DEFAULT_SITE_SETTINGS.trustBadges,
-            footerBrandDescription: parsed.footerBrandDescription || DEFAULT_SITE_SETTINGS.footerBrandDescription,
-            copyrightText: parsed.copyrightText || DEFAULT_SITE_SETTINGS.copyrightText,
-          };
-          setSiteSettings(merged);
+        let loadedSettingsFromCloud = false;
+        if (isSupabaseConfigured) {
+          try {
+            const { data: dbSettings, error: setErr } = await supabase
+              .from('site_settings')
+              .select('*')
+              .eq('id', 1)
+              .maybeSingle();
+
+            if (!setErr && dbSettings && dbSettings.data && Object.keys(dbSettings.data).length > 0) {
+              const merged: SiteSettings = {
+                ...DEFAULT_SITE_SETTINGS,
+                ...dbSettings.data,
+              };
+              setSiteSettings(merged);
+              await idbSet('jeansbd_settings', merged);
+              loadedSettingsFromCloud = true;
+            } else if (!setErr && !dbSettings) {
+              // Auto-seed default site settings to Supabase
+              await supabase.from('site_settings').upsert({
+                id: 1,
+                data: DEFAULT_SITE_SETTINGS,
+                updated_at: new Date().toISOString(),
+              });
+            }
+          } catch (e) {
+            console.warn('Supabase site_settings fetch error', e);
+          }
+        }
+
+        if (!loadedSettingsFromCloud) {
+          const idbSettings = await idbGet<SiteSettings>('jeansbd_settings');
+          if (idbSettings && typeof idbSettings === 'object' && Object.keys(idbSettings).length > 0) {
+            const merged: SiteSettings = {
+              ...DEFAULT_SITE_SETTINGS,
+              ...idbSettings,
+            };
+            setSiteSettings(merged);
+          } else {
+            const savedSettings = localStorage.getItem('jeansbd_settings');
+            if (savedSettings) {
+              try {
+                const parsed = JSON.parse(savedSettings);
+                const merged: SiteSettings = {
+                  ...DEFAULT_SITE_SETTINGS,
+                  ...parsed,
+                };
+                setSiteSettings(merged);
+              } catch (e) {}
+            }
+          }
         }
       } catch (e) {
         console.error('Failed to load products context', e);
@@ -179,6 +255,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
     // 3. Realtime Supabase subscription across all devices
     let channel: any;
+    let catChannel: any;
+    let settingsChannel: any;
     if (isSupabaseConfigured) {
       try {
         channel = supabase
@@ -205,15 +283,55 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
             }
           )
           .subscribe();
+
+        catChannel = supabase
+          .channel('public-categories-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'categories' },
+            (payload) => {
+              if (payload.eventType === 'INSERT') {
+                const inserted = mapDbCategory(payload.new);
+                setCategories((prev) => {
+                  if (prev.some((c) => c.id === inserted.id)) return prev;
+                  return [...prev, inserted];
+                });
+              } else if (payload.eventType === 'UPDATE') {
+                const updated = mapDbCategory(payload.new);
+                setCategories((prev) =>
+                  prev.map((c) => (c.id === updated.id ? updated : c))
+                );
+              } else if (payload.eventType === 'DELETE') {
+                const deletedId = (payload.old as any).id;
+                setCategories((prev) => prev.filter((c) => c.id !== deletedId));
+              }
+            }
+          )
+          .subscribe();
+
+        settingsChannel = supabase
+          .channel('public-settings-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'site_settings' },
+            (payload) => {
+              if (payload.new && (payload.new as any).data) {
+                const incoming = (payload.new as any).data;
+                setSiteSettings((prev) => ({ ...prev, ...incoming }));
+                idbSet('jeansbd_settings', incoming);
+              }
+            }
+          )
+          .subscribe();
       } catch (err) {
         console.warn('Realtime subscription failed:', err);
       }
     }
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
+      if (catChannel) supabase.removeChannel(catChannel);
+      if (settingsChannel) supabase.removeChannel(settingsChannel);
     };
   }, []);
 
@@ -235,8 +353,37 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [products, categories, siteSettings, isLoaded]);
 
-  const updateSiteSettings = (newSettings: Partial<SiteSettings>) => {
-    setSiteSettings((prev) => ({ ...prev, ...newSettings }));
+  const updateSiteSettings = async (newSettings: Partial<SiteSettings>) => {
+    const updated = { ...siteSettings, ...newSettings };
+    setSiteSettings(updated);
+
+    // 1. High capacity IndexedDB storage for base64 images without quota errors
+    await idbSet('jeansbd_settings', updated);
+
+    // 2. Safe LocalStorage write with quota guard
+    try {
+      localStorage.setItem('jeansbd_settings', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('LocalStorage quota limit reached; saved to IndexedDB & Cloud');
+    }
+
+    // 3. Supabase Cloud Database sync so all devices and live Vercel store update immediately
+    if (isSupabaseConfigured) {
+      try {
+        const { error: sbError } = await supabase.from('site_settings').upsert({
+          id: 1,
+          data: updated,
+          updated_at: new Date().toISOString(),
+        });
+        if (sbError) {
+          console.error('Supabase updateSiteSettings error:', sbError);
+          throw new Error(sbError.message || 'Supabase save error');
+        }
+      } catch (err: any) {
+        console.error('Supabase updateSiteSettings exception:', err);
+        throw err;
+      }
+    }
   };
 
   const getProductBySlug = (slug: string) => {
@@ -411,19 +558,80 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const addCategory = (category: Category) => {
+  const addCategory = async (category: Category) => {
     setCategories((prev) => [...prev, category]);
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('categories').insert({
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          gender: category.gender,
+          description: category.description,
+          image_url: category.image,
+          display_order: 99,
+          is_active: true,
+        });
+      } catch (err) {
+        console.error('Supabase addCategory error:', err);
+      }
+    }
   };
 
-  const updateCategory = (id: string, updates: Partial<Category>) => {
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
     );
+    if (isSupabaseConfigured) {
+      try {
+        const payload: any = { updated_at: new Date().toISOString() };
+        if (updates.name !== undefined) payload.name = updates.name;
+        if (updates.slug !== undefined) payload.slug = updates.slug;
+        if (updates.gender !== undefined) payload.gender = updates.gender;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.image !== undefined) payload.image_url = updates.image;
+        await supabase.from('categories').update(payload).eq('id', id);
+      } catch (err) {
+        console.error('Supabase updateCategory error:', err);
+      }
+    }
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== id));
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('categories').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase deleteCategory error:', err);
+      }
+    }
   };
+
+  const syncCategoriesToSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return { success: false, message: 'Cloud database not configured' };
+    try {
+      let count = 0;
+      for (let i = 0; i < categories.length; i++) {
+        const c = categories[i];
+        const { error } = await supabase.from('categories').upsert({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          gender: c.gender,
+          description: c.description,
+          image_url: c.image,
+          display_order: i + 1,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        });
+        if (!error) count++;
+      }
+      return { success: true, count };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Sync failed' };
+    }
+  }, [categories]);
 
   return (
     <ProductsContext.Provider
@@ -432,6 +640,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         categories,
         siteSettings,
         isCloudConnected: isSupabaseConfigured,
+        isLoaded,
         updateSiteSettings,
         getProductBySlug,
         getProductById,
@@ -442,6 +651,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         addCategory,
         updateCategory,
         deleteCategory,
+        syncCategoriesToSupabase,
         quickViewProduct,
         setQuickViewProduct,
         syncLocalProductsToSupabase,

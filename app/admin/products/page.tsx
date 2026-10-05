@@ -302,7 +302,7 @@ function AdminProductsContent() {
 
     // Filter non-empty images from slots
     const validImages = formImages.filter((img) => img && img.trim() !== '');
-    const mainThumbnail = formThumbnail.trim() || validImages[0] || 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80';
+    const mainThumbnail = formThumbnail.trim() || validImages[0] || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80';
 
     const variants = [
       { id: `v-${Date.now()}-1`, size: '28', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${slug.slice(0, 4).toUpperCase()}-28`, stock: Math.floor(formStock / 4) },

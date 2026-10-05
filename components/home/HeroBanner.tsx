@@ -74,23 +74,23 @@ export default function HeroBanner() {
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
-      className="relative w-full overflow-hidden bg-slate-950 text-white min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center select-none"
+      className="relative w-full overflow-hidden bg-gradient-to-br from-[#090d16] via-[#07172c] to-[#0d1b2a] text-white min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center select-none"
       style={{
         perspective: '1400px',
       }}
     >
       {/* 3D Ambient Neon Flare & Glow Effects */}
       <div
-        className="absolute pointer-events-none transition-transform duration-700 ease-out z-10 w-[550px] h-[550px] rounded-full blur-[140px] opacity-25"
+        className="absolute pointer-events-none transition-transform duration-700 ease-out z-10 w-[550px] h-[550px] rounded-full blur-[140px] opacity-30"
         style={{
-          background: 'radial-gradient(circle, #3b82f6 0%, #6366f1 50%, transparent 70%)',
+          background: 'radial-gradient(circle, #2563eb 0%, #0b2545 60%, transparent 80%)',
           left: `${tilt.px - 25}%`,
           top: `${tilt.py - 25}%`,
           transform: 'translate(-50%, -50%)',
         }}
       />
       
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-br from-indigo-500/20 to-rose-500/10 rounded-full blur-[120px] pointer-events-none z-10" />
+      <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-gradient-to-br from-blue-600/20 via-indigo-600/15 to-amber-600/10 rounded-full blur-[140px] pointer-events-none z-10" />
 
       {/* 3D Floating Particles Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none z-10" />
@@ -130,9 +130,9 @@ export default function HeroBanner() {
                 className="w-full h-full object-cover object-center transform transition-transform duration-[10000ms] ease-out scale-105"
               />
               
-              {/* Cinematic Vignettes */}
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-slate-950/30" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-slate-950/60" />
+              {/* Luxury Denim Cinematic Vignettes */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#090d16]/95 via-[#07172c]/80 to-[#0d1b2a]/40" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-[#07172c]/30 to-[#0d1b2a]/70" />
               
               {/* Dynamic 3D Glare Sheet */}
               <div
@@ -155,14 +155,14 @@ export default function HeroBanner() {
                     transition: isHovered ? 'transform 0.15s ease-out' : 'transform 0.8s ease-out',
                   }}
                 >
-                  {/* 3D Floating Badge */}
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 backdrop-blur-xl text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(59,130,246,0.3)] animate-pulse">
+                  {/* 3D Floating Glassmorphic Badge with Copper/Gold Glow */}
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-blue-200 backdrop-blur-xl text-xs font-black uppercase tracking-widest shadow-[0_0_25px_rgba(37,99,235,0.35)]">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{slide.badge || 'PREMIUM 3D DENIM COLLECTION'}</span>
+                    <span>{slide.badge || 'LUXURY DENIM COLLECTION 2026'}</span>
                   </div>
 
                   {/* Main Title with 3D Depth Typography */}
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-[1.06] text-white drop-shadow-[0_10px_25px_rgba(0,0,0,0.8)]">
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-[1.06] text-white drop-shadow-[0_10px_25px_rgba(0,0,0,0.8)] font-display">
                     {slide.title}
                   </h1>
 
@@ -171,18 +171,18 @@ export default function HeroBanner() {
                     {slide.subtitle}
                   </p>
 
-                  {/* CTA Buttons with 3D Hover Lift */}
+                  {/* CTA Buttons with 3D Hover Lift and Soft Glow */}
                   <div className="flex flex-wrap items-center gap-4 pt-2">
                     <Link
                       href={slide.buttonLink || '/shop'}
-                      className="relative group overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm uppercase tracking-wider px-8 py-4 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-3 border border-blue-400/40"
+                      className="relative group overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm uppercase tracking-wider px-8 py-4 rounded-2xl shadow-[0_0_30px_rgba(37,99,235,0.45)] transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-3 border border-blue-400/40"
                       style={{
                         transform: 'translateZ(25px)',
                       }}
                     >
                       <span className="relative z-10">{slide.buttonText || 'EXPLORE COLLECTION'}</span>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform relative z-10" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                     </Link>
 
                     {slide.button2Text && (
@@ -193,25 +193,25 @@ export default function HeroBanner() {
                           transform: 'translateZ(15px)',
                         }}
                       >
-                        <Flame className="w-4 h-4 text-rose-400" />
+                        <Flame className="w-4 h-4 text-amber-400" />
                         <span>{slide.button2Text}</span>
                       </Link>
                     )}
                   </div>
 
-                  {/* Micro Trust Pills */}
-                  <div className="flex flex-wrap items-center gap-4 pt-2 text-xs font-semibold text-slate-300">
-                    <div className="flex items-center gap-1.5 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+                  {/* Clean Glassmorphic Trust Badges */}
+                  <div className="flex flex-wrap items-center gap-3 pt-3 text-xs font-semibold text-slate-300">
+                    <div className="flex items-center gap-2 bg-[#07172c]/80 backdrop-blur-xl px-3.5 py-2 rounded-2xl border border-white/10 shadow-sm">
                       <Truck className="w-3.5 h-3.5 text-blue-400" />
                       <span>24-48h Delivery</span>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-2 bg-[#07172c]/80 backdrop-blur-xl px-3.5 py-2 rounded-2xl border border-white/10 shadow-sm">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                       <span>100% Cotton Weave</span>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-2 bg-[#07172c]/80 backdrop-blur-xl px-3.5 py-2 rounded-2xl border border-white/10 shadow-sm">
                       <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
-                      <span>4.9★ Rated</span>
+                      <span>4.9★ Rated (15,000+ Delivered)</span>
                     </div>
                   </div>
                 </div>

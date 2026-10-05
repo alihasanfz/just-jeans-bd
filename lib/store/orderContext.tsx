@@ -32,7 +32,7 @@ const INITIAL_DEMO_ORDERS: Order[] = [
         productId: 'prod-001',
         productSlug: 'vintage-washed-slim-tapered-jeans',
         name: 'Vintage Washed Slim Tapered Jeans',
-        image: 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80',
+        image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
         size: '32',
         color: 'Vintage Blue',
         price: 1890,
