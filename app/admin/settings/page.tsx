@@ -122,7 +122,7 @@ function AdminSettingsContent() {
 
   // Tab 5: Header & Footer states
   const [announcementText, setAnnouncementText] = useState(siteSettings.announcementText);
-  const [facebookUrl, setFacebookUrl] = useState(siteSettings.socialLinks.facebook || 'https://facebook.com/jeansbd');
+  const [facebookUrl, setFacebookUrl] = useState(siteSettings.socialLinks.facebook || 'https://www.facebook.com/share/1F7Qzp3uzD/');
   const [instagramUrl, setInstagramUrl] = useState(siteSettings.socialLinks.instagram || 'https://instagram.com/jeansbd');
   const [youtubeUrl, setYoutubeUrl] = useState(siteSettings.socialLinks.youtube || 'https://youtube.com/@jeansbd');
 

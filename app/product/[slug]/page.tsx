@@ -93,8 +93,8 @@ export default function ProductDetailPage() {
   const isWished = isInWishlist(product.id);
   const effectivePrice = product.discountPrice || product.price;
 
-  // Phone and messaging links configured from settings or screenshot reference
-  const rawPhone = siteSettings?.phone || '01846693151';
+  // Phone and messaging links configured from settings or user's provided contact info
+  const rawPhone = siteSettings?.phone || '01775743148';
   const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
   const displayPhone = cleanPhone.startsWith('88') ? cleanPhone.replace(/^88/, '') : cleanPhone;
   const formattedDisplayPhone = rawPhone.startsWith('+') ? rawPhone : `+88${displayPhone}`;
@@ -105,11 +105,11 @@ export default function ProductDetailPage() {
   const whatsAppOrderUrl = `https://wa.me/${waPhoneIntl}?text=${encodeURIComponent(whatsAppOrderText)}`;
 
   const messengerUrl = (() => {
-    const fb = siteSettings?.socialLinks?.facebook;
-    if (!fb) return 'https://m.me/jeansbd';
+    const fb = siteSettings?.socialLinks?.facebook || 'https://www.facebook.com/share/1F7Qzp3uzD/';
+    if (fb.includes('facebook.com/share/')) return fb;
     if (fb.includes('m.me/')) return fb;
     const username = fb.replace(/^https?:\/\/(www\.)?facebook\.com\//, '').replace(/\/$/, '');
-    return username ? `https://m.me/${username}` : 'https://m.me/jeansbd';
+    return username ? `https://m.me/${username}` : fb;
   })();
 
   const handleAddToCart = () => {
@@ -459,7 +459,7 @@ export default function ProductDetailPage() {
                 </button>
               </div>
 
-              {/* Row 2: Call Now: +8801846693151 */}
+              {/* Row 2: Call Now: +8801775743148 */}
               <a
                 href={`tel:${telNumber}`}
                 className="w-full bg-[#3b82f6] hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
