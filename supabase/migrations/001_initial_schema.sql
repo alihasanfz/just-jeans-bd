@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- 2. CATEGORIES TABLE
 CREATE TABLE IF NOT EXISTS public.categories (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
   gender TEXT NOT NULL CHECK (gender IN ('men', 'women', 'unisex')),
@@ -33,13 +33,17 @@ CREATE TABLE IF NOT EXISTS public.categories (
 
 -- 3. PRODUCTS TABLE
 CREATE TABLE IF NOT EXISTS public.products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   name TEXT NOT NULL,
   name_bn TEXT DEFAULT '',
+  subtitle TEXT DEFAULT '',
   slug TEXT UNIQUE NOT NULL,
-  category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+  category TEXT DEFAULT '',
+  category_id TEXT REFERENCES public.categories(id) ON DELETE SET NULL,
   gender TEXT NOT NULL CHECK (gender IN ('men', 'women', 'unisex')),
   fit TEXT NOT NULL,
+  wash_color TEXT DEFAULT '',
+  fabric_composition TEXT DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
   details JSONB DEFAULT '[]'::jsonb,
   fabric_care JSONB DEFAULT '[]'::jsonb,
@@ -57,14 +61,15 @@ CREATE TABLE IF NOT EXISTS public.products (
   is_active BOOLEAN DEFAULT TRUE,
   total_stock INT DEFAULT 0,
   tags JSONB DEFAULT '[]'::jsonb,
+  variants JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 4. PRODUCT VARIANTS (Sizes, Colors, SKUs, Stock)
 CREATE TABLE IF NOT EXISTS public.product_variants (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   size TEXT NOT NULL,
   color TEXT NOT NULL,
   color_hex TEXT NOT NULL DEFAULT '#000000',
@@ -78,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
 
 -- 5. ADDRESSES TABLE
 CREATE TABLE IF NOT EXISTS public.addresses (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL,
   phone TEXT NOT NULL,
@@ -92,81 +97,78 @@ CREATE TABLE IF NOT EXISTS public.addresses (
 
 -- 6. COUPONS TABLE
 CREATE TABLE IF NOT EXISTS public.coupons (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   code TEXT UNIQUE NOT NULL,
   discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
   discount_value NUMERIC(10, 2) NOT NULL CHECK (discount_value > 0),
   min_purchase NUMERIC(10, 2) DEFAULT 0.00,
   max_discount NUMERIC(10, 2),
   expiry_date TIMESTAMPTZ,
-  usage_limit INT,
-  usage_count INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  usage_count INT DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 7. ORDERS TABLE
 CREATE TABLE IF NOT EXISTS public.orders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   order_number TEXT UNIQUE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  guest_email TEXT,
   customer_name TEXT NOT NULL,
   customer_phone TEXT NOT NULL,
+  customer_email TEXT DEFAULT '',
+  delivery_address TEXT NOT NULL,
   district TEXT NOT NULL,
   area TEXT NOT NULL,
-  delivery_address TEXT NOT NULL,
-  order_notes TEXT,
+  notes TEXT DEFAULT '',
   subtotal NUMERIC(10, 2) NOT NULL,
-  discount NUMERIC(10, 2) DEFAULT 0.00,
-  delivery_charge NUMERIC(10, 2) NOT NULL DEFAULT 80.00,
+  shipping_fee NUMERIC(10, 2) NOT NULL,
+  discount_amount NUMERIC(10, 2) DEFAULT 0.00,
   total_amount NUMERIC(10, 2) NOT NULL,
-  coupon_code TEXT,
   payment_method TEXT NOT NULL CHECK (payment_method IN ('cod', 'bkash', 'nagad')),
-  payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded')),
-  payment_transaction_id TEXT,
-  order_status TEXT NOT NULL DEFAULT 'Pending' CHECK (order_status IN (
-    'Pending', 'Confirmed', 'Processing', 'Ready to Ship', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled', 'Returned'
-  )),
-  courier_company TEXT,
-  tracking_number TEXT,
-  dispatch_date TIMESTAMPTZ,
-  estimated_delivery_date TIMESTAMPTZ,
+  payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
+  order_status TEXT NOT NULL DEFAULT 'pending' CHECK (order_status IN ('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled')),
+  payment_trx_id TEXT DEFAULT '',
+  tracking_number TEXT DEFAULT '',
+  items JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 8. ORDER ITEMS TABLE
 CREATE TABLE IF NOT EXISTS public.order_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
-  variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  order_id TEXT NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  product_id TEXT REFERENCES public.products(id) ON DELETE SET NULL,
   product_name TEXT NOT NULL,
-  product_image TEXT NOT NULL,
-  size TEXT NOT NULL,
-  color TEXT NOT NULL,
-  unit_price NUMERIC(10, 2) NOT NULL,
+  variant_size TEXT NOT NULL,
+  variant_color TEXT NOT NULL,
+  price NUMERIC(10, 2) NOT NULL,
   quantity INT NOT NULL CHECK (quantity > 0),
-  subtotal NUMERIC(10, 2) NOT NULL,
+  total_price NUMERIC(10, 2) NOT NULL,
+  thumbnail TEXT DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 9. ORDER STATUS HISTORY TABLE
-CREATE TABLE IF NOT EXISTS public.order_status_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-  status TEXT NOT NULL,
-  note TEXT DEFAULT '',
-  updated_by TEXT DEFAULT 'system',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- 9. PAYMENT TRANSACTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.payment_transactions (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  order_id TEXT REFERENCES public.orders(id) ON DELETE SET NULL,
+  gateway TEXT NOT NULL CHECK (gateway IN ('bkash', 'nagad')),
+  payment_id TEXT UNIQUE NOT NULL,
+  trx_id TEXT DEFAULT '',
+  amount NUMERIC(10, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'BDT',
+  status TEXT NOT NULL DEFAULT 'initiated',
+  raw_response JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 10. PRODUCT REVIEWS TABLE
 CREATE TABLE IF NOT EXISTS public.reviews (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   user_name TEXT NOT NULL,
   rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
@@ -178,9 +180,9 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 
 -- 11. WISHLIST TABLE
 CREATE TABLE IF NOT EXISTS public.wishlists (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(user_id, product_id)
 );
@@ -204,20 +206,44 @@ ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 
--- Public read policies
-CREATE POLICY "Public categories are viewable by everyone" ON public.categories FOR SELECT USING (is_active = true);
-CREATE POLICY "Public products are viewable by everyone" ON public.products FOR SELECT USING (is_active = true);
-CREATE POLICY "Public variants are viewable by everyone" ON public.product_variants FOR SELECT USING (is_active = true);
-CREATE POLICY "Approved reviews are viewable by everyone" ON public.reviews FOR SELECT USING (is_approved = true);
-CREATE POLICY "Site settings are viewable by everyone" ON public.site_settings FOR SELECT USING (true);
+-- Allow unrestricted API access for e-commerce catalog and operations
+DROP POLICY IF EXISTS "Public categories are viewable by everyone" ON public.categories;
+CREATE POLICY "Public categories are viewable by everyone" ON public.categories FOR ALL USING (true) WITH CHECK (true);
 
--- User policies
-CREATE POLICY "Users can view and edit their own profile" ON public.profiles FOR ALL USING (auth.uid() = id);
-CREATE POLICY "Users can view their own orders" ON public.orders FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Anyone can create an order" ON public.orders FOR INSERT WITH CHECK (true);
-CREATE POLICY "Anyone can create order items" ON public.order_items FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can manage wishlist" ON public.wishlists FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Public products are viewable by everyone" ON public.products;
+DROP POLICY IF EXISTS "Admins full access products" ON public.products;
+CREATE POLICY "Full access products" ON public.products FOR ALL USING (true) WITH CHECK (true);
 
--- Admin policy helper & direct API access for products
-CREATE POLICY "Admins full access products" ON public.products FOR ALL USING (true);
-CREATE POLICY "Admins full access orders" ON public.orders FOR ALL USING (true);
+DROP POLICY IF EXISTS "Public variants are viewable by everyone" ON public.product_variants;
+CREATE POLICY "Full access variants" ON public.product_variants FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admins full access orders" ON public.orders;
+CREATE POLICY "Full access orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anyone can create order items" ON public.order_items;
+CREATE POLICY "Full access order items" ON public.order_items FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Site settings are viewable by everyone" ON public.site_settings;
+CREATE POLICY "Full access site settings" ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Approved reviews are viewable by everyone" ON public.reviews;
+CREATE POLICY "Full access reviews" ON public.reviews FOR ALL USING (true) WITH CHECK (true);
+
+-- Enable Supabase Realtime for instant multi-device live sync
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'products'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
