@@ -17,6 +17,10 @@ import {
   ChevronRight,
   Share2,
   MessageSquare,
+  Phone,
+  Mail,
+  Facebook,
+  Linkedin,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { useCart } from '@/lib/store/cartContext';
@@ -30,7 +34,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const slug = params?.slug as string;
 
-  const { getProductBySlug, products, addReview } = useProducts();
+  const { getProductBySlug, products, addReview, siteSettings } = useProducts();
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
@@ -44,6 +48,13 @@ export default function ProductDetailPage() {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'care' | 'reviews'>('desc');
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setShareUrl(window.location.href);
+    }
+  }, []);
 
   // Review Form state
   const [reviewName, setReviewName] = useState('');
@@ -81,6 +92,25 @@ export default function ProductDetailPage() {
   const currentStock = currentVariant ? currentVariant.stock : product.totalStock;
   const isWished = isInWishlist(product.id);
   const effectivePrice = product.discountPrice || product.price;
+
+  // Phone and messaging links configured from settings or screenshot reference
+  const rawPhone = siteSettings?.phone || '01846693151';
+  const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+  const displayPhone = cleanPhone.startsWith('88') ? cleanPhone.replace(/^88/, '') : cleanPhone;
+  const formattedDisplayPhone = rawPhone.startsWith('+') ? rawPhone : `+88${displayPhone}`;
+  const telNumber = rawPhone.startsWith('+') ? rawPhone : `+88${displayPhone}`;
+  const waPhoneIntl = `88${displayPhone.replace(/^0/, '')}`;
+
+  const whatsAppOrderText = `আসসালামু আলাইকুম, আমি অর্ডার করতে চাই:\nপ্রোডাক্ট: ${product.name}\nSKU: ${currentVariant?.sku || 'JBD-001'}\nসাইজ: ${selectedSize || 'N/A'}\nকালার: ${selectedColor || 'N/A'}\nপরিমাণ: ${quantity}\nমূল্য: ৳${effectivePrice * quantity}\nলিঙ্ক: ${shareUrl}`;
+  const whatsAppOrderUrl = `https://wa.me/${waPhoneIntl}?text=${encodeURIComponent(whatsAppOrderText)}`;
+
+  const messengerUrl = (() => {
+    const fb = siteSettings?.socialLinks?.facebook;
+    if (!fb) return 'https://m.me/jeansbd';
+    if (fb.includes('m.me/')) return fb;
+    const username = fb.replace(/^https?:\/\/(www\.)?facebook\.com\//, '').replace(/\/$/, '');
+    return username ? `https://m.me/${username}` : 'https://m.me/jeansbd';
+  })();
 
   const handleAddToCart = () => {
     addToCart({
@@ -211,95 +241,121 @@ export default function ProductDetailPage() {
           {/* Right Column: Product Info & Actions */}
           <div className="flex flex-col justify-between">
             <div>
-              {/* Header Badges */}
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-xs font-black text-blue-600 uppercase tracking-widest">
-                  {product.gender.toUpperCase()} • {product.fit}
-                </span>
-                <span className="text-xs font-semibold text-slate-400">SKU: {currentVariant?.sku || 'JBD-001'}</span>
-              </div>
-
               {/* Title */}
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight mb-1">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight mb-1">
                 {product.name}
               </h1>
               {product.titleBn && (
-                <p className="text-sm font-medium text-slate-400 mb-3">{product.titleBn}</p>
+                <p className="text-sm font-medium text-slate-400 mb-2">{product.titleBn}</p>
               )}
 
-              {/* Rating & Stock */}
-              <div className="flex items-center gap-4 mb-5 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-1.5">
-                  <div className="flex text-amber-400">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-current' : 'text-slate-200'}`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs font-bold text-slate-800">{product.rating}</span>
-                  <span className="text-xs text-slate-400">({product.reviewCount} customer reviews)</span>
+              {/* SKU & Social Share Icons row */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    SKU: <span className="font-normal text-slate-600">{currentVariant?.sku || 'SKU-0001'}</span>
+                  </span>
                 </div>
 
-                <div className="h-4 w-px bg-slate-200" />
-
-                <div className="flex items-center gap-1 text-xs font-bold text-emerald-600">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{currentStock > 0 ? `In Stock (${currentStock} left)` : 'Out of Stock'}</span>
+                {/* Social Share Icons Bar */}
+                <div className="flex items-center gap-1.5 border border-slate-200/90 rounded-lg p-1 bg-white shadow-sm">
+                  <a
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Share on Facebook"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-[#1877F2] hover:text-white flex items-center justify-center text-slate-600 transition-colors"
+                  >
+                    <Facebook className="w-3.5 h-3.5 fill-current" />
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(product.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Share on X"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-black hover:text-white flex items-center justify-center text-slate-600 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                  </a>
+                  <a
+                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Share on LinkedIn"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-[#0A66C2] hover:text-white flex items-center justify-center text-slate-600 transition-colors"
+                  >
+                    <Linkedin className="w-3.5 h-3.5 fill-current" />
+                  </a>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(product.name + ' - ' + shareUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Share on WhatsApp"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-[#25D366] hover:text-white flex items-center justify-center text-slate-600 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.983.541 1.879.82 2.791.82 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.768-5.766zm3.385 8.163c-.144.405-.837.774-1.17.822-.312.043-.681.077-2.203-.554-1.944-.805-3.18-2.778-3.277-2.907-.097-.129-.788-1.047-.788-1.996 0-.949.499-1.417.676-1.611.178-.194.388-.242.517-.242.13 0 .259.002.371.008.119.006.278-.045.435.334.162.388.55 1.341.599 1.438.048.097.081.21.016.339-.065.129-.097.21-.194.323-.097.113-.205.253-.293.34-.097.097-.198.202-.085.396.113.194.502.828 1.078 1.342.741.661 1.365.865 1.559.962.194.097.307.081.42-.048.113-.129.484-.565.613-.759.129-.194.258-.162.436-.097.178.065 1.13.533 1.324.63.194.097.323.145.371.226.048.081.048.469-.096.874zM12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.176L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.636 0-3.167-.488-4.453-1.327l-.319-.209-2.955.775.789-2.88-.23-.366A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z"/>
+                    </svg>
+                  </a>
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent(product.name)}&body=${encodeURIComponent('Check out this product on Jeans BD: ' + shareUrl)}`}
+                    title="Share via Email"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white flex items-center justify-center text-slate-600 transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               </div>
 
-              {/* Price */}
-              <div className="flex items-baseline gap-3 mb-6">
-                <span className="text-3xl lg:text-4xl font-black text-slate-900">
+              {/* Price Line styled like reference: PRICE: ৳950 ৳1590 [ 640 ৳ off ] */}
+              <div className="flex flex-wrap items-baseline gap-2.5 mb-5">
+                <span className="text-sm font-bold text-slate-900 tracking-wider">PRICE:</span>
+                <span className="text-2xl sm:text-3xl font-black text-slate-950">
                   {formatPrice(effectivePrice)}
                 </span>
-                {product.discountPrice && (
-                  <span className="text-lg text-slate-400 line-through font-medium">
+                {product.price > effectivePrice && (
+                  <span className="text-base sm:text-lg text-slate-400 line-through font-medium">
                     {formatPrice(product.price)}
                   </span>
                 )}
-                {product.discountPercentage && (
-                  <span className="bg-red-50 text-red-600 text-xs font-extrabold px-2.5 py-1 rounded-full border border-red-100">
-                    Save ৳{product.price - product.discountPrice!}
+                {product.price > effectivePrice && (
+                  <span className="bg-black text-white text-xs font-bold px-2 py-0.5 rounded">
+                    {product.price - effectivePrice} ৳ off
                   </span>
                 )}
               </div>
 
-              {/* Color Selection */}
+              {/* Color Selection: "Select Your Color:" */}
               {uniqueColors.length > 0 && (
-                <div className="mb-6">
-                  <div className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5">
-                    Color: <span className="font-semibold text-slate-600">{selectedColor}</span>
+                <div className="mb-4">
+                  <div className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
+                    Select Your Color:
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     {uniqueColors.map((c: any) => (
                       <button
                         key={c.color}
                         onClick={() => setSelectedColor(c.color)}
-                        className={`w-9 h-9 rounded-full border-2 transition-all p-0.5 ${
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
                           selectedColor === c.color
-                            ? 'border-blue-600 ring-4 ring-blue-100 scale-105'
-                            : 'border-slate-300 hover:border-slate-400'
+                            ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
                         }`}
-                        title={c.color}
                       >
-                        <span
-                          className="w-full h-full rounded-full block border border-black/10"
-                          style={{ backgroundColor: c.hex }}
-                        />
+                        {c.color}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Size Selection */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2.5">
+              {/* Size Selection: "Select Your Size:" */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Select Waist Size
+                    Select Your Size:
                   </span>
                   <button
                     onClick={() => setIsSizeGuideOpen(true)}
@@ -315,9 +371,9 @@ export default function ProductDetailPage() {
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`min-w-12 h-11 px-3 rounded-xl font-bold text-sm border transition-all ${
+                      className={`min-w-11 h-9 px-3 rounded-lg font-bold text-sm border transition-all ${
                         selectedSize === size
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
                           : 'bg-white text-slate-800 border-slate-200 hover:border-slate-400'
                       }`}
                     >
@@ -327,24 +383,44 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Brand & Status line as in reference */}
+              <div className="space-y-1 mb-4 text-xs font-bold uppercase tracking-wider">
+                <div className="text-slate-700">
+                  BRAND: <span className="font-bold text-slate-900">JUST JEANS BD</span>
+                </div>
+                <div className="text-slate-700">
+                  STATUS:{' '}
+                  <span className="text-emerald-600 font-bold">
+                    {currentStock > 0 ? `IN STOCK (${currentStock} left)` : 'OUT OF STOCK'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Short Description text if present */}
+              {product.description && (
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4 pb-3 border-b border-slate-100">
+                  {product.description}
+                </p>
+              )}
+
               {/* Quantity */}
-              <div className="flex items-center gap-4 mb-8">
+              <div className="flex items-center gap-4 mb-5">
                 <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Quantity:
+                  QUANTITY:
                 </span>
-                <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-3.5 py-2 text-slate-600 hover:bg-slate-200 font-bold transition-colors"
+                    className="px-3.5 py-1.5 text-slate-600 hover:bg-slate-200 font-bold transition-colors"
                   >
                     -
                   </button>
-                  <span className="px-4 py-2 text-sm font-bold text-slate-900 min-w-10 text-center">
+                  <span className="px-3.5 py-1.5 text-sm font-bold text-slate-900 min-w-10 text-center">
                     {quantity}
                   </span>
                   <button
                     onClick={() => setQuantity(Math.min(currentStock, quantity + 1))}
-                    className="px-3.5 py-2 text-slate-600 hover:bg-slate-200 font-bold transition-colors"
+                    className="px-3.5 py-1.5 text-slate-600 hover:bg-slate-200 font-bold transition-colors"
                   >
                     +
                   </button>
@@ -355,41 +431,73 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-3 pt-6 border-t border-slate-100">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Action Buttons styled exactly like reference screenshot */}
+            <div className="space-y-2.5 pt-3 border-t border-slate-100">
+              {/* Row 1: Add to Cart (Blue) and Buy Now (Red) */}
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={handleAddToCart}
                   disabled={currentStock <= 0}
-                  className="w-full bg-slate-900 hover:bg-black text-white py-4 px-6 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98] disabled:bg-slate-300"
+                  className="w-full bg-[#3b82f6] hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
                   {addedSuccess ? (
                     <>
-                      <Check className="w-5 h-5 text-emerald-400" />
+                      <Check className="w-5 h-5 text-emerald-300" />
                       Added to Bag!
                     </>
                   ) : (
-                    <>
-                      <ShoppingBag className="w-5 h-5" />
-                      Add to Shopping Bag
-                    </>
+                    'Add to Cart'
                   )}
                 </button>
 
                 <button
                   onClick={handleBuyNow}
                   disabled={currentStock <= 0}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98] disabled:bg-slate-300"
+                  className="w-full bg-[#ef4444] hover:bg-red-600 text-white py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
-                  <Zap className="w-5 h-5 fill-current" />
-                  Order Now (Cash on Delivery)
+                  Buy Now
                 </button>
               </div>
+
+              {/* Row 2: Call Now: +8801846693151 */}
+              <a
+                href={`tel:${telNumber}`}
+                className="w-full bg-[#3b82f6] hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+              >
+                <Phone className="w-4 h-4 fill-current" />
+                <span>Call Now: {formattedDisplayPhone}</span>
+              </a>
+
+              {/* Row 3: WhatsApp button (Green with WhatsApp Icon) */}
+              <a
+                href={whatsAppOrderUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-[#22c55e] hover:bg-green-600 text-white py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98]"
+              >
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.983.541 1.879.82 2.791.82 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.768-5.766zm3.385 8.163c-.144.405-.837.774-1.17.822-.312.043-.681.077-2.203-.554-1.944-.805-3.18-2.778-3.277-2.907-.097-.129-.788-1.047-.788-1.996 0-.949.499-1.417.676-1.611.178-.194.388-.242.517-.242.13 0 .259.002.371.008.119.006.278-.045.435.334.162.388.55 1.341.599 1.438.048.097.081.21.016.339-.065.129-.097.21-.194.323-.097.113-.205.253-.293.34-.097.097-.198.202-.085.396.113.194.502.828 1.078 1.342.741.661 1.365.865 1.559.962.194.097.307.081.42-.048.113-.129.484-.565.613-.759.129-.194.258-.162.436-.097.178.065 1.13.533 1.324.63.194.097.323.145.371.226.048.081.048.469-.096.874zM12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.176L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.636 0-3.167-.488-4.453-1.327l-.319-.209-2.955.775.789-2.88-.23-.366A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z"/>
+                </svg>
+                <span>{displayPhone}</span>
+              </a>
+
+              {/* Row 4: Messenger button (Green with Messenger Icon) */}
+              <a
+                href={messengerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-[#22c55e] hover:bg-green-600 text-white py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98]"
+              >
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.512 3.735 7.151V22l3.414-1.874c.905.251 1.864.387 2.851.387 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.002 12.441l-2.56-2.73-5 2.73 5.5-5.84 2.62 2.73 4.94-2.73-5.5 5.84z"/>
+                </svg>
+                <span>ম্যাসেঞ্জার অর্ডার</span>
+              </a>
 
               <div className="flex items-center justify-between pt-2 text-xs">
                 <button
                   onClick={() => toggleWishlist(product)}
-                  className={`flex items-center gap-2 py-2 px-3 rounded-xl transition-colors ${
+                  className={`flex items-center gap-2 py-2 px-3 rounded-lg transition-colors ${
                     isWished ? 'text-red-500 font-bold' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -397,11 +505,9 @@ export default function ProductDetailPage() {
                   <span>{isWished ? 'Saved in Wishlist' : 'Add to Wishlist'}</span>
                 </button>
 
-                <div className="flex items-center gap-4 text-slate-500 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5 text-blue-600" />
-                    <span>24-48h Dhaka Delivery</span>
-                  </div>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Truck className="w-3.5 h-3.5 text-blue-600" />
+                  <span>24-48h Dhaka Delivery</span>
                 </div>
               </div>
             </div>
