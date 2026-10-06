@@ -15,8 +15,9 @@ import {
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { parseVideoUrl } from '@/lib/utils/video';
+import { HeroSlide } from '@/types';
 
-const FALLBACK_SLIDES = [
+const FALLBACK_SLIDES: HeroSlide[] = [
   {
     id: 'slide-1',
     badge: 'PREMIUM DENIM COLLECTION',

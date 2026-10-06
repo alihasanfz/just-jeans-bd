@@ -193,6 +193,21 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface HeroSlide {
+  id: string;
+  title: string;
+  titlePart1?: string;
+  titleHighlight?: string;
+  subtitle: string;
+  badge: string;
+  buttonText: string;
+  buttonLink: string;
+  button2Text?: string;
+  button2Link?: string;
+  imageUrl: string;
+  videoUrl?: string; // Optional motion video background (MP4 file or streaming link)
+}
+
 export interface SiteSettings {
   siteName: string;
   tagline: string;
@@ -221,20 +236,7 @@ export interface SiteSettings {
     buttonLink?: string;
   };
   banners: {
-    heroSlides: {
-      id: string;
-      title: string;
-      titlePart1?: string;
-      titleHighlight?: string;
-      subtitle: string;
-      badge: string;
-      buttonText: string;
-      buttonLink: string;
-      button2Text?: string;
-      button2Link?: string;
-      imageUrl: string;
-      videoUrl?: string; // Optional motion video background (MP4 file or streaming link)
-    }[];
+    heroSlides: HeroSlide[];
   };
   promoBanner?: {
     badge: string;
