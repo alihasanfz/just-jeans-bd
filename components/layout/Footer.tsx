@@ -43,8 +43,8 @@ export default function Footer() {
       <div className="container mx-auto px-4 lg:px-6">
         {/* Main Footer Content matching Image 2 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 pb-12 border-b border-white/10">
-          {/* Brand Info (4 Cols) */}
-          <div className="lg:col-span-4 space-y-4">
+          {/* Brand Info (3 Cols) */}
+          <div className="lg:col-span-3 space-y-4">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-gradient-to-tr from-blue-700 to-blue-500 text-white rounded-xl flex items-center justify-center font-black text-base shadow-md">
                 JB
@@ -181,8 +181,8 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Get in Touch (2 Cols) */}
-          <div className="lg:col-span-2 space-y-3">
+          {/* Get in Touch (3 Cols) */}
+          <div className="lg:col-span-3 space-y-3">
             <h4 className="text-xs font-black text-white uppercase tracking-wider">
               Get in Touch
             </h4>
@@ -199,22 +199,45 @@ export default function Footer() {
                   {emailAddr}
                 </a>
               </li>
-              <li className="flex items-start gap-2 group">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5 group-hover:text-amber-400 transition-colors" />
-                <div className="space-y-1">
-                  <span className="leading-snug block">{address}</span>
-                  <a
-                    href={siteSettings?.googleMapUrl || 'https://maps.app.goo.gl/FQtyZRiWgho2owgr7'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    <span>📍 View Live Google Map</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
+              <li className="flex items-start gap-2">
+                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+                <span className="leading-snug">{address}</span>
               </li>
             </ul>
+
+            {/* Live Interactive Google Map: Jeans Manufacturing Company Ltd (Exact match to Image 1) */}
+            <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/90 overflow-hidden shadow-xl">
+              <div className="px-3 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                  <span className="text-[11px] font-bold text-white truncate">
+                    Live Google Map: Jeans Manufacturing Company Ltd
+                  </span>
+                </div>
+                <span className="text-[9px] text-slate-400 font-mono shrink-0 hidden sm:inline">
+                  Mirpur-01, Dhaka
+                </span>
+              </div>
+              <div className="relative w-full h-44 bg-slate-950">
+                <iframe
+                  title="Jeans BD Live Google Map"
+                  src="https://maps.google.com/maps?q=Jeans+manufacturing+company+Ltd+Mollik+Tower+Zoo+Road+Mirpur+Dhaka&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+                <a
+                  href={siteSettings?.googleMapUrl || 'https://maps.app.goo.gl/FQtyZRiWgho2owgr7'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="absolute top-2 left-2 bg-white/95 hover:bg-white text-slate-900 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-md flex items-center gap-1 transition-all hover:scale-105 z-10"
+                >
+                  <span>Open in Maps</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+            </div>
           </div>
 
           {/* Newsletter (2 Cols) */}
