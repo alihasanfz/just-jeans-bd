@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   discount_percentage INT DEFAULT 0,
   images JSONB DEFAULT '[]'::jsonb,
   thumbnail TEXT NOT NULL,
+  video_url TEXT DEFAULT '',
+  videos JSONB DEFAULT '[]'::jsonb,
   rating NUMERIC(2, 1) DEFAULT 5.0,
   review_count INT DEFAULT 0,
   is_new_arrival BOOLEAN DEFAULT FALSE,

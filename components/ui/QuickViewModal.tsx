@@ -20,9 +20,13 @@ import {
   Flame,
   BadgeCheck,
   Sparkles,
+  Play,
+  Film,
+  Video,
 } from 'lucide-react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
+import { parseVideoUrl } from '@/lib/utils/video';
 import { useCart } from '@/lib/store/cartContext';
 import { useWishlist } from '@/lib/store/wishlistContext';
 import { useProducts } from '@/lib/store/productsContext';
@@ -41,6 +45,7 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState<string>('');
+  const [activeMediaType, setActiveMediaType] = useState<'image' | 'video'>('image');
   const [quantity, setQuantity] = useState<number>(1);
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
   const [shareUrl, setShareUrl] = useState<string>('');
@@ -58,6 +63,7 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
       setSelectedSize(firstVariant?.size || '30');
       setSelectedColor(firstVariant?.color || 'Blue');
       setSelectedImage(product.images[0] || product.thumbnail);
+      setActiveMediaType('image');
       setQuantity(1);
       setAddedSuccess(false);
     }
@@ -138,33 +144,97 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {/* Gallery Preview */}
           <div className="space-y-3.5">
-            <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
-              <img
-                src={selectedImage || product.thumbnail}
-                alt={product.name}
-                className="w-full h-full object-cover object-center"
-              />
-              {discountPercent > 0 && (
-                <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
-                  <Flame className="w-3 h-3 fill-current" />
-                  -{discountPercent}% OFF
-                </div>
-              )}
-            </div>
+            {activeMediaType === 'video' && product.videoUrl ? (
+              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-inner flex items-center justify-center">
+                {(() => {
+                  const info = parseVideoUrl(product.videoUrl);
+                  if (info?.type === 'youtube' || info?.type === 'vimeo') {
+                    return (
+                      <iframe
+                        src={info.embedUrl}
+                        title={product.name}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    );
+                  }
+                  return (
+                    <video
+                      src={product.videoUrl}
+                      controls
+                      autoPlay
+                      loop
+                      playsInline
+                      className="w-full h-full object-contain"
+                    />
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={() => setActiveMediaType('image')}
+                  className="absolute top-2 left-2 z-10 bg-black/70 hover:bg-black text-white text-[10px] font-bold px-2 py-1 rounded-lg border border-white/20 backdrop-blur-md"
+                >
+                  ← Photos
+                </button>
+              </div>
+            ) : (
+              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
+                <img
+                  src={selectedImage || product.thumbnail}
+                  alt={product.name}
+                  className="w-full h-full object-cover object-center"
+                />
+                {discountPercent > 0 && (
+                  <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+                    <Flame className="w-3 h-3 fill-current" />
+                    -{discountPercent}% OFF
+                  </div>
+                )}
+                {product.videoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaType('video')}
+                    className="absolute bottom-3 left-3 z-10 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 transition active:scale-95"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>Watch Video</span>
+                  </button>
+                )}
+              </div>
+            )}
 
-            {product.images.length > 1 && (
+            {(product.images.length > 1 || product.videoUrl) && (
               <div className="flex gap-2.5 overflow-x-auto pb-1">
                 {product.images.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setSelectedImage(img)}
+                    onClick={() => {
+                      setSelectedImage(img);
+                      setActiveMediaType('image');
+                    }}
                     className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
-                      selectedImage === img ? 'border-blue-600 ring-2 ring-blue-50 shadow-sm' : 'border-slate-200 opacity-70 hover:opacity-100'
+                      activeMediaType === 'image' && selectedImage === img ? 'border-blue-600 ring-2 ring-blue-50 shadow-sm' : 'border-slate-200 opacity-70 hover:opacity-100'
                     }`}
                   >
                     <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
+
+                {product.videoUrl && (
+                  <button
+                    onClick={() => setActiveMediaType('video')}
+                    className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-slate-950 flex flex-col items-center justify-center text-white ${
+                      activeMediaType === 'video'
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm'
+                        : 'border-slate-800 opacity-80 hover:opacity-100'
+                    }`}
+                    title="Watch Video"
+                  >
+                    <Play className="w-4 h-4 fill-current text-indigo-400 mb-0.5" />
+                    <span className="text-[9px] font-black text-indigo-300">VIDEO</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

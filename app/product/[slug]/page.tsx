@@ -26,11 +26,15 @@ import {
   BadgeCheck,
   CreditCard,
   ZoomIn,
+  Play,
+  Film,
+  Video,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { useCart } from '@/lib/store/cartContext';
 import { useWishlist } from '@/lib/store/wishlistContext';
 import { formatPrice } from '@/lib/utils';
+import { parseVideoUrl } from '@/lib/utils/video';
 import ProductCard from '@/components/ui/ProductCard';
 import SizeGuideModal from '@/components/ui/SizeGuideModal';
 
@@ -47,6 +51,7 @@ export default function ProductDetailPage() {
 
   // States
   const [selectedImage, setSelectedImage] = useState<string>('');
+  const [activeMediaType, setActiveMediaType] = useState<'image' | 'video'>('image');
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
@@ -78,6 +83,7 @@ export default function ProductDetailPage() {
       setSelectedColor(first?.color || 'Blue');
       setSelectedImage(product.images[0] || product.thumbnail);
       setActiveImgIndex(0);
+      setActiveMediaType('image');
       setQuantity(1);
     }
   }, [product]);
@@ -257,83 +263,138 @@ export default function ProductDetailPage() {
             
             {/* Left Column: Premium Gallery (5 cols) */}
             <div className="lg:col-span-6 xl:col-span-5 space-y-4">
-              <div 
-                className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-inner group cursor-crosshair"
-                onMouseEnter={() => setIsZoomed(true)}
-                onMouseLeave={() => setIsZoomed(false)}
-                onMouseMove={handleMouseMove}
-              >
-                <img
-                  src={selectedImage || product.thumbnail}
-                  alt={product.name}
-                  className={`w-full h-full object-cover object-center transition-transform duration-200 select-none ${
-                    isZoomed ? 'scale-[1.8]' : 'scale-100'
-                  }`}
-                  style={
-                    isZoomed
-                      ? {
-                          transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-                        }
-                      : undefined
-                  }
-                />
+              {activeMediaType === 'video' && product.videoUrl ? (
+                /* Video Showcase Player */
+                <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-xl flex items-center justify-center">
+                  {(() => {
+                    const info = parseVideoUrl(product.videoUrl);
+                    if (info?.type === 'youtube' || info?.type === 'vimeo') {
+                      return (
+                        <iframe
+                          src={info.embedUrl}
+                          title={product.name}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      );
+                    }
+                    return (
+                      <video
+                        src={product.videoUrl}
+                        controls
+                        autoPlay
+                        loop
+                        playsInline
+                        className="w-full h-full object-contain"
+                      />
+                    );
+                  })()}
 
-                {/* Floating Badges */}
-                <div className="absolute top-3.5 left-3.5 flex flex-col gap-2 z-10 pointer-events-none">
-                  {discountPercent > 0 && (
-                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md">
-                      <Flame className="w-3.5 h-3.5 fill-current" />
-                      {discountPercent}% OFF
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 bg-slate-900/80 text-white/95 font-bold text-[11px] px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
-                    <Sparkles className="w-3 h-3 text-amber-400" />
-                    Premium Wash
-                  </span>
+                  {/* Switch back to Photos button */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaType('image')}
+                    className="absolute top-3 left-3 z-10 bg-black/70 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-md flex items-center gap-1.5 transition shadow"
+                  >
+                    <span>← Photos</span>
+                  </button>
                 </div>
-
-                {/* Wishlist floating toggle on main image */}
-                <button
-                  onClick={() => toggleWishlist(product)}
-                  className={`absolute top-3.5 right-3.5 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${
-                    isWished 
-                      ? 'bg-rose-50 text-rose-600 ring-2 ring-rose-300' 
-                      : 'bg-white/90 text-slate-700 hover:bg-white hover:text-rose-600'
-                  }`}
-                  aria-label="Add to Wishlist"
+              ) : (
+                /* Photo Showcase with Zoom */
+                <div 
+                  className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-inner group cursor-crosshair"
+                  onMouseEnter={() => setIsZoomed(true)}
+                  onMouseLeave={() => setIsZoomed(false)}
+                  onMouseMove={handleMouseMove}
                 >
-                  <Heart className={`w-5 h-5 ${isWished ? 'fill-current' : ''}`} />
-                </button>
+                  <img
+                    src={selectedImage || product.thumbnail}
+                    alt={product.name}
+                    className={`w-full h-full object-cover object-center transition-transform duration-200 select-none ${
+                      isZoomed ? 'scale-[1.8]' : 'scale-100'
+                    }`}
+                    style={
+                      isZoomed
+                        ? {
+                            transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                          }
+                        : undefined
+                    }
+                  />
 
-                {/* Gallery Navigation Arrows (if multiple images) */}
-                {allImages.length > 1 && (
-                  <>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 text-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:scale-110 shadow-md z-10"
-                      aria-label="Previous image"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 text-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:scale-110 shadow-md z-10"
-                      aria-label="Next image"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </>
-                )}
+                  {/* Floating Badges */}
+                  <div className="absolute top-3.5 left-3.5 flex flex-col gap-2 z-10 pointer-events-none">
+                    {discountPercent > 0 && (
+                      <span className="inline-flex items-center gap-1 bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md">
+                        <Flame className="w-3.5 h-3.5 fill-current" />
+                        {discountPercent}% OFF
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1 bg-slate-900/80 text-white/95 font-bold text-[11px] px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      Premium Wash
+                    </span>
+                  </div>
 
-                {/* Zoom Helper hint */}
-                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white/90 text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <ZoomIn className="w-3 h-3" />
-                  <span>Hover to Zoom</span>
+                  {/* Wishlist floating toggle on main image */}
+                  <button
+                    onClick={() => toggleWishlist(product)}
+                    className={`absolute top-3.5 right-3.5 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${
+                      isWished 
+                        ? 'bg-rose-50 text-rose-600 ring-2 ring-rose-300' 
+                        : 'bg-white/90 text-slate-700 hover:bg-white hover:text-rose-600'
+                    }`}
+                    aria-label="Add to Wishlist"
+                  >
+                    <Heart className={`w-5 h-5 ${isWished ? 'fill-current' : ''}`} />
+                  </button>
+
+                  {/* Watch Video floating trigger if product has video */}
+                  {product.videoUrl && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMediaType('video');
+                      }}
+                      className="absolute bottom-3.5 left-3.5 z-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-3.5 py-2 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition active:scale-95 animate-pulse"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Watch Product Video</span>
+                    </button>
+                  )}
+
+                  {/* Gallery Navigation Arrows (if multiple images) */}
+                  {allImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 text-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:scale-110 shadow-md z-10"
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 text-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:scale-110 shadow-md z-10"
+                        aria-label="Next image"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Zoom Helper hint */}
+                  <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white/90 text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <ZoomIn className="w-3 h-3" />
+                    <span>Hover to Zoom</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Thumbnails Row */}
-              {allImages.length > 1 && (
+              {/* Thumbnails Row (Images + Video button) */}
+              {(allImages.length > 1 || product.videoUrl) && (
                 <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
                   {allImages.map((img, idx) => (
                     <button
@@ -341,19 +402,40 @@ export default function ProductDetailPage() {
                       onClick={() => {
                         setSelectedImage(img);
                         setActiveImgIndex(idx);
+                        setActiveMediaType('image');
                       }}
                       className={`relative w-20 h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
-                        (selectedImage === img || (!selectedImage && idx === 0))
+                        activeMediaType === 'image' && (selectedImage === img || (!selectedImage && idx === 0))
                           ? 'border-blue-600 ring-4 ring-blue-50 shadow-md scale-[1.02]'
                           : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300'
                       }`}
                     >
                       <img src={img} alt={`${product.name} preview ${idx + 1}`} className="w-full h-full object-cover" />
-                      {(selectedImage === img || (!selectedImage && idx === 0)) && (
+                      {activeMediaType === 'image' && (selectedImage === img || (!selectedImage && idx === 0)) && (
                         <div className="absolute inset-0 bg-blue-600/10" />
                       )}
                     </button>
                   ))}
+
+                  {/* Video Thumbnail Button */}
+                  {product.videoUrl && (
+                    <button
+                      onClick={() => setActiveMediaType('video')}
+                      className={`relative w-20 h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-slate-950 flex flex-col items-center justify-center text-white ${
+                        activeMediaType === 'video'
+                          ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-md scale-[1.02]'
+                          : 'border-slate-800 opacity-80 hover:opacity-100 hover:border-indigo-500/50'
+                      }`}
+                      title="Watch Product Video"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white mb-1 shadow">
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                        VIDEO
+                      </span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

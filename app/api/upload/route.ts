@@ -2,16 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
-// Allowed image formats (strictly block .exe, .js, .html, .svg with XSS, .php, etc.)
+// Allowed image & video formats
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
+  'image/avif',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/ogg',
+  'video/x-matroska',
+  'video/x-msvideo',
 ]);
 
-const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB max
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+  '.avif',
+  '.mp4',
+  '.webm',
+  '.mov',
+  '.ogv',
+  '.mkv',
+  '.avi',
+]);
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB max for images
+const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024; // 50MB max for videos
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,10 +44,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    const isVideo = file.type.startsWith('video/');
+    const maxAllowedSize = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+
     // 1. File size verification (prevent denial of service)
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    if (file.size > maxAllowedSize) {
       return NextResponse.json(
-        { error: 'Security violation: File exceeds maximum allowed size of 5MB' },
+        {
+          error: `Security violation: File exceeds maximum allowed size of ${
+            isVideo ? '50MB for videos' : '10MB for images'
+          }`,
+        },
         { status: 400 }
       );
     }
@@ -33,7 +62,10 @@ export async function POST(request: NextRequest) {
     // 2. MIME type verification
     if (!ALLOWED_MIME_TYPES.has(file.type.toLowerCase())) {
       return NextResponse.json(
-        { error: 'Security violation: Only JPG, PNG, WebP, and GIF images are permitted' },
+        {
+          error:
+            'Security violation: Only JPG, PNG, WebP, GIF, MP4, WebM, and MOV files are permitted',
+        },
         { status: 400 }
       );
     }

@@ -23,12 +23,18 @@ import {
   Database,
   RefreshCw,
   Cloud,
+  Video,
+  Film,
+  Play,
+  Link2,
+  Tv,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProducts } from '@/lib/store/productsContext';
 import { Product, ProductFit, GenderCategory } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { compressImageFile } from '@/lib/utils/db';
+import { parseVideoUrl, isVideoUrl } from '@/lib/utils/video';
 
 const ANGLE_SLOTS = [
   { id: 0, label: '1. FRONT VIEW (MAIN)', hint: 'Front angle' },
@@ -158,8 +164,17 @@ function AdminProductsContent() {
   );
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
 
-  // Hidden file inputs for 6 slots
+  // Video State (Uploaded file or streaming Link: YouTube/Vimeo/Direct)
+  const [formVideoUrl, setFormVideoUrl] = useState<string>('');
+  const [formVideos, setFormVideos] = useState<string[]>([]);
+  const [uploadingVideo, setUploadingVideo] = useState<boolean>(false);
+  const [showVideoUrlInput, setShowVideoUrlInput] = useState<boolean>(false);
+  const [inputVideoUrl, setInputVideoUrl] = useState<string>('');
+  const [previewingVideoUrl, setPreviewingVideoUrl] = useState<string | null>(null);
+
+  // Hidden file inputs for 6 slots & video file
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (searchParams.get('action') === 'add') {
@@ -191,6 +206,10 @@ function AdminProductsContent() {
       '',
     ]);
     setFormThumbnail('https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=80');
+    setFormVideoUrl('');
+    setFormVideos([]);
+    setShowVideoUrlInput(false);
+    setInputVideoUrl('');
     setIsModalOpen(true);
   };
 
@@ -220,6 +239,13 @@ function AdminProductsContent() {
     const slots = [0, 1, 2, 3, 4, 5].map((i) => loadedImages[i] || '');
     setFormImages(slots);
     setFormThumbnail(product.thumbnail || slots[0] || '');
+
+    // populate video
+    const vid = product.videoUrl || (product.videos && product.videos[0]) || '';
+    setFormVideoUrl(vid);
+    setFormVideos(product.videos && product.videos.length > 0 ? product.videos : vid ? [vid] : []);
+    setShowVideoUrlInput(false);
+    setInputVideoUrl('');
     setIsModalOpen(true);
   };
 
@@ -256,7 +282,6 @@ function AdminProductsContent() {
       }
 
       // 2. High-performance client-side image compression
-      // Compresses 10MB camera photo to ~40KB high-res JPEG to prevent quota errors
       const compressed = await compressImageFile(file, 900, 1200, 0.78);
       if (compressed) {
         applySlotUrl(slotIndex, compressed);
@@ -265,6 +290,88 @@ function AdminProductsContent() {
     } catch (err) {
       console.error('Upload slot error:', err);
       setUploadingSlot(null);
+    }
+  };
+
+  // Upload handler for Video File from computer
+  const handleVideoFile = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('video/') && !/\.(mp4|webm|mov|mkv|avi)$/i.test(file.name)) {
+      alert('Please select a valid video file (MP4, WebM, MOV, MKV)');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Video file exceeds 50MB. For large videos, we recommend uploading to YouTube/Vimeo and using the "+ Video Link" option!');
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          setFormVideoUrl(data.url);
+          setFormVideos((prev) => Array.from(new Set([...prev, data.url])));
+          setUploadingVideo(false);
+          return;
+        }
+      }
+
+      // Fallback: FileReader Base64 Data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          setFormVideoUrl(result);
+          setFormVideos((prev) => Array.from(new Set([...prev, result])));
+        }
+        setUploadingVideo(false);
+      };
+      reader.onerror = () => {
+        alert('Failed to read video file.');
+        setUploadingVideo(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Video upload error:', err);
+      alert(`Video upload failed: ${err?.message || 'Network error'}`);
+      setUploadingVideo(false);
+    }
+  };
+
+  // Add Video Link (YouTube, Vimeo, MP4 URL)
+  const handleAddVideoLink = (url: string) => {
+    const clean = url.trim();
+    if (!clean) return;
+    const parsed = parseVideoUrl(clean);
+    if (!parsed || parsed.type === 'unknown') {
+      alert('Please enter a valid YouTube, Vimeo, or direct MP4/WebM video URL.');
+      return;
+    }
+    setFormVideoUrl(clean);
+    setFormVideos((prev) => Array.from(new Set([...prev, clean])));
+    setInputVideoUrl('');
+    setShowVideoUrlInput(false);
+  };
+
+  const removeVideo = (targetUrl?: string) => {
+    if (targetUrl) {
+      const updated = formVideos.filter((v) => v !== targetUrl);
+      setFormVideos(updated);
+      if (formVideoUrl === targetUrl) {
+        setFormVideoUrl(updated[0] || '');
+      }
+    } else {
+      setFormVideoUrl('');
+      setFormVideos([]);
     }
   };
 
@@ -303,6 +410,8 @@ function AdminProductsContent() {
     // Filter non-empty images from slots
     const validImages = formImages.filter((img) => img && img.trim() !== '');
     const mainThumbnail = formThumbnail.trim() || validImages[0] || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80';
+    const validVideoUrl = formVideoUrl.trim() || (formVideos[0] ? formVideos[0].trim() : undefined);
+    const validVideos = formVideos.filter((v) => v && v.trim() !== '');
 
     const variants = [
       { id: `v-${Date.now()}-1`, size: '28', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${slug.slice(0, 4).toUpperCase()}-28`, stock: Math.floor(formStock / 4) },
@@ -327,6 +436,8 @@ function AdminProductsContent() {
         totalStock: formStock,
         thumbnail: mainThumbnail,
         images: validImages.length > 0 ? validImages : [mainThumbnail],
+        videoUrl: validVideoUrl,
+        videos: validVideos,
         description: formDescription,
       });
     } else {
@@ -352,6 +463,8 @@ function AdminProductsContent() {
         discountPercentage: discountPct,
         thumbnail: mainThumbnail,
         images: validImages.length > 0 ? validImages : [mainThumbnail],
+        videoUrl: validVideoUrl,
+        videos: validVideos,
         rating: 5.0,
         reviewCount: 1,
         isNewArrival: true,
@@ -820,15 +933,184 @@ function AdminProductsContent() {
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN: PRODUCT PHOTOS (6 ANGLE SLOTS) */}
+                {/* RIGHT COLUMN: MEDIA GALLERY (PHOTOS & VIDEOS) */}
                 <div className="lg:col-span-6 space-y-4">
+                  {/* Media Gallery Header matching screenshot */}
+                  <div className="bg-[#090d16] p-4 rounded-2xl border border-slate-800/90 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                      <div>
+                        <div className="flex items-center gap-2 text-white font-black text-xs uppercase tracking-wider">
+                          <div className="w-6 h-6 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center">
+                            <Layers className="w-3.5 h-3.5" />
+                          </div>
+                          <span>Media Gallery</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Upload high-res images, video files or streaming links.
+                        </p>
+                      </div>
+
+                      {/* 3 Action Buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* + Image */}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRefs.current[0]?.click()}
+                          className="bg-blue-600/90 hover:bg-blue-600 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-all shadow active:scale-95"
+                          title="Upload image photo"
+                        >
+                          <Plus className="w-3 h-3 stroke-[3]" />
+                          <Camera className="w-3 h-3" />
+                          <span>Image</span>
+                        </button>
+
+                        {/* + Video File */}
+                        <button
+                          type="button"
+                          onClick={() => videoFileInputRef.current?.click()}
+                          disabled={uploadingVideo}
+                          className="bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-all shadow active:scale-95"
+                          title="Upload video from computer (MP4, WebM, MOV)"
+                        >
+                          {uploadingVideo ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-white" />
+                          ) : (
+                            <>
+                              <Plus className="w-3 h-3 stroke-[3]" />
+                              <Film className="w-3 h-3" />
+                            </>
+                          )}
+                          <span>{uploadingVideo ? 'Uploading...' : 'Video File'}</span>
+                        </button>
+
+                        {/* + Video Link */}
+                        <button
+                          type="button"
+                          onClick={() => setShowVideoUrlInput(!showVideoUrlInput)}
+                          className={`font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition-all shadow active:scale-95 ${
+                            showVideoUrlInput
+                              ? 'bg-purple-500 text-white'
+                              : 'bg-purple-600/90 hover:bg-purple-600 text-white'
+                          }`}
+                          title="Add YouTube, Vimeo, or MP4 link"
+                        >
+                          <Plus className="w-3 h-3 stroke-[3]" />
+                          <Link2 className="w-3 h-3" />
+                          <span>Video Link</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Hidden Video File Input */}
+                    <input
+                      type="file"
+                      ref={videoFileInputRef}
+                      accept="video/mp4,video/webm,video/quicktime,video/mkv,video/*"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleVideoFile(f);
+                        e.target.value = '';
+                      }}
+                      className="hidden"
+                    />
+
+                    {/* Video Link Input Form Drawer */}
+                    {showVideoUrlInput && (
+                      <div className="p-3 bg-slate-900/90 border border-purple-500/40 rounded-xl space-y-2 animate-fade-in">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-purple-300">
+                          <span className="flex items-center gap-1.5">
+                            <Tv className="w-3.5 h-3.5" />
+                            <span>Add Video Link (YouTube / Vimeo / MP4 URL)</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowVideoUrlInput(false)}
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
+                            value={inputVideoUrl}
+                            onChange={(e) => setInputVideoUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddVideoLink(inputVideoUrl);
+                              }
+                            }}
+                            className="w-full bg-[#090d16] border border-slate-700 focus:border-purple-400 rounded-lg px-3 py-1.5 text-white text-xs placeholder-slate-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddVideoLink(inputVideoUrl)}
+                            className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs shrink-0"
+                          >
+                            Add Video
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-slate-400">
+                          💡 Supports YouTube standard/shorts links, Vimeo, and direct MP4/WebM URLs.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Active Video Section */}
+                    {formVideoUrl ? (
+                      <div className="bg-slate-900/80 border border-indigo-500/30 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-indigo-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                              <Video className="w-3 h-3" />
+                              <span>
+                                {parseVideoUrl(formVideoUrl)?.type === 'youtube'
+                                  ? 'YouTube Video'
+                                  : parseVideoUrl(formVideoUrl)?.type === 'vimeo'
+                                  ? 'Vimeo Video'
+                                  : 'Video File / MP4'}
+                              </span>
+                            </span>
+                            <span className="text-[10px] text-emerald-400 font-bold">✓ Attached</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewingVideoUrl(formVideoUrl)}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 transition shadow"
+                            >
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>Test / Play Video</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeVideo()}
+                              className="bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white p-1 rounded-md transition"
+                              title="Remove Video"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] font-mono text-slate-400 truncate bg-slate-950/60 p-1.5 rounded border border-slate-800">
+                          {formVideoUrl}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* 6 Angle Slots Grid Header */}
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
                     <div className="flex items-center gap-2 text-[#f59e0b] font-black text-xs uppercase tracking-wider">
                       <Camera className="w-4 h-4" />
-                      <span>PRODUCT PHOTOS (6 ANGLE SLOTS)</span>
+                      <span>Product Photos (6 Angle Slots)</span>
                     </div>
                     <span className="text-slate-500 font-bold text-[10px] tracking-wider uppercase">
-                      CLICK BOX TO CHOOSE FILE
+                      Click Box to Choose File
                     </span>
                   </div>
 
@@ -1013,6 +1295,69 @@ function AdminProductsContent() {
               >
                 <Download className="w-4 h-4" />
                 <span>Download Backup Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Video Player Test/Preview Modal */}
+      {previewingVideoUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#090d16] border border-slate-800 rounded-3xl max-w-3xl w-full p-5 shadow-2xl relative overflow-hidden space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Film className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Product Video Preview</h4>
+                  <p className="text-[10px] text-slate-400 truncate max-w-md">{previewingVideoUrl}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewingVideoUrl(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Video Container */}
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800/80 flex items-center justify-center">
+              {(() => {
+                const info = parseVideoUrl(previewingVideoUrl);
+                if (info?.type === 'youtube' || info?.type === 'vimeo') {
+                  return (
+                    <iframe
+                      src={info.embedUrl}
+                      title="Product Video"
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                }
+                return (
+                  <video
+                    src={previewingVideoUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain"
+                  />
+                );
+              })()}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setPreviewingVideoUrl(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition"
+              >
+                Close Preview
               </button>
             </div>
           </div>

@@ -37,6 +37,8 @@ function mapDbProduct(row: any): Product {
     discountPercentage: Number(row.discount_percentage) || 0,
     thumbnail: row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
     images: Array.isArray(row.images) ? row.images : [],
+    videoUrl: row.video_url || row.videoUrl || (Array.isArray(row.videos) && row.videos[0]) || '',
+    videos: Array.isArray(row.videos) ? row.videos : (row.video_url || row.videoUrl ? [row.video_url || row.videoUrl] : []),
     rating: Number(row.rating) || 5.0,
     reviewCount: Number(row.review_count) || 0,
     isNewArrival: !!row.is_new_arrival,
@@ -469,6 +471,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         if (updates.discountPercentage !== undefined) payload.discount_percentage = updates.discountPercentage;
         if (updates.thumbnail) payload.thumbnail = updates.thumbnail;
         if (updates.images) payload.images = updates.images;
+        if (updates.videoUrl !== undefined) payload.video_url = updates.videoUrl;
+        if (updates.videos !== undefined) payload.videos = updates.videos;
         if (updates.description) payload.description = updates.description;
         if (updates.totalStock !== undefined) payload.total_stock = updates.totalStock;
         if (updates.variants) payload.variants = updates.variants;
@@ -523,6 +527,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           discount_percentage: p.discountPercentage || 0,
           thumbnail: p.thumbnail,
           images: p.images || [],
+          video_url: p.videoUrl || (p.videos && p.videos[0]) || '',
+          videos: p.videos || (p.videoUrl ? [p.videoUrl] : []),
           description: p.description || '',
           details: p.details || [],
           fabric_care: p.fabricCare || [],

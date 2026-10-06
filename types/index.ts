@@ -53,6 +53,8 @@ export interface Product {
   discountPercentage?: number;
   images: string[];
   thumbnail: string;
+  videoUrl?: string; // YouTube, Vimeo, MP4 file or streaming link
+  videos?: string[]; // Multiple video links or files
   rating: number;
   reviewCount: number;
   isNewArrival: boolean;
