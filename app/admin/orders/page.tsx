@@ -23,6 +23,7 @@ import { useOrder } from '@/lib/store/orderContext';
 import { useAdminTheme } from '@/lib/store/adminThemeContext';
 import { Order, OrderStatus } from '@/types';
 import { formatPrice } from '@/lib/utils';
+import CustomerMessageModal from '@/components/admin/CustomerMessageModal';
 
 function AdminOrdersContent() {
   const searchParams = useSearchParams();
@@ -42,6 +43,17 @@ function AdminOrdersContent() {
   const [modalCourier, setModalCourier] = useState('Steadfast');
   const [modalTracking, setModalTracking] = useState('');
   const [modalNote, setModalNote] = useState('');
+
+  // Customer Messaging State
+  const [messageOrder, setMessageOrder] = useState<Order | null>(null);
+  const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'messenger'>('whatsapp');
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+
+  const openCustomerMessage = (order: Order, channel: 'whatsapp' | 'messenger' = 'whatsapp') => {
+    setMessageOrder(order);
+    setMessageChannel(channel);
+    setIsMessageModalOpen(true);
+  };
 
   const openManageModal = (order: Order) => {
     setSelectedOrder(order);
@@ -224,6 +236,28 @@ function AdminOrdersContent() {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* WhatsApp button */}
+                        <button
+                          type="button"
+                          onClick={() => openCustomerMessage(ord, 'whatsapp')}
+                          title="Message on WhatsApp"
+                          className="p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-[#25D366] hover:text-white transition-all cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.983.541 1.879.82 2.791.82 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.768-5.766zm3.385 8.163c-.144.405-.837.774-1.17.822-.312.043-.681.077-2.203-.554-1.944-.805-3.18-2.778-3.277-2.907-.097-.129-.788-1.047-.788-1.996 0-.949.499-1.417.676-1.611.178-.194.388-.242.517-.242.13 0 .259.002.371.008.119.006.278-.045.435.334.162.388.55 1.341.599 1.438.048.097.081.21.016.339-.065.129-.097.21-.194.323-.097.113-.205.253-.293.34-.097.097-.198.202-.085.396.113.194.502.828 1.078 1.342.741.661 1.365.865 1.559.962.194.097.307.081.42-.048.113-.129.484-.565.613-.759.129-.194.258-.162.436-.097.178.065 1.13.533 1.324.63.194.097.323.145.371.226.048.081.048.469-.096.874zM12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.176L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.636 0-3.167-.488-4.453-1.327l-.319-.209-2.955.775.789-2.88-.23-.366A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z"/>
+                          </svg>
+                        </button>
+                        {/* Messenger button */}
+                        <button
+                          type="button"
+                          onClick={() => openCustomerMessage(ord, 'messenger')}
+                          title="Message on Facebook Messenger"
+                          className="p-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-gradient-to-r hover:from-[#0084FF] hover:to-[#A824F3] hover:text-white transition-all cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.512 3.735 7.151V22l3.414-1.874c.905.251 1.864.387 2.851.387 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.002 12.441l-2.56-2.73-5 2.73 5.5-5.84 2.62 2.73 4.94-2.73-5.5 5.84z"/>
+                          </svg>
+                        </button>
                         <Link
                           href={`/track-order?order=${encodeURIComponent(ord.orderNumber)}&phone=${encodeURIComponent(ord.customer.phone)}`}
                           target="_blank"
@@ -238,14 +272,14 @@ function AdminOrdersContent() {
                         </Link>
                         <button
                           onClick={() => openManageModal(ord)}
-                          className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                          className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm transition-colors cursor-pointer"
                         >
                           Update
                         </button>
                         <button
                           onClick={() => setDeleteConfirmOrder(ord)}
                           title="Delete Order"
-                          className={`p-1.5 rounded-lg border transition-all ${
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                             isDark
                               ? 'bg-rose-950/40 border-rose-800/40 text-rose-400 hover:bg-rose-600 hover:text-white hover:border-rose-600'
                               : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600'
@@ -443,6 +477,14 @@ function AdminOrdersContent() {
           </div>
         </div>
       )}
+
+      {/* Customer Direct Message Modal */}
+      <CustomerMessageModal
+        order={messageOrder}
+        isOpen={isMessageModalOpen}
+        onClose={() => setIsMessageModalOpen(false)}
+        initialChannel={messageChannel}
+      />
     </div>
   );
 }
