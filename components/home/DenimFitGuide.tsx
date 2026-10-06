@@ -2,46 +2,57 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, HelpCircle } from 'lucide-react';
+import { ArrowRight, HelpCircle } from 'lucide-react';
 import SizeGuideModal from '@/components/ui/SizeGuideModal';
+import { useProducts } from '@/lib/store/productsContext';
+
+const DEFAULT_FITS = [
+  {
+    id: 'fit-1',
+    name: 'Slim Fit',
+    tagline: 'Modern & Tailored',
+    desc: 'Form-fitting through hip and thigh, tapering neatly at the ankle. Woven with 2% elastane flex for effortless stretch.',
+    bestFor: 'Everyday casual, sneakers, dress shirts',
+    image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
+    link: '/shop?fit=Slim+Fit',
+  },
+  {
+    id: 'fit-2',
+    name: 'Baggy & Skater Fit',
+    tagline: 'Relaxed Street Silhouette',
+    desc: 'Generous room from waist to hem. Heavyweight 13.5oz rigid cotton that stacks naturally over chunky footwear.',
+    bestFor: 'Streetwear, graphic tees, hoodies',
+    image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
+    link: '/shop?fit=Baggy+Fit',
+  },
+  {
+    id: 'fit-3',
+    name: 'Straight Leg',
+    tagline: 'Timeless Heritage Cut',
+    desc: 'Consistent parallel width from knee to cuff. Vintage American workwear heritage styling with authentic selvedge trims.',
+    bestFor: 'Classic styles, boots, polo shirts',
+    image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
+    link: '/shop?fit=Straight+Fit',
+  },
+  {
+    id: 'fit-4',
+    name: 'High-Rise Wide Leg',
+    tagline: 'Chic Elongated Drape',
+    desc: 'Cinched high waist that flows into a wide flare. Creates an elegant proportion and floor-sweeping grace.',
+    bestFor: 'Crop tops, heels, relaxed blazers',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80',
+    link: '/shop?fit=Wide+Leg',
+  },
+];
 
 export default function DenimFitGuide() {
+  const { siteSettings } = useProducts();
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
-  const fits = [
-    {
-      name: 'Slim Fit',
-      tagline: 'Modern & Tailored',
-      desc: 'Form-fitting through hip and thigh, tapering neatly at the ankle. Woven with 2% elastane flex for effortless stretch.',
-      bestFor: 'Everyday casual, sneakers, dress shirts',
-      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
-      link: '/shop?fit=Slim+Fit',
-    },
-    {
-      name: 'Baggy & Skater Fit',
-      tagline: 'Relaxed Street Silhouette',
-      desc: 'Generous room from waist to hem. Heavyweight 13.5oz rigid cotton that stacks naturally over chunky footwear.',
-      bestFor: 'Streetwear, graphic tees, hoodies',
-      image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
-      link: '/shop?fit=Baggy+Fit',
-    },
-    {
-      name: 'Straight Leg',
-      tagline: 'Timeless Heritage Cut',
-      desc: 'Consistent parallel width from knee to cuff. Vintage American workwear heritage styling with authentic selvedge trims.',
-      bestFor: 'Classic styles, boots, polo shirts',
-      image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
-      link: '/shop?fit=Straight+Fit',
-    },
-    {
-      name: 'High-Rise Wide Leg',
-      tagline: 'Chic Elongated Drape',
-      desc: 'Cinched high waist that flows into a wide flare. Creates an elegant proportion and floor-sweeping grace.',
-      bestFor: 'Crop tops, heels, relaxed blazers',
-      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80',
-      link: '/shop?fit=Wide+Leg',
-    },
-  ];
+  const fitGuide = siteSettings.fitGuide;
+  const sectionBadge = fitGuide?.badge || 'FIT CONSULTATION';
+  const sectionTitle = fitGuide?.title || 'THE DENIM FIT GUIDE';
+  const fits = (fitGuide?.items && fitGuide.items.length > 0) ? fitGuide.items : DEFAULT_FITS;
 
   return (
     <section className="py-16 lg:py-24 bg-slate-900 text-white relative overflow-hidden">
@@ -49,10 +60,10 @@ export default function DenimFitGuide() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
             <div className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2">
-              Fit Consultation
+              {sectionBadge}
             </div>
             <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase">
-              The Denim Fit Guide
+              {sectionTitle}
             </h2>
           </div>
           <button
@@ -68,15 +79,19 @@ export default function DenimFitGuide() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {fits.map((f, i) => (
             <div
-              key={i}
+              key={f.id || i}
               className="bg-slate-950/80 rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-blue-500/50 transition-all duration-300 group"
             >
               <div>
                 <div className="relative aspect-video rounded-2xl overflow-hidden mb-5 bg-slate-800">
                   <img
-                    src={f.image}
+                    src={f.image || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80'}
                     alt={f.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80';
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
                 </div>

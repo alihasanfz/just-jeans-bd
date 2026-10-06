@@ -53,9 +53,13 @@ export default function InstagramFeed() {
               className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 shadow-sm"
             >
               <img
-                src={img}
+                src={img || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80'}
                 alt="Instagram look"
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src =
+                    'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80';
+                }}
               />
               <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white">
                 <Instagram className="w-6 h-6 transform scale-75 group-hover:scale-100 transition-transform duration-300" />

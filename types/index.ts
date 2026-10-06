@@ -247,6 +247,19 @@ export interface SiteSettings {
       comment: string;
     }[];
   };
+  fitGuide?: {
+    badge?: string;
+    title?: string;
+    items: {
+      id: string;
+      name: string;
+      tagline: string;
+      desc: string;
+      bestFor: string;
+      image: string;
+      link: string;
+    }[];
+  };
   instagramFeed?: {
     handle: string;
     title: string;

@@ -29,6 +29,7 @@ import {
   Eye,
   Loader2,
   AlertCircle,
+  Compass,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { formatPrice } from '@/lib/utils';
@@ -102,7 +103,49 @@ function AdminSettingsContent() {
   );
   const [promoImgTag, setPromoImgTag] = useState(siteSettings.promoBanner?.imageTag || 'SIGNATURE FIT COLLECTION');
 
-  // 3. Customer Reviews
+  // 3. Denim Fit Guide (Screenshot 2)
+  const [fitGuideBadge, setFitGuideBadge] = useState(siteSettings.fitGuide?.badge || 'FIT CONSULTATION');
+  const [fitGuideTitle, setFitGuideTitle] = useState(siteSettings.fitGuide?.title || 'THE DENIM FIT GUIDE');
+  const [fitGuideItems, setFitGuideItems] = useState(siteSettings.fitGuide?.items || [
+    {
+      id: 'fit-1',
+      name: 'Slim Fit',
+      tagline: 'Modern & Tailored',
+      desc: 'Form-fitting through hip and thigh, tapering neatly at the ankle. Woven with 2% elastane flex for effortless stretch.',
+      bestFor: 'Everyday casual, sneakers, dress shirts',
+      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
+      link: '/shop?fit=Slim+Fit',
+    },
+    {
+      id: 'fit-2',
+      name: 'Baggy & Skater Fit',
+      tagline: 'Relaxed Street Silhouette',
+      desc: 'Generous room from waist to hem. Heavyweight 13.5oz rigid cotton that stacks naturally over chunky footwear.',
+      bestFor: 'Streetwear, graphic tees, hoodies',
+      image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
+      link: '/shop?fit=Baggy+Fit',
+    },
+    {
+      id: 'fit-3',
+      name: 'Straight Leg',
+      tagline: 'Timeless Heritage Cut',
+      desc: 'Consistent parallel width from knee to cuff. Vintage American workwear heritage styling with authentic selvedge trims.',
+      bestFor: 'Classic styles, boots, polo shirts',
+      image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
+      link: '/shop?fit=Straight+Fit',
+    },
+    {
+      id: 'fit-4',
+      name: 'High-Rise Wide Leg',
+      tagline: 'Chic Elongated Drape',
+      desc: 'Cinched high waist that flows into a wide flare. Creates an elegant proportion and floor-sweeping grace.',
+      bestFor: 'Crop tops, heels, relaxed blazers',
+      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80',
+      link: '/shop?fit=Wide+Leg',
+    },
+  ]);
+
+  // 4. Customer Reviews
   const [reviewsBadge, setReviewsBadge] = useState(siteSettings.customerReviews?.badge || 'VERIFIED CUSTOMER FEEDBACK');
   const [reviewsTitle, setReviewsTitle] = useState(siteSettings.customerReviews?.title || 'LOVED ACROSS BANGLADESH');
   const [reviewsSubtitle, setReviewsSubtitle] = useState(
@@ -179,6 +222,11 @@ function AdminSettingsContent() {
         if (siteSettings.promoBanner.buttonLink) setPromoBtnLink(siteSettings.promoBanner.buttonLink);
         if (siteSettings.promoBanner.imageUrl) setPromoImgUrl(siteSettings.promoBanner.imageUrl);
         if (siteSettings.promoBanner.imageTag) setPromoImgTag(siteSettings.promoBanner.imageTag);
+      }
+      if (siteSettings.fitGuide) {
+        if (siteSettings.fitGuide.badge) setFitGuideBadge(siteSettings.fitGuide.badge);
+        if (siteSettings.fitGuide.title) setFitGuideTitle(siteSettings.fitGuide.title);
+        if (siteSettings.fitGuide.items?.length) setFitGuideItems(siteSettings.fitGuide.items);
       }
       if (siteSettings.customerReviews) {
         if (siteSettings.customerReviews.badge) setReviewsBadge(siteSettings.customerReviews.badge);
@@ -271,6 +319,36 @@ function AdminSettingsContent() {
     setReviewItems((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Fit guide management handlers
+  const handleUpdateFit = (index: number, field: string, val: string) => {
+    setFitGuideItems((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: val };
+      return copy;
+    });
+  };
+
+  const handleAddFit = () => {
+    const newFit = {
+      id: `fit-${Date.now()}`,
+      name: 'New Denim Fit',
+      tagline: 'Contemporary Silhouette',
+      desc: 'Engineered for exceptional comfort and all-day drape.',
+      bestFor: 'Everyday casual wear',
+      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
+      link: '/shop',
+    };
+    setFitGuideItems((prev) => [...prev, newFit]);
+  };
+
+  const handleDeleteFit = (index: number) => {
+    if (fitGuideItems.length <= 1) {
+      alert('You must have at least 1 fit guide card!');
+      return;
+    }
+    setFitGuideItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Instagram image updater
   const handleUpdateIgImage = (index: number, val: string) => {
     setIgImages((prev) => {
@@ -320,6 +398,11 @@ function AdminSettingsContent() {
           buttonLink: promoBtnLink,
           imageUrl: promoImgUrl,
           imageTag: promoImgTag,
+        },
+        fitGuide: {
+          badge: fitGuideBadge,
+          title: fitGuideTitle,
+          items: fitGuideItems,
         },
         customerReviews: {
           badge: reviewsBadge,
@@ -1016,7 +1099,155 @@ function AdminSettingsContent() {
               </div>
             </div>
 
-            {/* 3. VERIFIED CUSTOMER FEEDBACK (Screenshot 3) */}
+            {/* 4. THE DENIM FIT GUIDE (Screenshot 2) */}
+            <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
+                <div>
+                  <h3 className="font-black text-base uppercase text-white tracking-wider flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-blue-400" />
+                    <span>The Denim Fit Guide (Screenshot 2)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Customize the 4 signature fit cards displayed in the dark denim consultation section on the homepage
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddFit}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md self-start transition-all active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add New Fit Card</span>
+                </button>
+              </div>
+
+              {/* Section Header Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/60">
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Section Top Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={fitGuideBadge}
+                    onChange={(e) => setFitGuideBadge(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                    placeholder="FIT CONSULTATION"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Main Section Heading
+                  </label>
+                  <input
+                    type="text"
+                    value={fitGuideTitle}
+                    onChange={(e) => setFitGuideTitle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-black uppercase"
+                    placeholder="THE DENIM FIT GUIDE"
+                  />
+                </div>
+              </div>
+
+              {/* Fit Cards List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {fitGuideItems.map((fit, idx) => (
+                  <div
+                    key={fit.id || idx}
+                    className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4 hover:border-blue-500/30 transition-all"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <span className="text-xs font-black text-blue-400 uppercase tracking-wider">
+                        Fit Card #{idx + 1}: {fit.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFit(idx)}
+                        className="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-xs flex items-center gap-1"
+                        title="Delete card"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-400 text-[10px] font-bold uppercase mb-1">
+                          Fit Name (e.g. Slim Fit)
+                        </label>
+                        <input
+                          type="text"
+                          value={fit.name}
+                          onChange={(e) => handleUpdateFit(idx, 'name', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-400 text-[10px] font-bold uppercase mb-1">
+                          Tagline (e.g. Modern & Tailored)
+                        </label>
+                        <input
+                          type="text"
+                          value={fit.tagline}
+                          onChange={(e) => handleUpdateFit(idx, 'tagline', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-slate-400 text-[10px] font-bold uppercase mb-1">
+                          Fit Description
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={fit.desc}
+                          onChange={(e) => handleUpdateFit(idx, 'desc', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-400 text-[10px] font-bold uppercase mb-1">
+                          Best Paired With
+                        </label>
+                        <input
+                          type="text"
+                          value={fit.bestFor}
+                          onChange={(e) => handleUpdateFit(idx, 'bestFor', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-400 text-[10px] font-bold uppercase mb-1">
+                          Shop Button Link URL
+                        </label>
+                        <input
+                          type="text"
+                          value={fit.link}
+                          onChange={(e) => handleUpdateFit(idx, 'link', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <ImageUploadField
+                          label="Card Photo (Upload from Computer)"
+                          value={fit.image}
+                          onChange={(val) => handleUpdateFit(idx, 'image', val)}
+                          aspect="landscape"
+                          helpText="Upload a denim lifestyle photo or model wearing this fit."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. VERIFIED CUSTOMER FEEDBACK (Screenshot 3) */}
             <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                 <div>
