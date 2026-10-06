@@ -345,6 +345,14 @@ export default function AdminDashboardPage() {
             </Link>
 
             <Link
+              href="/admin/settings?tab=home"
+              className="px-4 py-2 rounded-2xl text-xs font-black bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Customize Homepage</span>
+            </Link>
+
+            <Link
               href="/admin/products?action=add"
               className="px-5 py-2.5 rounded-2xl text-xs font-black bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white flex items-center gap-2 shadow-xl shadow-blue-500/25 transition-all hover:scale-[1.02]"
             >
@@ -352,6 +360,99 @@ export default function AdminDashboardPage() {
               <span>Add New Product</span>
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* QUICK HOMEPAGE CUSTOMIZER BAR */}
+      <div className={`p-4 rounded-3xl border transition-all ${
+        isDark
+          ? 'bg-gradient-to-r from-slate-900/90 via-[#0d1629] to-slate-900/90 border-blue-500/20 shadow-lg'
+          : 'bg-white border-blue-100 shadow-sm'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/40">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Homepage Section Managers
+            </h3>
+            <span className="text-[10px] text-slate-400 font-medium hidden md:inline">
+              (Quickly edit all 7 sections highlighted in your storefront)
+            </span>
+          </div>
+          <Link
+            href="/admin/settings?tab=home"
+            className="text-xs font-bold text-blue-400 hover:text-blue-300 inline-flex items-center gap-1 self-start sm:self-auto"
+          >
+            <span>Open All Homepage Settings</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-3">
+          <Link
+            href="/admin/settings?tab=home"
+            className={`p-3 rounded-2xl border transition-all hover:border-blue-500/60 group ${
+              isDark ? 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900' : 'bg-slate-50 border-slate-200 hover:bg-white'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-0.5">Section 1</div>
+            <div className={`text-xs font-bold truncate group-hover:text-blue-400 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Hero Slides Banner
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">Titles, Photos, Badges</div>
+          </Link>
+
+          <Link
+            href="/admin/categories"
+            className={`p-3 rounded-2xl border transition-all hover:border-blue-500/60 group ${
+              isDark ? 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900' : 'bg-slate-50 border-slate-200 hover:bg-white'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">Section 2</div>
+            <div className={`text-xs font-bold truncate group-hover:text-emerald-400 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Category Cards
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">Names &amp; Computer Photos</div>
+          </Link>
+
+          <Link
+            href="/admin/settings?tab=home"
+            className={`p-3 rounded-2xl border transition-all hover:border-blue-500/60 group ${
+              isDark ? 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900' : 'bg-slate-50 border-slate-200 hover:bg-white'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-0.5">Section 3</div>
+            <div className={`text-xs font-bold truncate group-hover:text-amber-400 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Flash Promo 30% Off
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">Coupon, Text &amp; Models</div>
+          </Link>
+
+          <Link
+            href="/admin/settings?tab=home"
+            className={`p-3 rounded-2xl border transition-all hover:border-blue-500/60 group ${
+              isDark ? 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900' : 'bg-slate-50 border-slate-200 hover:bg-white'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-0.5">Section 4 &amp; 5</div>
+            <div className={`text-xs font-bold truncate group-hover:text-sky-400 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Fit Guide &amp; Reviews
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">Cards &amp; Testimonials</div>
+          </Link>
+
+          <Link
+            href="/admin/settings?tab=header-footer"
+            className={`p-3 rounded-2xl border transition-all hover:border-blue-500/60 group ${
+              isDark ? 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900' : 'bg-slate-50 border-slate-200 hover:bg-white'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-0.5">Section 6 &amp; 7</div>
+            <div className={`text-xs font-bold truncate group-hover:text-purple-400 transition-colors ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Lookbook &amp; Footer
+            </div>
+            <div className="text-[10px] text-slate-400 mt-1">Socials, Contacts, Bio</div>
+          </Link>
         </div>
       </div>
 

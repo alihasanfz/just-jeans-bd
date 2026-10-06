@@ -571,6 +571,36 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
                 </Link>
 
                 <Link
+                  href="/admin/settings?tab=home"
+                  onClick={onCloseMobile}
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    pathname === '/admin/settings' && currentTab === 'home'
+                      ? 'text-blue-500 font-bold bg-blue-500/10'
+                      : isDark
+                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Home Sections (Banners &amp; Reviews)</span>
+                </Link>
+
+                <Link
+                  href="/admin/settings?tab=header-footer"
+                  onClick={onCloseMobile}
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    pathname === '/admin/settings' && currentTab === 'header-footer'
+                      ? 'text-blue-500 font-bold bg-blue-500/10'
+                      : isDark
+                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <Rows className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Trust Badges &amp; Footer</span>
+                </Link>
+
+                <Link
                   href="/admin/settings?tab=payments"
                   onClick={onCloseMobile}
                   className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -597,7 +627,7 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
                   }`}
                 >
                   <Truck className="w-3.5 h-3.5" />
-                  <span>Shipping & Fees</span>
+                  <span>Shipping &amp; Fees</span>
                 </Link>
               </div>
             )}
