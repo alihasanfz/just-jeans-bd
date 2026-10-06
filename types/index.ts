@@ -211,10 +211,19 @@ export interface SiteSettings {
     tiktok?: string;
     youtube?: string;
   };
+  categoryShowcase?: {
+    badge?: string;
+    title?: string;
+    subtitle?: string;
+    buttonText?: string;
+    buttonLink?: string;
+  };
   banners: {
     heroSlides: {
       id: string;
       title: string;
+      titlePart1?: string;
+      titleHighlight?: string;
       subtitle: string;
       badge: string;
       buttonText: string;
@@ -227,40 +236,47 @@ export interface SiteSettings {
   promoBanner?: {
     badge: string;
     title: string;
+    subtitle?: string;
     description: string;
     couponCode: string;
     buttonText: string;
     buttonLink: string;
     imageUrl: string;
+    imageUrl2?: string;
     imageTag: string;
   };
   customerReviews?: {
     badge: string;
     title: string;
     subtitle: string;
+    score?: string;
+    reviewCountText?: string;
     items: {
       id: string;
       name: string;
       city: string;
       rating: number;
-      productName: string;
+      productName?: string;
       comment: string;
+      avatar?: string;
     }[];
   };
   fitGuide?: {
     badge?: string;
     title?: string;
+    subtitle?: string;
     items: {
       id: string;
       name: string;
-      tagline: string;
+      tagline?: string;
       desc: string;
-      bestFor: string;
+      bestFor?: string;
       image: string;
       link: string;
     }[];
   };
   instagramFeed?: {
+    badge?: string;
     handle: string;
     title: string;
     url: string;
@@ -279,3 +295,4 @@ export interface SiteSettings {
   footerBrandDescription?: string;
   copyrightText?: string;
 }
+

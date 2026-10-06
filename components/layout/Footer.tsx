@@ -13,10 +13,20 @@ import {
   Plus,
   Check,
 } from 'lucide-react';
+import { useProducts } from '@/lib/store/productsContext';
 
 export default function Footer() {
+  const { siteSettings } = useProducts();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+
+  const brandDesc = siteSettings?.footerBrandDescription ||
+    "Premium quality denim for every style. From classic to trend, we've got you covered.";
+  const phone = siteSettings?.phone || '01775743148';
+  const emailAddr = siteSettings?.email || 'hasansheikh9080@gmail.com';
+  const address = siteSettings?.address || '13-14 Zoo Road, Mollik Tower, Mirpur- 01, Dhaka -1216, Bangladesh';
+  const socials = siteSettings?.socialLinks;
+  const copyright = siteSettings?.copyrightText || 'All rights reserved. Crafted for Denim Lovers in Bangladesh.';
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,43 +59,51 @@ export default function Footer() {
             </Link>
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              Premium quality denim for every style. From classic to trend, we've got you covered.
+              {brandDesc}
             </p>
 
             {/* Social Icons */}
             <div className="flex items-center gap-2.5 pt-1 text-slate-400">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors"
-              >
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-pink-600 hover:text-white flex items-center justify-center transition-colors"
-              >
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors"
-              >
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
-              >
-                <Youtube className="w-4 h-4" />
-              </a>
+              {socials?.facebook && (
+                <a
+                  href={socials.facebook}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <Facebook className="w-4 h-4" />
+                </a>
+              )}
+              {socials?.instagram && (
+                <a
+                  href={socials.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-pink-600 hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <Instagram className="w-4 h-4" />
+                </a>
+              )}
+              {socials?.tiktok && (
+                <a
+                  href={socials.tiktok}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <Twitter className="w-4 h-4" />
+                </a>
+              )}
+              {socials?.youtube && (
+                <a
+                  href={socials.youtube}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <Youtube className="w-4 h-4" />
+                </a>
+              )}
             </div>
           </div>
 
@@ -170,15 +188,19 @@ export default function Footer() {
             <ul className="space-y-2.5 text-xs text-slate-400">
               <li className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>+880 1711234567</span>
+                <a href={`tel:${phone}`} className="hover:text-white transition-colors truncate">
+                  {phone}
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>support@jeansbd.com</span>
+                <a href={`mailto:${emailAddr}`} className="hover:text-white transition-colors truncate">
+                  {emailAddr}
+                </a>
               </li>
-              <li className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span>Dhaka, Bangladesh</span>
+              <li className="flex items-start gap-2">
+                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+                <span className="leading-snug">{address}</span>
               </li>
             </ul>
           </div>
@@ -214,7 +236,7 @@ export default function Footer() {
 
         {/* Bottom Bar matching Image 2 */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-          <span>© 2026 Jeans BD. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Jeans BD. {copyright}</span>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-slate-300 transition-colors">
               Privacy Policy

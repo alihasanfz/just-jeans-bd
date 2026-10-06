@@ -2,48 +2,50 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Tag, Layers, Compass, Sparkles } from 'lucide-react';
+import { ArrowRight, Tag, Layers, Compass, Sparkles, type LucideIcon } from 'lucide-react';
+import { useProducts } from '@/lib/store/productsContext';
 
-const FIT_GUIDE_ITEMS = [
+const DEFAULT_FIT_ITEMS = [
   {
     id: 'fit-slim',
     name: 'Slim Fit',
     desc: 'A modern fit for a sharp look.',
-    linkText: 'Shop Slim Fit',
     link: '/shop?fit=Slim+Fit',
     image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=700&q=80',
-    icon: Tag,
   },
   {
     id: 'fit-baggy',
     name: 'Baggy & Relaxed Fit',
     desc: 'Maximum comfort, effortless style.',
-    linkText: 'Shop Baggy Fit',
     link: '/shop?fit=Baggy+Fit',
     image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=700&q=80',
-    icon: Layers,
   },
   {
     id: 'fit-straight',
     name: 'Straight Leg',
     desc: 'Timeless and versatile.',
-    linkText: 'Shop Straight Fit',
     link: '/shop?fit=Straight+Fit',
     image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=700&q=80',
-    icon: Compass,
   },
   {
     id: 'fit-wide',
     name: 'High-Rise Wide Leg',
     desc: 'Extra adore, modern comfort.',
-    linkText: 'Shop Wide Leg',
     link: '/shop?fit=Wide+Leg',
     image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=700&q=80',
-    icon: Sparkles,
   },
 ];
 
+const FIT_ICONS: LucideIcon[] = [Tag, Layers, Compass, Sparkles];
+
 export default function DenimFitGuide() {
+  const { siteSettings } = useProducts();
+  const fitGuide = siteSettings?.fitGuide;
+
+  const title = fitGuide?.title || 'THE DENIM FIT GUIDE';
+  const subtitle = fitGuide?.subtitle || 'Find your perfect fit with our style guide.';
+  const items = fitGuide?.items?.length ? fitGuide.items : DEFAULT_FIT_ITEMS;
+
   return (
     <section className="py-16 lg:py-24 bg-[#070b14] text-white relative">
       <div className="container mx-auto px-4 lg:px-6">
@@ -51,10 +53,10 @@ export default function DenimFitGuide() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 lg:mb-12 gap-4">
           <div>
             <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tight text-white">
-              THE DENIM FIT GUIDE
+              {title}
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Find your perfect fit with our style guide.
+              {subtitle}
             </p>
           </div>
 
@@ -67,20 +69,20 @@ export default function DenimFitGuide() {
           </Link>
         </div>
 
-        {/* 4 Fit Cards */}
+        {/* Fit Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-          {FIT_GUIDE_ITEMS.map((item) => {
-            const Icon = item.icon;
+          {items.map((item, idx) => {
+            const Icon = FIT_ICONS[idx % FIT_ICONS.length];
 
             return (
               <Link
-                key={item.id}
-                href={item.link}
+                key={item.id || idx}
+                href={item.link || '/shop'}
                 className="group relative rounded-2xl overflow-hidden aspect-[4/5] bg-slate-900 border border-white/10 shadow-lg transition-all duration-500 hover:-translate-y-1 hover:border-blue-500/50"
               >
                 {/* Image */}
                 <img
-                  src={item.image}
+                  src={item.image || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=700&q=80'}
                   alt={item.name}
                   className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108"
                   loading="lazy"
@@ -100,17 +102,17 @@ export default function DenimFitGuide() {
                     <h3 className="text-base sm:text-lg font-black text-white leading-tight">
                       {item.name}
                     </h3>
-                    <p className="text-xs text-slate-300 line-clamp-1 font-normal opacity-90">
-                      {item.desc}
+                    <p className="text-xs text-slate-300 font-normal">
+                      {item.desc || (item as any).tagline || 'Engineered for exceptional comfort and style.'}
                     </p>
-                    <span className="text-xs font-bold text-blue-400 group-hover:text-white transition-colors inline-flex items-center gap-1 pt-1">
-                      <span>{item.linkText}</span>
+                    <span className="text-xs font-bold text-blue-400 group-hover:text-blue-300 transition-colors inline-flex items-center gap-1 pt-1">
+                      <span>Shop {item.name}</span>
                       <span className="text-[10px]">→</span>
                     </span>
                   </div>
 
                   {/* Circular Arrow Button */}
-                  <div className="w-8 h-8 rounded-full border border-white/30 bg-white/10 group-hover:bg-blue-600 group-hover:border-blue-600 text-white flex items-center justify-center transition-all shrink-0">
+                  <div className="w-8 h-8 rounded-full border border-white/30 bg-white/10 group-hover:bg-blue-600 group-hover:border-blue-600 text-white flex items-center justify-center transition-all shrink-0 ml-3">
                     <ArrowRight className="w-3.5 h-3.5 transform -rotate-45 group-hover:rotate-0 transition-transform" />
                   </div>
                 </div>

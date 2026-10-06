@@ -11,14 +11,16 @@ import {
   Tag,
   Compass,
   Shirt,
+  type LucideIcon,
 } from 'lucide-react';
 import { Category } from '@/types';
+import { useProducts } from '@/lib/store/productsContext';
 
 interface CategoryShowcaseProps {
   categories?: Category[];
 }
 
-const CATEGORY_ITEMS = [
+const DEFAULT_CATEGORY_FALLBACKS = [
   {
     id: 'cat-mens-jeans',
     name: "Men's Jeans",
@@ -77,7 +79,33 @@ const CATEGORY_ITEMS = [
   },
 ];
 
-export default function CategoryShowcase({ categories }: CategoryShowcaseProps) {
+const ICONS: LucideIcon[] = [ShoppingBag, Sparkles, Shirt, Layers, Compass, Tag, Flame, Sparkles];
+
+export default function CategoryShowcase({ categories: propCategories }: CategoryShowcaseProps) {
+  const { siteSettings, categories: contextCategories } = useProducts();
+
+  const activeCategories = propCategories?.length
+    ? propCategories
+    : contextCategories?.length
+    ? contextCategories
+    : [];
+
+  const displayList = activeCategories.length > 0
+    ? activeCategories.slice(0, 8).map((cat, idx) => ({
+        id: cat.id,
+        name: cat.name,
+        link: `/shop?category=${encodeURIComponent(cat.name)}`,
+        image: cat.image || DEFAULT_CATEGORY_FALLBACKS[idx % DEFAULT_CATEGORY_FALLBACKS.length].image,
+        icon: ICONS[idx % ICONS.length],
+      }))
+    : DEFAULT_CATEGORY_FALLBACKS;
+
+  const badge = siteSettings?.categoryShowcase?.badge || '◇ SHOP BY CATEGORY';
+  const title = siteSettings?.categoryShowcase?.title || 'Find Your Perfect Style';
+  const subtitle = siteSettings?.categoryShowcase?.subtitle || 'Explore our wide range of denim for men and women. Quality, comfort and style — all in one place.';
+  const btnText = siteSettings?.categoryShowcase?.buttonText || 'View All Categories';
+  const btnLink = siteSettings?.categoryShowcase?.buttonLink || '/shop';
+
   return (
     <section className="py-16 lg:py-24 bg-white relative">
       <div className="container mx-auto px-4 lg:px-6">
@@ -85,28 +113,28 @@ export default function CategoryShowcase({ categories }: CategoryShowcaseProps) 
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 lg:mb-12 gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-black text-blue-600 uppercase tracking-widest mb-2">
-              <span>◇ SHOP BY CATEGORY</span>
+              <span>{badge}</span>
             </div>
             <h2 className="text-3xl lg:text-4xl font-black text-slate-950 tracking-tight">
-              Find Your Perfect Style
+              {title}
             </h2>
             <p className="text-sm text-slate-500 mt-1 max-w-xl">
-              Explore our wide range of denim for men and women. Quality, comfort and style — all in one place.
+              {subtitle}
             </p>
           </div>
 
           <Link
-            href="/shop"
+            href={btnLink}
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-800 border border-slate-300 hover:border-slate-900 px-5 py-2.5 rounded-full transition-all hover:bg-slate-50 self-start md:self-auto"
           >
-            <span>View All Categories</span>
+            <span>{btnText}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         {/* 8 Category Cards (2 Rows of 4 Cards) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
-          {CATEGORY_ITEMS.map((cat) => {
+          {displayList.map((cat) => {
             const Icon = cat.icon;
 
             return (

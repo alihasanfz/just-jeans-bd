@@ -85,86 +85,110 @@ function AdminSettingsContent() {
 
   // Tab 4: Home Sections states
   // 1. Hero Slides
-  const [heroSlides, setHeroSlides] = useState(siteSettings.banners.heroSlides || []);
+  const [heroSlides, setHeroSlides] = useState(siteSettings.banners?.heroSlides || []);
+
+  // 1.5 Category Showcase
+  const [catBadge, setCatBadge] = useState(siteSettings.categoryShowcase?.badge || '◇ SHOP BY CATEGORY');
+  const [catTitle, setCatTitle] = useState(siteSettings.categoryShowcase?.title || 'Find Your Perfect Style');
+  const [catSubtitle, setCatSubtitle] = useState(
+    siteSettings.categoryShowcase?.subtitle ||
+      'Explore our wide range of denim for men and women. Quality, comfort and style — all in one place.'
+  );
+  const [catBtnText, setCatBtnText] = useState(siteSettings.categoryShowcase?.buttonText || 'View All Categories');
+  const [catBtnLink, setCatBtnLink] = useState(siteSettings.categoryShowcase?.buttonLink || '/shop');
   
   // 2. Promo Banner
   const [promoBadge, setPromoBadge] = useState(siteSettings.promoBanner?.badge || 'LIMITED TIME OFFER');
-  const [promoTitle, setPromoTitle] = useState(siteSettings.promoBanner?.title || 'UP TO 30% OFF ALL PREMIUM DENIM');
+  const [promoTitle, setPromoTitle] = useState(siteSettings.promoBanner?.title || 'UP TO 30% OFF');
+  const [promoSubtitle, setPromoSubtitle] = useState(siteSettings.promoBanner?.subtitle || 'ALL PREMIUM DENIM');
   const [promoDesc, setPromoDesc] = useState(
     siteSettings.promoBanner?.description ||
-      'Use promo code JEANS10 at checkout for an instant extra 10% discount on all orders over ৳1,500. Free delivery included for orders above ৳2,500.'
+      'Upgrade your wardrobe with our exclusive denim collection.'
   );
   const [promoCode, setPromoCode] = useState(siteSettings.promoBanner?.couponCode || 'JEANS10');
-  const [promoBtnText, setPromoBtnText] = useState(siteSettings.promoBanner?.buttonText || 'Claim Discount Now');
+  const [promoBtnText, setPromoBtnText] = useState(siteSettings.promoBanner?.buttonText || 'SHOP NOW');
   const [promoBtnLink, setPromoBtnLink] = useState(siteSettings.promoBanner?.buttonLink || '/shop?filter=sale');
   const [promoImgUrl, setPromoImgUrl] = useState(
     siteSettings.promoBanner?.imageUrl ||
-      'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80'
+      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80'
   );
-  const [promoImgTag, setPromoImgTag] = useState(siteSettings.promoBanner?.imageTag || 'SIGNATURE FIT COLLECTION');
+  const [promoImgUrl2, setPromoImgUrl2] = useState(
+    siteSettings.promoBanner?.imageUrl2 ||
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=80'
+  );
+  const [promoImgTag, setPromoImgTag] = useState(siteSettings.promoBanner?.imageTag || 'Good Jeans\nGood Vibes');
 
   // 3. Denim Fit Guide (Screenshot 2)
-  const [fitGuideBadge, setFitGuideBadge] = useState(siteSettings.fitGuide?.badge || 'FIT CONSULTATION');
+  const [fitGuideBadge, setFitGuideBadge] = useState(siteSettings.fitGuide?.badge || 'THE DENIM FIT GUIDE');
   const [fitGuideTitle, setFitGuideTitle] = useState(siteSettings.fitGuide?.title || 'THE DENIM FIT GUIDE');
+  const [fitGuideSubtitle, setFitGuideSubtitle] = useState(
+    siteSettings.fitGuide?.subtitle || 'Find your perfect fit with our style guide.'
+  );
   const [fitGuideItems, setFitGuideItems] = useState(siteSettings.fitGuide?.items || [
     {
       id: 'fit-1',
       name: 'Slim Fit',
       tagline: 'Modern & Tailored',
-      desc: 'Form-fitting through hip and thigh, tapering neatly at the ankle. Woven with 2% elastane flex for effortless stretch.',
+      desc: 'A modern fit for a sharp look.',
       bestFor: 'Everyday casual, sneakers, dress shirts',
-      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
+      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=700&q=80',
       link: '/shop?fit=Slim+Fit',
     },
     {
       id: 'fit-2',
-      name: 'Baggy & Skater Fit',
+      name: 'Baggy & Relaxed Fit',
       tagline: 'Relaxed Street Silhouette',
-      desc: 'Generous room from waist to hem. Heavyweight 13.5oz rigid cotton that stacks naturally over chunky footwear.',
+      desc: 'Maximum comfort, effortless style.',
       bestFor: 'Streetwear, graphic tees, hoodies',
-      image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
+      image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=700&q=80',
       link: '/shop?fit=Baggy+Fit',
     },
     {
       id: 'fit-3',
       name: 'Straight Leg',
       tagline: 'Timeless Heritage Cut',
-      desc: 'Consistent parallel width from knee to cuff. Vintage American workwear heritage styling with authentic selvedge trims.',
+      desc: 'Timeless and versatile.',
       bestFor: 'Classic styles, boots, polo shirts',
-      image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
+      image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=700&q=80',
       link: '/shop?fit=Straight+Fit',
     },
     {
       id: 'fit-4',
       name: 'High-Rise Wide Leg',
       tagline: 'Chic Elongated Drape',
-      desc: 'Cinched high waist that flows into a wide flare. Creates an elegant proportion and floor-sweeping grace.',
+      desc: 'Extra adore, modern comfort.',
       bestFor: 'Crop tops, heels, relaxed blazers',
-      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80',
+      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=700&q=80',
       link: '/shop?fit=Wide+Leg',
     },
   ]);
 
   // 4. Customer Reviews
-  const [reviewsBadge, setReviewsBadge] = useState(siteSettings.customerReviews?.badge || 'VERIFIED CUSTOMER FEEDBACK');
-  const [reviewsTitle, setReviewsTitle] = useState(siteSettings.customerReviews?.title || 'LOVED ACROSS BANGLADESH');
+  const [reviewsBadge, setReviewsBadge] = useState(siteSettings.customerReviews?.badge || 'OUR CUSTOMERS LOVE US');
+  const [reviewsTitle, setReviewsTitle] = useState(siteSettings.customerReviews?.title || 'Loved Across Bangladesh');
   const [reviewsSubtitle, setReviewsSubtitle] = useState(
-    siteSettings.customerReviews?.subtitle || 'Over 15,000+ pairs delivered nationwide with a 4.9/5 satisfaction rate.'
+    siteSettings.customerReviews?.subtitle || 'Real reviews from real customers. Join thousands who trust Jeans BD.'
+  );
+  const [reviewsScore, setReviewsScore] = useState(siteSettings.customerReviews?.score || '4.7/5');
+  const [reviewsCountText, setReviewsCountText] = useState(
+    siteSettings.customerReviews?.reviewCountText || 'Based on 12,540+ reviews'
   );
   const [reviewItems, setReviewItems] = useState(siteSettings.customerReviews?.items || []);
 
-  // 4. Instagram Feed
-  const [igHandle, setIgHandle] = useState(siteSettings.instagramFeed?.handle || '@JEANSBD_OFFICIAL');
+  // 5. Instagram Feed
+  const [igBadge, setIgBadge] = useState(siteSettings.instagramFeed?.badge || 'FEATURED LOOKS');
+  const [igHandle, setIgHandle] = useState(siteSettings.instagramFeed?.handle || '@jeansbd');
   const [igTitle, setIgTitle] = useState(siteSettings.instagramFeed?.title || 'Wear It. Tag It. #JeansBDStyle');
   const [igUrl, setIgUrl] = useState(siteSettings.instagramFeed?.url || 'https://instagram.com/jeansbd');
   const [igImages, setIgImages] = useState<string[]>(
     siteSettings.instagramFeed?.images || [
+      'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
     ]
   );
 
@@ -213,28 +237,41 @@ function AdminSettingsContent() {
       if (siteSettings.bkashNumber) setBkashNumber(siteSettings.bkashNumber);
       if (siteSettings.nagadNumber) setNagadNumber(siteSettings.nagadNumber);
       if (siteSettings.banners?.heroSlides?.length) setHeroSlides(siteSettings.banners.heroSlides);
+      if (siteSettings.categoryShowcase) {
+        if (siteSettings.categoryShowcase.badge) setCatBadge(siteSettings.categoryShowcase.badge);
+        if (siteSettings.categoryShowcase.title) setCatTitle(siteSettings.categoryShowcase.title);
+        if (siteSettings.categoryShowcase.subtitle) setCatSubtitle(siteSettings.categoryShowcase.subtitle);
+        if (siteSettings.categoryShowcase.buttonText) setCatBtnText(siteSettings.categoryShowcase.buttonText);
+        if (siteSettings.categoryShowcase.buttonLink) setCatBtnLink(siteSettings.categoryShowcase.buttonLink);
+      }
       if (siteSettings.promoBanner) {
         if (siteSettings.promoBanner.badge) setPromoBadge(siteSettings.promoBanner.badge);
         if (siteSettings.promoBanner.title) setPromoTitle(siteSettings.promoBanner.title);
+        if (siteSettings.promoBanner.subtitle) setPromoSubtitle(siteSettings.promoBanner.subtitle);
         if (siteSettings.promoBanner.description) setPromoDesc(siteSettings.promoBanner.description);
         if (siteSettings.promoBanner.couponCode) setPromoCode(siteSettings.promoBanner.couponCode);
         if (siteSettings.promoBanner.buttonText) setPromoBtnText(siteSettings.promoBanner.buttonText);
         if (siteSettings.promoBanner.buttonLink) setPromoBtnLink(siteSettings.promoBanner.buttonLink);
         if (siteSettings.promoBanner.imageUrl) setPromoImgUrl(siteSettings.promoBanner.imageUrl);
+        if (siteSettings.promoBanner.imageUrl2) setPromoImgUrl2(siteSettings.promoBanner.imageUrl2);
         if (siteSettings.promoBanner.imageTag) setPromoImgTag(siteSettings.promoBanner.imageTag);
       }
       if (siteSettings.fitGuide) {
         if (siteSettings.fitGuide.badge) setFitGuideBadge(siteSettings.fitGuide.badge);
         if (siteSettings.fitGuide.title) setFitGuideTitle(siteSettings.fitGuide.title);
+        if (siteSettings.fitGuide.subtitle) setFitGuideSubtitle(siteSettings.fitGuide.subtitle);
         if (siteSettings.fitGuide.items?.length) setFitGuideItems(siteSettings.fitGuide.items);
       }
       if (siteSettings.customerReviews) {
         if (siteSettings.customerReviews.badge) setReviewsBadge(siteSettings.customerReviews.badge);
         if (siteSettings.customerReviews.title) setReviewsTitle(siteSettings.customerReviews.title);
         if (siteSettings.customerReviews.subtitle) setReviewsSubtitle(siteSettings.customerReviews.subtitle);
+        if (siteSettings.customerReviews.score) setReviewsScore(siteSettings.customerReviews.score);
+        if (siteSettings.customerReviews.reviewCountText) setReviewsCountText(siteSettings.customerReviews.reviewCountText);
         if (siteSettings.customerReviews.items?.length) setReviewItems(siteSettings.customerReviews.items);
       }
       if (siteSettings.instagramFeed) {
+        if (siteSettings.instagramFeed.badge) setIgBadge(siteSettings.instagramFeed.badge);
         if (siteSettings.instagramFeed.handle) setIgHandle(siteSettings.instagramFeed.handle);
         if (siteSettings.instagramFeed.title) setIgTitle(siteSettings.instagramFeed.title);
         if (siteSettings.instagramFeed.url) setIgUrl(siteSettings.instagramFeed.url);
@@ -389,28 +426,41 @@ function AdminSettingsContent() {
         banners: {
           heroSlides,
         },
+        categoryShowcase: {
+          badge: catBadge,
+          title: catTitle,
+          subtitle: catSubtitle,
+          buttonText: catBtnText,
+          buttonLink: catBtnLink,
+        },
         promoBanner: {
           badge: promoBadge,
           title: promoTitle,
+          subtitle: promoSubtitle,
           description: promoDesc,
           couponCode: promoCode,
           buttonText: promoBtnText,
           buttonLink: promoBtnLink,
           imageUrl: promoImgUrl,
+          imageUrl2: promoImgUrl2,
           imageTag: promoImgTag,
         },
         fitGuide: {
           badge: fitGuideBadge,
           title: fitGuideTitle,
+          subtitle: fitGuideSubtitle,
           items: fitGuideItems,
         },
         customerReviews: {
           badge: reviewsBadge,
           title: reviewsTitle,
           subtitle: reviewsSubtitle,
+          score: reviewsScore,
+          reviewCountText: reviewsCountText,
           items: reviewItems,
         },
         instagramFeed: {
+          badge: igBadge,
           handle: igHandle,
           title: igTitle,
           url: igUrl,
@@ -940,7 +990,7 @@ function AdminSettingsContent() {
                     <span>Shop by Category (Homepage Fit Cards)</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Controls the 8 curated category cards displayed under the Hero Banner on the homepage
+                    Customize titles, descriptions, and view active category cards displayed under the Hero Banner
                   </p>
                 </div>
                 <Link
@@ -948,8 +998,56 @@ function AdminSettingsContent() {
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-md self-start"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Edit Categories &amp; Photos</span>
+                  <span>Manage Category Photos &amp; Names</span>
                 </Link>
+              </div>
+
+              {/* Title & Badge Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Section Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={catBadge}
+                    onChange={(e) => setCatBadge(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Section Heading
+                  </label>
+                  <input
+                    type="text"
+                    value={catTitle}
+                    onChange={(e) => setCatTitle(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Button Text
+                  </label>
+                  <input
+                    type="text"
+                    value={catBtnText}
+                    onChange={(e) => setCatBtnText(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Section Description / Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    value={catSubtitle}
+                    onChange={(e) => setCatSubtitle(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs"
+                  />
+                </div>
               </div>
 
               {/* Category Mini Grid Preview */}
@@ -997,7 +1095,7 @@ function AdminSettingsContent() {
                   <span>Flash Offer / Promo Banner Section</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Configure the highlighted promo card with coupon code and side featured picture (Screenshot 2)
+                  Configure the highlighted promo card with coupon code, side featured pictures and neon tag
                 </p>
               </div>
 
@@ -1026,15 +1124,29 @@ function AdminSettingsContent() {
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
-                    Main Promo Headline
+                    Main Headline (Part 1 - White)
                   </label>
                   <input
                     type="text"
                     value={promoTitle}
                     onChange={(e) => setPromoTitle(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-sm font-black"
+                    placeholder="UP TO 30% OFF"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Sub-Headline (Part 2 - Sky Blue)
+                  </label>
+                  <input
+                    type="text"
+                    value={promoSubtitle}
+                    onChange={(e) => setPromoSubtitle(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-sm font-black text-sky-400"
+                    placeholder="ALL PREMIUM DENIM"
                   />
                 </div>
 
@@ -1074,26 +1186,36 @@ function AdminSettingsContent() {
                   />
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
-                    Side Image Bottom Tag
+                    Side Image Neon Tag / Quote
                   </label>
                   <input
                     type="text"
                     value={promoImgTag}
                     onChange={(e) => setPromoImgTag(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
-                    placeholder="SIGNATURE FIT COLLECTION"
+                    placeholder="Good Jeans\nGood Vibes"
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <ImageUploadField
-                    label="Side Featured Image (Upload from Computer)"
+                    label="Side Photo 1 (Folded Jeans)"
                     value={promoImgUrl}
                     onChange={setPromoImgUrl}
+                    aspect="square"
+                    helpText="Upload photo of folded jeans or denim stack."
+                  />
+                </div>
+
+                <div>
+                  <ImageUploadField
+                    label="Side Photo 2 (Denim Model Portrait)"
+                    value={promoImgUrl2}
+                    onChange={setPromoImgUrl2}
                     aspect="portrait"
-                    helpText="Upload a 3:4 portrait photo of denim jeans or model from your computer."
+                    helpText="Upload portrait photo of denim jeans model."
                   />
                 </div>
               </div>
@@ -1122,7 +1244,7 @@ function AdminSettingsContent() {
               </div>
 
               {/* Section Header Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/60">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/60">
                 <div>
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
                     Section Top Badge
@@ -1132,7 +1254,7 @@ function AdminSettingsContent() {
                     value={fitGuideBadge}
                     onChange={(e) => setFitGuideBadge(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
-                    placeholder="FIT CONSULTATION"
+                    placeholder="THE DENIM FIT GUIDE"
                   />
                 </div>
                 <div>
@@ -1145,6 +1267,18 @@ function AdminSettingsContent() {
                     onChange={(e) => setFitGuideTitle(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-black uppercase"
                     placeholder="THE DENIM FIT GUIDE"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Section Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    value={fitGuideSubtitle}
+                    onChange={(e) => setFitGuideSubtitle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs"
+                    placeholder="Find your perfect fit with our style guide."
                   />
                 </div>
               </div>
@@ -1270,7 +1404,7 @@ function AdminSettingsContent() {
               </div>
 
               {/* Header texts */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
                     Section Badge
@@ -1283,7 +1417,7 @@ function AdminSettingsContent() {
                   />
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
                     Section Title
                   </label>
@@ -1296,6 +1430,30 @@ function AdminSettingsContent() {
                 </div>
 
                 <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Aggregate Score (e.g. 4.7/5)
+                  </label>
+                  <input
+                    type="text"
+                    value={reviewsScore}
+                    onChange={(e) => setReviewsScore(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Reviews Count Line
+                  </label>
+                  <input
+                    type="text"
+                    value={reviewsCountText}
+                    onChange={(e) => setReviewsCountText(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                  />
+                </div>
+
+                <div className="lg:col-span-5">
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
                     Section Subtitle
                   </label>
@@ -1379,6 +1537,15 @@ function AdminSettingsContent() {
                       </div>
 
                       <div className="sm:col-span-3">
+                        <ImageUploadField
+                          label="Customer Avatar Photo (Upload from Computer)"
+                          value={rev.avatar || ''}
+                          onChange={(val) => handleUpdateReview(idx, 'avatar', val)}
+                          aspect="square"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
                         <label className="block text-slate-400 text-[10px] font-bold uppercase mb-1">Review Comment</label>
                         <textarea
                           rows={2}
@@ -1393,22 +1560,35 @@ function AdminSettingsContent() {
               </div>
             </div>
 
-            {/* 4. INSTAGRAM FEED SHOWCASE (Screenshot 4) */}
+            {/* 5. INSTAGRAM FEED SHOWCASE (Screenshot 4) */}
             <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-6">
               <div className="pb-3 border-b border-slate-800/80">
                 <h3 className="font-black text-base uppercase text-white tracking-wider flex items-center gap-2">
                   <Instagram className="w-5 h-5 text-pink-500" />
-                  <span>Instagram Feed & Lookbook Gallery (Screenshot 4)</span>
+                  <span>Instagram Feed &amp; Lookbook Gallery (Screenshot 4)</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Update your Instagram profile handle, section heading, and all 6 showcase product looks
+                  Update your Instagram profile handle, section heading, and all 6-7 showcase product looks
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
-                    Instagram Handle (e.g. @JEANSBD_OFFICIAL)
+                    Section Top Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={igBadge}
+                    onChange={(e) => setIgBadge(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-bold"
+                    placeholder="FEATURED LOOKS"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
+                    Instagram Handle
                   </label>
                   <input
                     type="text"
@@ -1420,7 +1600,7 @@ function AdminSettingsContent() {
 
                 <div>
                   <label className="block text-slate-400 font-bold uppercase text-[11px] mb-1">
-                    Section Title (e.g. Wear It. Tag It. #JeansBDStyle)
+                    Section Title
                   </label>
                   <input
                     type="text"
