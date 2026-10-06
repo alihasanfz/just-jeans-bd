@@ -18,15 +18,22 @@ export default function AdminError({
   const handleClearCacheAndReset = () => {
     try {
       if (typeof window !== 'undefined') {
-        // Clear any potentially corrupted admin local storage keys
+        // Clear heavy local storage keys to instantly recover full quota
         localStorage.removeItem('jeansbd_admin_stock_alerts');
+        localStorage.removeItem('jeansbd_products');
+        localStorage.removeItem('jeansbd_settings');
+        localStorage.removeItem('jeansbd_categories');
         sessionStorage.clear();
       }
     } catch (e) {
       console.warn('Could not clear storage', e);
     }
-    // Attempt re-render
-    reset();
+    // Attempt re-render or reload
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    } else {
+      reset();
+    }
   };
 
   return (

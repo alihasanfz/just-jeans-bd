@@ -343,13 +343,23 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     idbSet('jeansbd_categories', categories);
     idbSet('jeansbd_settings', siteSettings);
 
-    // 2. LocalStorage backup with quota guard
+    // 2. LocalStorage backup with quota guard (preserve quota for other features)
     try {
-      localStorage.setItem('jeansbd_products', JSON.stringify(products));
+      const strProds = JSON.stringify(products);
+      if (strProds.length < 1500000) {
+        localStorage.setItem('jeansbd_products', strProds);
+      }
       localStorage.setItem('jeansbd_categories', JSON.stringify(categories));
-      localStorage.setItem('jeansbd_settings', JSON.stringify(siteSettings));
+      const strSettings = JSON.stringify(siteSettings);
+      if (strSettings.length < 1500000) {
+        localStorage.setItem('jeansbd_settings', strSettings);
+      }
     } catch (e) {
-      // quota safeguard
+      // Quota limit reached: remove heavy keys so other admin features work seamlessly
+      try {
+        localStorage.removeItem('jeansbd_products');
+        localStorage.removeItem('jeansbd_settings');
+      } catch (_) {}
     }
   }, [products, categories, siteSettings, isLoaded]);
 
@@ -362,9 +372,14 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Safe LocalStorage write with quota guard
     try {
-      localStorage.setItem('jeansbd_settings', JSON.stringify(updated));
+      const str = JSON.stringify(updated);
+      if (str.length < 1500000) {
+        localStorage.setItem('jeansbd_settings', str);
+      }
     } catch (e) {
-      console.warn('LocalStorage quota limit reached; saved to IndexedDB & Cloud');
+      try {
+        localStorage.removeItem('jeansbd_settings');
+      } catch (_) {}
     }
 
     // 3. Supabase Cloud Database sync so all devices and live Vercel store update immediately

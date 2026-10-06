@@ -34,6 +34,7 @@ import { useProducts } from '@/lib/store/productsContext';
 import { useAdminTheme } from '@/lib/store/adminThemeContext';
 import AdminThemeToggle from '@/components/admin/AdminThemeToggle';
 import { formatPrice } from '@/lib/utils';
+import { safeLocalStorageSet, safeLocalStorageGet } from '@/lib/utils/db';
 import CustomerMessageModal from '@/components/admin/CustomerMessageModal';
 import StockAlertModal, { StockAlertItem } from '@/components/admin/StockAlertModal';
 
@@ -172,13 +173,7 @@ function AdminDashboardContent() {
   // Persist stock alerts immediately to both LocalStorage and Cloud DB
   const persistStockAlerts = (newList: StockAlertItem[]) => {
     const sanitized = sanitizeAlerts(newList);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
-      } catch (e) {
-        console.warn('Failed to save stock alerts to localStorage', e);
-      }
-    }
+    safeLocalStorageSet('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
     if (typeof updateSiteSettings === 'function') {
       try {
         updateSiteSettings({ stockAlerts: sanitized }).catch(() => {});
@@ -193,39 +188,35 @@ function AdminDashboardContent() {
       const sanitized = sanitizeAlerts(siteSettings.stockAlerts);
       setStockAlerts(sanitized);
       setIsAlertsInitialized(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
-      }
+      safeLocalStorageSet('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
       return;
     }
 
     // 2. Try from localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('jeansbd_admin_stock_alerts');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Filter out old legacy demo items if any
-            const cleaned = parsed.filter(
-              (it) =>
-                it &&
-                !['stock-1', 'stock-2', 'stock-3', 'stock-4'].includes(it.id) &&
-                it.name !== 'Angel Wing Washed Denim' &&
-                it.name !== 'Bleached Swirl Utility Denim' &&
-                it.name !== 'Sword & Cross Studded Vintage..' &&
-                it.name !== 'Cobblestone Textured Straight..'
-            );
-            const sanitized = sanitizeAlerts(cleaned);
-            setStockAlerts(sanitized);
-            setIsAlertsInitialized(true);
-            localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
-            return;
-          }
+    try {
+      const saved = safeLocalStorageGet('jeansbd_admin_stock_alerts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Filter out old legacy demo items if any
+          const cleaned = parsed.filter(
+            (it) =>
+              it &&
+              !['stock-1', 'stock-2', 'stock-3', 'stock-4'].includes(it.id) &&
+              it.name !== 'Angel Wing Washed Denim' &&
+              it.name !== 'Bleached Swirl Utility Denim' &&
+              it.name !== 'Sword & Cross Studded Vintage..' &&
+              it.name !== 'Cobblestone Textured Straight..'
+          );
+          const sanitized = sanitizeAlerts(cleaned);
+          setStockAlerts(sanitized);
+          setIsAlertsInitialized(true);
+          safeLocalStorageSet('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
+          return;
         }
-      } catch (e) {
-        console.warn('Failed to parse saved stock alerts', e);
       }
+    } catch (e) {
+      console.warn('Failed to parse saved stock alerts', e);
     }
 
     // If neither has items and not initialized yet

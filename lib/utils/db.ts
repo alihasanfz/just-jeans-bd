@@ -127,3 +127,35 @@ export function compressImageFile(file: File, maxWidth = 900, maxHeight = 1200, 
     reader.readAsDataURL(file);
   });
 }
+
+// Bulletproof localStorage setter with automatic quota recovery
+export function safeLocalStorageSet(key: string, value: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err: any) {
+    console.warn(`[Storage] localStorage quota full for "${key}" (${err?.message || err}). Freeing cache memory...`);
+    try {
+      // Clear non-critical bloated caches (products, categories, and settings are already preserved in IndexedDB & Supabase Cloud)
+      localStorage.removeItem('jeansbd_products');
+      localStorage.removeItem('jeansbd_settings');
+      localStorage.removeItem('jeansbd_categories');
+      localStorage.setItem(key, value);
+      return true;
+    } catch (retryErr) {
+      console.warn(`[Storage] Storage quota still exceeded for "${key}". Proceeding safely in memory without throwing.`);
+      return false;
+    }
+  }
+}
+
+export function safeLocalStorageGet(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch (err) {
+    return null;
+  }
+}
+
