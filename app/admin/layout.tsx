@@ -137,7 +137,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main Admin Area */}
       <main
-        className={`flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 overflow-y-auto transition-colors duration-200 ${
+        className={`flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto transition-colors duration-200 ${
           isDark ? 'bg-[#090d16]/95' : 'bg-[#f4f7fb]'
         }`}
       >
@@ -675,6 +675,16 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
             <span>LOGOUT</span>
           </button>
         </div>
+
+        {!isCollapsed && (
+          <div className="flex items-center justify-between px-2 pt-1 text-[10px] text-slate-500 font-mono">
+            <span>JEANS BD v1.0.0</span>
+            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live</span>
+            </span>
+          </div>
+        )}
       </div>
     </aside>
   );
