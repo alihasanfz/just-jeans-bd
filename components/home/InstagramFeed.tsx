@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { ChevronRight, Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
+import React, { useRef } from 'react';
+import { ChevronLeft, ChevronRight, Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 
 const DEFAULT_LOOKBOOK_IMAGES = [
@@ -18,12 +18,20 @@ export default function InstagramFeed() {
   const { siteSettings } = useProducts();
   const ig = siteSettings?.instagramFeed;
   const socials = siteSettings?.socialLinks;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const badge = ig?.badge || 'FEATURED LOOKS';
   const title = ig?.title || 'Wear It. Tag It. #JeansBDStyle';
   const handle = ig?.handle || '@jeansbd';
   const profileUrl = ig?.url || 'https://instagram.com/jeansbd';
   const images = ig?.images?.length ? ig.images : DEFAULT_LOOKBOOK_IMAGES;
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = direction === 'left' ? -350 : 350;
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   return (
     <section className="py-14 bg-white relative">
@@ -93,16 +101,30 @@ export default function InstagramFeed() {
           </div>
         </div>
 
-        {/* Gallery Strip matching Image 2 */}
-        <div className="relative">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        {/* Gallery Strip with smooth horizontal scroll and navigation */}
+        <div className="relative group/gallery">
+          {/* Scroll Left Navigation */}
+          <button
+            type="button"
+            onClick={() => handleScroll('left')}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white text-slate-700 shadow-md border border-slate-200/80 flex items-center justify-center hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all hover:scale-110 z-10 cursor-pointer opacity-0 group-hover/gallery:opacity-100 focus:opacity-100"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* Photos track */}
+          <div
+            ref={scrollRef}
+            className="flex items-center gap-3 overflow-x-auto pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
             {images.map((img, i) => (
               <a
                 key={i}
                 href={profileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="group relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-100 shadow-xs block"
+                className="group relative shrink-0 w-[42vw] sm:w-[22vw] md:w-[17vw] lg:w-[calc((100%-72px)/7)] min-w-[140px] max-w-[210px] aspect-[3/4] rounded-2xl overflow-hidden bg-slate-100 shadow-xs block"
               >
                 <img
                   src={img}
@@ -117,16 +139,15 @@ export default function InstagramFeed() {
             ))}
           </div>
 
-          {/* Right Navigation Arrow Button matching Image 2 */}
-          <a
-            href={profileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="absolute -right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center hover:bg-blue-500 transition-all hover:scale-110 z-10"
-            aria-label="View Instagram page"
+          {/* Scroll Right Navigation */}
+          <button
+            type="button"
+            onClick={() => handleScroll('right')}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center hover:bg-blue-500 transition-all hover:scale-110 z-10 cursor-pointer"
+            aria-label="Scroll right"
           >
             <ChevronRight className="w-4 h-4" />
-          </a>
+          </button>
         </div>
       </div>
     </section>

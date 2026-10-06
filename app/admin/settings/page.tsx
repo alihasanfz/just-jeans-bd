@@ -395,6 +395,21 @@ function AdminSettingsContent() {
     });
   };
 
+  const handleAddIgImage = () => {
+    setIgImages((prev) => [
+      ...prev,
+      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=600&q=80',
+    ]);
+  };
+
+  const handleDeleteIgImage = (index: number) => {
+    if (igImages.length <= 1) {
+      alert('You must keep at least 1 lookbook photo!');
+      return;
+    }
+    setIgImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const [isSaving, setIsSaving] = useState(false);
 
   // Save handler
@@ -1562,14 +1577,24 @@ function AdminSettingsContent() {
 
             {/* 5. INSTAGRAM FEED SHOWCASE (Screenshot 4) */}
             <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-6">
-              <div className="pb-3 border-b border-slate-800/80">
-                <h3 className="font-black text-base uppercase text-white tracking-wider flex items-center gap-2">
-                  <Instagram className="w-5 h-5 text-pink-500" />
-                  <span>Instagram Feed &amp; Lookbook Gallery (Screenshot 4)</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Update your Instagram profile handle, section heading, and all 6-7 showcase product looks
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800/80 gap-3">
+                <div>
+                  <h3 className="font-black text-base uppercase text-white tracking-wider flex items-center gap-2">
+                    <Instagram className="w-5 h-5 text-pink-500" />
+                    <span>Instagram Feed &amp; Lookbook Gallery (Screenshot 4)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Update your Instagram profile handle, section heading, and all showcase product looks ({igImages.length} photos)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddIgImage}
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-pink-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer self-start sm:self-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Lookbook Photo</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -1623,26 +1648,75 @@ function AdminSettingsContent() {
                 </div>
               </div>
 
-              {/* 6 Images Grid */}
+              {/* Dynamic Images Grid */}
               <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
-                  <label className="block text-slate-300 font-bold uppercase text-xs">
-                    6 Instagram Lookbook Photos (Upload from Computer)
-                  </label>
-                  <span className="text-[11px] text-slate-400">
-                    Click 'Upload from Computer' on each slot to add photos directly from your device
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 p-3 bg-slate-900/60 rounded-2xl border border-slate-800">
+                  <div>
+                    <label className="block text-white font-bold uppercase text-xs">
+                      {igImages.length} Instagram Lookbook Photos (Upload from Computer)
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      Click 'Upload from Computer' on each slot to add photos directly from your device. You can add as many as you want!
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddIgImage}
+                    className="inline-flex items-center gap-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Add Photo</span>
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {igImages.map((img, i) => (
-                    <ImageUploadField
+                    <div
                       key={i}
-                      label={`Instagram Look #${i + 1}`}
-                      value={img}
-                      onChange={(val) => handleUpdateIgImage(i, val)}
-                      aspect="square"
-                    />
+                      className="relative bg-slate-900/40 p-3.5 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between"
+                    >
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-md bg-pink-500/20 text-pink-400 font-bold text-[11px] flex items-center justify-center">
+                            {i + 1}
+                          </span>
+                          <span className="text-xs font-bold text-slate-300">
+                            Instagram Look #{i + 1}
+                          </span>
+                        </div>
+                        {igImages.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteIgImage(i)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                            title={`Delete Look #${i + 1}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+                      <ImageUploadField
+                        label=""
+                        value={img}
+                        onChange={(val) => handleUpdateIgImage(i, val)}
+                        aspect="square"
+                      />
+                    </div>
                   ))}
+                </div>
+
+                {/* Add Photo Button below grid */}
+                <div className="mt-4 pt-2 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleAddIgImage}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800/80 border-2 border-dashed border-slate-700 hover:border-pink-500/80 text-slate-300 hover:text-pink-400 font-bold text-xs px-8 py-3.5 rounded-2xl transition-all cursor-pointer group"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-pink-500/20 group-hover:bg-pink-500 group-hover:text-white text-pink-400 flex items-center justify-center transition-colors">
+                      <Plus className="w-3.5 h-3.5" />
+                    </div>
+                    <span>+ Add Another Instagram Lookbook Photo</span>
+                  </button>
                 </div>
               </div>
             </div>
