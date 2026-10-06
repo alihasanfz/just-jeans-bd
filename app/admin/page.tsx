@@ -132,41 +132,12 @@ export default function AdminDashboardPage() {
 
   const currentSales = weeklySalesData[selectedTimeframe];
 
-  // Stock alerts matching Image 2
-  const fallbackStockProducts: StockAlertItem[] = [
-    {
-      id: 'stock-1',
-      name: 'Angel Wing Washed Denim',
-      fit: 'STRAIGHT FIT',
-      stock: 30,
-      image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      id: 'stock-2',
-      name: 'Bleached Swirl Utility Denim',
-      fit: 'STRAIGHT FIT',
-      stock: 30,
-      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      id: 'stock-3',
-      name: 'Sword & Cross Studded Vintage..',
-      fit: 'STRAIGHT FIT',
-      stock: 30,
-      image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      id: 'stock-4',
-      name: 'Cobblestone Textured Straight..',
-      fit: 'STRAIGHT FIT',
-      stock: 30,
-      image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=400&q=80',
-    },
-  ];
+  // Stock alerts start empty (previous demo items removed)
+  const fallbackStockProducts: StockAlertItem[] = [];
 
   // Helper to sanitize stock alerts data
   const sanitizeAlerts = (items: any[]): StockAlertItem[] => {
-    if (!Array.isArray(items)) return fallbackStockProducts;
+    if (!Array.isArray(items)) return [];
     return items
       .filter((it) => it && typeof it === 'object')
       .map((it, idx) => ({
@@ -180,7 +151,7 @@ export default function AdminDashboardPage() {
   };
 
   // Dynamic stock alerts with localStorage persistence
-  const [stockAlerts, setStockAlerts] = useState<StockAlertItem[]>(fallbackStockProducts);
+  const [stockAlerts, setStockAlerts] = useState<StockAlertItem[]>([]);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockVal, setEditingStockVal] = useState<number>(30);
@@ -190,22 +161,46 @@ export default function AdminDashboardPage() {
   const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'messenger'>('whatsapp');
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
 
-  // Load stock alerts from localStorage on mount
+  // Load stock alerts from localStorage on mount (cleaning up old demo items)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('jeansbd_admin_stock_alerts');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setStockAlerts(sanitizeAlerts(parsed));
+          if (Array.isArray(parsed)) {
+            // Remove previous demo items
+            const cleaned = parsed.filter(
+              (it) =>
+                it &&
+                !['stock-1', 'stock-2', 'stock-3', 'stock-4'].includes(it.id) &&
+                it.name !== 'Angel Wing Washed Denim' &&
+                it.name !== 'Bleached Swirl Utility Denim' &&
+                it.name !== 'Sword & Cross Studded Vintage..' &&
+                it.name !== 'Cobblestone Textured Straight..'
+            );
+            setStockAlerts(sanitizeAlerts(cleaned));
+            localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(cleaned));
+            return;
           }
         }
       } catch (e) {
         console.warn('Failed to parse saved stock alerts', e);
       }
+      setStockAlerts([]);
     }
   }, []);
+
+  const handleClearAllStockAlerts = () => {
+    if (confirm('Are you sure you want to remove all stock alerts?')) {
+      setStockAlerts([]);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('jeansbd_admin_stock_alerts');
+        } catch (e) {}
+      }
+    }
+  };
 
   const handleUpdateStock = (id: string, newStock: number) => {
     const val = Math.max(0, Number(newStock) || 0);
@@ -937,6 +932,17 @@ export default function AdminDashboardPage() {
                 <span>Add Alert</span>
               </button>
 
+              {stockAlerts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllStockAlerts}
+                  className="text-xs font-bold text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                  title="Clear all alerts"
+                >
+                  Clear All
+                </button>
+              )}
+
               <Link
                 href="/admin/products"
                 className="text-xs font-bold text-slate-400 hover:text-blue-400 transition-colors hidden sm:inline"
@@ -949,15 +955,23 @@ export default function AdminDashboardPage() {
           {/* Dynamic Products List with Inline Edit & Remove */}
           <div className="space-y-3">
             {(!stockAlerts || stockAlerts.length === 0) ? (
-              <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-800 rounded-2xl p-4">
-                <Package className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                <p>No low stock alerts configured.</p>
+              <div className="text-center py-8 px-4 border border-dashed border-slate-800 rounded-2xl bg-slate-900/30">
+                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  No Low Stock Alerts
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Previous demo items have been removed. Click below to add products from catalog.
+                </p>
                 <button
                   type="button"
                   onClick={() => setIsStockModalOpen(true)}
-                  className="mt-2 text-blue-500 font-bold hover:underline cursor-pointer"
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all cursor-pointer"
                 >
-                  + Add your first stock alert
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Add Stock Alert</span>
                 </button>
               </div>
             ) : (
