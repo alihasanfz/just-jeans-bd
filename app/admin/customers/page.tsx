@@ -165,23 +165,28 @@ export default function AdminCustomersPage() {
 
         // Merge any new orders that haven't been added yet
         const merged = [...baseList];
-        orders.forEach((order) => {
-          const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
-          const existing = merged.find((c) => c.phone.replace(/[^0-9]/g, '') === cleanPhone);
+        const safeOrdersList = Array.isArray(orders) ? orders : [];
+        safeOrdersList.forEach((order) => {
+          if (!order) return;
+          const cleanPhone = String(order.customer?.phone || '').replace(/[^0-9]/g, '');
+          if (!cleanPhone) return;
+          const existing = merged.find((c) => String(c?.phone || '').replace(/[^0-9]/g, '') === cleanPhone);
 
           if (!existing) {
+            const nowIso = new Date().toISOString().slice(0, 10);
+            const orderDate = order.createdAt ? String(order.createdAt).slice(0, 10) : nowIso;
             merged.unshift({
-              id: `cust-order-${order.id}`,
-              name: order.customer.fullName,
-              phone: order.customer.phone,
-              email: order.customer.email || 'customer@order.com',
-              city: order.customer.district,
-              address: order.customer.address,
+              id: `cust-order-${order.id || Date.now()}`,
+              name: order.customer?.fullName || 'Customer',
+              phone: order.customer?.phone || '',
+              email: order.customer?.email || 'customer@order.com',
+              city: order.customer?.district || 'Dhaka',
+              address: order.customer?.address || '',
               totalOrders: 1,
-              totalSpent: order.totalAmount,
-              tier: order.totalAmount >= 10000 ? 'VIP' : 'New',
-              lastOrderDate: order.createdAt.slice(0, 10),
-              joinDate: order.createdAt.slice(0, 10),
+              totalSpent: Number(order.totalAmount) || 0,
+              tier: (Number(order.totalAmount) || 0) >= 10000 ? 'VIP' : 'New',
+              lastOrderDate: orderDate,
+              joinDate: orderDate,
             });
           }
         });

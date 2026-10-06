@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import {
   DollarSign,
@@ -37,7 +37,7 @@ import { formatPrice } from '@/lib/utils';
 import CustomerMessageModal from '@/components/admin/CustomerMessageModal';
 import StockAlertModal, { StockAlertItem } from '@/components/admin/StockAlertModal';
 
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const { orders } = useOrder();
   const { products, updateProduct, siteSettings, updateSiteSettings } = useProducts();
   const { theme, toggleTheme } = useAdminTheme();
@@ -75,31 +75,38 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Safe collections
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+
   // Metrics Calculations (aligned with Image 2 values with dynamic fallbacks)
-  const completedOrders = orders.filter(
-    (o) => o.paymentStatus === 'completed' || o.orderStatus === 'Delivered'
+  const completedOrders = safeOrders.filter(
+    (o) => o && (o.paymentStatus === 'completed' || o.orderStatus === 'Delivered')
   );
-  const totalRevenueCalc = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const totalSalesCalc = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalRevenueCalc = completedOrders.reduce((sum, o) => sum + (Number(o?.totalAmount) || 0), 0);
+  const totalSalesCalc = safeOrders.reduce((sum, o) => sum + (Number(o?.totalAmount) || 0), 0);
 
   const totalSales = totalSalesCalc > 0 ? totalSalesCalc : 4010;
-  const totalOrdersCount = orders.length > 0 ? orders.length : 2;
-  const pendingOrdersCount = orders.filter(
-    (o) => o.orderStatus === 'Pending' || o.orderStatus === 'Confirmed'
+  const totalOrdersCount = safeOrders.length > 0 ? safeOrders.length : 2;
+  const pendingOrdersCount = safeOrders.filter(
+    (o) => o && (o.orderStatus === 'Pending' || o.orderStatus === 'Confirmed')
   ).length;
-  const processingOrdersCount = orders.filter(
+  const processingOrdersCount = safeOrders.filter(
     (o) =>
-      o.orderStatus === 'Processing' ||
-      o.orderStatus === 'Ready to Ship' ||
-      o.orderStatus === 'Shipped' ||
-      o.orderStatus === 'Out for Delivery'
+      o &&
+      (o.orderStatus === 'Processing' ||
+        o.orderStatus === 'Ready to Ship' ||
+        o.orderStatus === 'Shipped' ||
+        o.orderStatus === 'Out for Delivery')
   ).length || 2;
-  const deliveredOrdersCount = orders.filter((o) => o.orderStatus === 'Delivered').length;
-  const cancelledOrdersCount = orders.filter(
-    (o) => o.orderStatus === 'Cancelled' || o.orderStatus === 'Returned'
+  const deliveredOrdersCount = safeOrders.filter((o) => o && o.orderStatus === 'Delivered').length;
+  const cancelledOrdersCount = safeOrders.filter(
+    (o) => o && (o.orderStatus === 'Cancelled' || o.orderStatus === 'Returned')
   ).length;
-  const totalCustomersCount = new Set(orders.map((o) => o.customer?.phone)).size || 1;
-  const totalProductsCount = products.length > 0 ? products.length : 9;
+  const totalCustomersCount = new Set(
+    safeOrders.map((o) => o?.customer?.phone).filter(Boolean)
+  ).size || 1;
+  const totalProductsCount = safeProducts.length > 0 ? safeProducts.length : 9;
   const realizedRevenue = totalRevenueCalc > 0 ? totalRevenueCalc : 1970;
 
   // Chart values matching Image 2
@@ -130,7 +137,7 @@ export default function AdminDashboardPage() {
     ],
   };
 
-  const currentSales = weeklySalesData[selectedTimeframe];
+  const currentSales = (weeklySalesData && weeklySalesData[selectedTimeframe]) || weeklySalesData['7d'] || [];
 
   // Stock alerts start empty (previous demo items removed)
   const fallbackStockProducts: StockAlertItem[] = [];
@@ -305,17 +312,26 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const displayOrders = orders.length >= 2 ? orders : demoTableOrders;
+  const displayOrders = safeOrders.length > 0 ? safeOrders : demoTableOrders;
 
   const filteredOrders = displayOrders.filter((o) => {
+    if (!o || typeof o !== 'object') return false;
+    const orderNum = String(o.orderNumber || '').toLowerCase();
+    const custName = String(o.customer?.fullName || '').toLowerCase();
+    const custPhone = String(o.customer?.phone || '');
+    const custDist = String(o.customer?.district || '').toLowerCase();
+    const q = (orderSearch || '').toLowerCase().trim();
     const matchSearch =
-      o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      o.customer.fullName.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      o.customer.phone.includes(orderSearch) ||
-      o.customer.district.toLowerCase().includes(orderSearch.toLowerCase());
+      !q ||
+      orderNum.includes(q) ||
+      custName.includes(q) ||
+      custPhone.includes(q) ||
+      custDist.includes(q);
+    const ordStatus = String(o.orderStatus || '').toLowerCase();
+    const filterStatus = (orderStatusFilter || 'all').toLowerCase();
     const matchStatus =
-      orderStatusFilter === 'all' ||
-      o.orderStatus.toLowerCase() === orderStatusFilter.toLowerCase();
+      filterStatus === 'all' ||
+      ordStatus === filterStatus;
     return matchSearch && matchStatus;
   });
 
@@ -1197,21 +1213,31 @@ export default function AdminDashboardPage() {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((ord) => {
-                  const initials = ord.customer.fullName
+                filteredOrders.map((ord, ordIdx) => {
+                  if (!ord) return null;
+                  const fullName = ord.customer?.fullName || 'Valued Customer';
+                  const initials = fullName
                     .split(' ')
+                    .filter(Boolean)
                     .map((n) => n[0])
                     .join('')
                     .substring(0, 2)
-                    .toUpperCase() || 'AH';
+                    .toUpperCase() || 'JB';
 
-                  const isShipped = ord.orderStatus === 'Shipped';
-                  const isProcessing = ord.orderStatus === 'Processing' || ord.orderStatus === 'Confirmed';
-                  const isDelivered = ord.orderStatus === 'Delivered';
+                  const customerPhone = ord.customer?.phone || 'N/A';
+                  const customerDistrict = ord.customer?.district || 'Dhaka';
+                  const orderNum = ord.orderNumber || `ORD-${ordIdx + 1}`;
+                  const totalAmt = Number(ord.totalAmount) || 0;
+                  const payMethod = ord.paymentMethod || 'cod';
+                  const ordStatus = ord.orderStatus || 'Pending';
+
+                  const isShipped = ordStatus === 'Shipped';
+                  const isProcessing = ordStatus === 'Processing' || ordStatus === 'Confirmed';
+                  const isDelivered = ordStatus === 'Delivered';
 
                   return (
                     <tr
-                      key={ord.id}
+                      key={ord.id || `ord-row-${ordIdx}`}
                       className={`transition-colors ${
                         isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50/80'
                       }`}
@@ -1219,7 +1245,7 @@ export default function AdminDashboardPage() {
                       {/* Order No */}
                       <td className="py-3.5 px-3">
                         <span className={`font-mono font-bold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {ord.orderNumber}
+                          {orderNum}
                         </span>
                       </td>
 
@@ -1231,11 +1257,11 @@ export default function AdminDashboardPage() {
                           </div>
                           <div>
                             <span className={`font-bold block ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                              {ord.customer.fullName}
+                              {fullName}
                             </span>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[11px] text-slate-400 font-mono">
-                                {ord.customer.phone}
+                                {customerPhone}
                               </span>
                               {/* Direct mini channel triggers */}
                               <button
@@ -1266,25 +1292,25 @@ export default function AdminDashboardPage() {
                       {/* District */}
                       <td className="py-3.5 px-3">
                         <span className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          {ord.customer.district}
+                          {customerDistrict}
                         </span>
                       </td>
 
                       {/* Amount */}
                       <td className="py-3.5 px-3">
                         <span className={`font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {formatPrice(ord.totalAmount)}
+                          {formatPrice(totalAmt)}
                         </span>
                       </td>
 
                       {/* Payment */}
                       <td className="py-3.5 px-3">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border ${
-                          ord.paymentMethod === 'bkash'
+                          payMethod === 'bkash'
                             ? 'bg-pink-500/10 text-pink-400 border-pink-500/20'
                             : 'bg-slate-800 text-slate-300 border-slate-700'
                         }`}>
-                          {ord.paymentMethod === 'bkash' ? 'bKash' : 'COD'}
+                          {payMethod === 'bkash' ? 'bKash' : 'COD'}
                         </span>
                       </td>
 
@@ -1300,7 +1326,7 @@ export default function AdminDashboardPage() {
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             isDelivered ? 'bg-emerald-400' : isShipped ? 'bg-blue-400' : 'bg-amber-400'
                           }`} />
-                          <span>{ord.orderStatus}</span>
+                          <span>{ordStatus}</span>
                         </span>
                       </td>
 
@@ -1335,7 +1361,7 @@ export default function AdminDashboardPage() {
 
                           {/* Manage Link */}
                           <Link
-                            href={`/admin/orders?order=${ord.orderNumber}`}
+                            href={`/admin/orders?order=${orderNum}`}
                             className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl border transition-all active:scale-95 ${
                               isDark
                                 ? 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
@@ -1374,4 +1400,24 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full max-w-[1740px] mx-auto p-8 flex items-center justify-center min-h-[50vh]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-9 h-9 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold font-mono tracking-wider text-slate-400">
+              LOADING DASHBOARD ANALYTICS...
+            </span>
+          </div>
+        </div>
+      }
+    >
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
 

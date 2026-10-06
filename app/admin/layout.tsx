@@ -54,7 +54,18 @@ export default function AdminLayout({
 
   return (
     <AdminThemeProvider>
-      <AdminLayoutInner>{children}</AdminLayoutInner>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#090d16] flex items-center justify-center p-8 text-slate-400">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold font-mono tracking-wider">LOADING ADMIN CONSOLE...</span>
+            </div>
+          </div>
+        }
+      >
+        <AdminLayoutInner>{children}</AdminLayoutInner>
+      </Suspense>
     </AdminThemeProvider>
   );
 }
@@ -127,10 +138,18 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             onClick={() => setIsMobileMenuOpen(false)}
           />
           <div className="relative z-10 w-72 max-w-[85vw] h-full shadow-2xl animate-scale-in">
-            <AdminSidebar
-              isCollapsed={false}
-              onCloseMobile={() => setIsMobileMenuOpen(false)}
-            />
+            <Suspense
+              fallback={
+                <aside className="w-full h-full bg-[#0d1322] p-4 text-slate-400 text-xs">
+                  Loading menu...
+                </aside>
+              }
+            >
+              <AdminSidebar
+                isCollapsed={false}
+                onCloseMobile={() => setIsMobileMenuOpen(false)}
+              />
+            </Suspense>
           </div>
         </div>
       )}
@@ -154,10 +173,10 @@ interface AdminSidebarProps {
 }
 
 function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: AdminSidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const searchParams = useSearchParams();
-  const currentTab = searchParams.get('tab');
-  const currentAction = searchParams.get('action');
+  const currentTab = searchParams ? searchParams.get('tab') : null;
+  const currentAction = searchParams ? searchParams.get('action') : null;
 
   const { orders } = useOrder();
   const { products, siteSettings } = useProducts();
