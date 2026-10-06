@@ -119,7 +119,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   phone: '01775743148',
   email: 'hasansheikh9080@gmail.com',
   address: '13-14 Zoo Road, Mollik Tower, Mirpur- 01, Dhaka -1216, Bangladesh',
-  googleMapUrl: 'https://share.google/u2vM7JtZNOWKO1eHE',
+  googleMapUrl: 'https://maps.app.goo.gl/FQtyZRiWgho2owgr7',
   announcementText: '🔥 FREE DELIVERY ACROSS BANGLADESH ON ORDERS OVER ৳2500 | CASH ON DELIVERY AVAILABLE 🚀',
   freeShippingThreshold: 2500,
   deliveryChargeDhaka: 80,
@@ -300,4 +300,5 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   },
   footerBrandDescription: "Premium quality denim for every style. From classic to trend, we've got you covered.",
   copyrightText: 'All rights reserved. Crafted for Denim Lovers in Bangladesh.',
+  stockAlerts: [],
 };

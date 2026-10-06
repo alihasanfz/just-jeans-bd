@@ -294,5 +294,13 @@ export interface SiteSettings {
   };
   footerBrandDescription?: string;
   copyrightText?: string;
+  stockAlerts?: {
+    id: string;
+    name: string;
+    fit: string;
+    stock: number;
+    image: string;
+    productId?: string;
+  }[];
 }
 

@@ -680,28 +680,58 @@ function AdminSettingsContent() {
             </div>
 
             <div>
-              <label className="block text-slate-400 font-bold uppercase mb-1">
-                Google Maps Share Link URL
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-slate-400 font-bold uppercase text-xs">
+                  Google Maps Live Location URL
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setGoogleMapUrl('https://maps.app.goo.gl/FQtyZRiWgho2owgr7')}
+                  className="text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  Use Official Jeans BD Map Pin
+                </button>
+              </div>
               <div className="flex gap-2">
                 <input
                   type="url"
                   value={googleMapUrl}
                   onChange={(e) => setGoogleMapUrl(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-white text-xs font-mono"
-                  placeholder="https://share.google/..."
+                  placeholder="https://maps.app.goo.gl/FQtyZRiWgho2owgr7"
                 />
                 {googleMapUrl && (
                   <a
                     href={googleMapUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
                   >
-                    <span>Test</span>
+                    <span>Open Live Map</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
+              </div>
+
+              {/* Live Interactive Google Map Preview */}
+              <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg">
+                <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-xs font-bold text-white">Live Google Map: Jeans Manufacturing Company Ltd</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">Mirpur-01, Dhaka</span>
+                </div>
+                <div className="relative w-full h-64 bg-slate-950">
+                  <iframe
+                    title="Jeans BD Live Google Map"
+                    src="https://maps.google.com/maps?q=Jeans+manufacturing+company+Ltd+Mollik+Tower+Zoo+Road+Mirpur+Dhaka&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                    allowFullScreen
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
               </div>
             </div>
           </div>

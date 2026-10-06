@@ -39,7 +39,7 @@ import StockAlertModal, { StockAlertItem } from '@/components/admin/StockAlertMo
 
 export default function AdminDashboardPage() {
   const { orders } = useOrder();
-  const { products, updateProduct } = useProducts();
+  const { products, updateProduct, siteSettings, updateSiteSettings } = useProducts();
   const { theme, toggleTheme } = useAdminTheme();
   const isDark = theme === 'dark';
 
@@ -150,8 +150,9 @@ export default function AdminDashboardPage() {
       }));
   };
 
-  // Dynamic stock alerts with localStorage persistence
+  // Dynamic stock alerts with multi-tier persistence (Cloud DB + localStorage)
   const [stockAlerts, setStockAlerts] = useState<StockAlertItem[]>([]);
+  const [isAlertsInitialized, setIsAlertsInitialized] = useState(false);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockVal, setEditingStockVal] = useState<number>(30);
@@ -161,15 +162,44 @@ export default function AdminDashboardPage() {
   const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'messenger'>('whatsapp');
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
 
-  // Load stock alerts from localStorage on mount (cleaning up old demo items)
+  // Persist stock alerts immediately to both LocalStorage and Cloud DB
+  const persistStockAlerts = (newList: StockAlertItem[]) => {
+    const sanitized = sanitizeAlerts(newList);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
+      } catch (e) {
+        console.warn('Failed to save stock alerts to localStorage', e);
+      }
+    }
+    if (typeof updateSiteSettings === 'function') {
+      try {
+        updateSiteSettings({ stockAlerts: sanitized }).catch(() => {});
+      } catch (e) {}
+    }
+  };
+
+  // Load stock alerts on mount & sync from siteSettings (Cloud) or localStorage
   useEffect(() => {
+    // 1. Try from siteSettings (Cloud DB) first if present
+    if (Array.isArray(siteSettings?.stockAlerts) && siteSettings.stockAlerts.length > 0) {
+      const sanitized = sanitizeAlerts(siteSettings.stockAlerts);
+      setStockAlerts(sanitized);
+      setIsAlertsInitialized(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
+      }
+      return;
+    }
+
+    // 2. Try from localStorage
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('jeansbd_admin_stock_alerts');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            // Remove previous demo items
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Filter out old legacy demo items if any
             const cleaned = parsed.filter(
               (it) =>
                 it &&
@@ -179,41 +209,38 @@ export default function AdminDashboardPage() {
                 it.name !== 'Sword & Cross Studded Vintage..' &&
                 it.name !== 'Cobblestone Textured Straight..'
             );
-            setStockAlerts(sanitizeAlerts(cleaned));
-            localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(cleaned));
+            const sanitized = sanitizeAlerts(cleaned);
+            setStockAlerts(sanitized);
+            setIsAlertsInitialized(true);
+            localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(sanitized));
             return;
           }
         }
       } catch (e) {
         console.warn('Failed to parse saved stock alerts', e);
       }
-      setStockAlerts([]);
     }
-  }, []);
+
+    // If neither has items and not initialized yet
+    if (!isAlertsInitialized) {
+      setStockAlerts([]);
+      setIsAlertsInitialized(true);
+    }
+  }, [siteSettings?.stockAlerts, isAlertsInitialized]);
 
   const handleClearAllStockAlerts = () => {
     if (confirm('Are you sure you want to remove all stock alerts?')) {
       setStockAlerts([]);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem('jeansbd_admin_stock_alerts');
-        } catch (e) {}
-      }
+      persistStockAlerts([]);
     }
   };
 
   const handleUpdateStock = (id: string, newStock: number) => {
     const val = Math.max(0, Number(newStock) || 0);
-    setStockAlerts((prev) => {
-      const currentList = Array.isArray(prev) ? prev : fallbackStockProducts;
-      const next = currentList.map((item) => (item.id === id ? { ...item, stock: val } : item));
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
-        } catch (e) {}
-      }
-      return next;
-    });
+    const currentList = Array.isArray(stockAlerts) ? stockAlerts : [];
+    const next = currentList.map((item) => (item.id === id ? { ...item, stock: val } : item));
+    setStockAlerts(next);
+    persistStockAlerts(next);
 
     const item = stockAlerts?.find((it) => it.id === id);
     if (item?.productId && typeof updateProduct === 'function') {
@@ -225,33 +252,21 @@ export default function AdminDashboardPage() {
   };
 
   const handleRemoveStockAlert = (id: string) => {
-    setStockAlerts((prev) => {
-      const currentList = Array.isArray(prev) ? prev : fallbackStockProducts;
-      const next = currentList.filter((item) => item.id !== id);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
-        } catch (e) {}
-      }
-      return next;
-    });
+    const currentList = Array.isArray(stockAlerts) ? stockAlerts : [];
+    const next = currentList.filter((item) => item.id !== id);
+    setStockAlerts(next);
+    persistStockAlerts(next);
   };
 
   const handleAddStockAlert = (newItem: StockAlertItem) => {
     if (!newItem || !newItem.id) return;
-    setStockAlerts((prev) => {
-      const currentList = Array.isArray(prev) ? prev : fallbackStockProducts;
-      const filtered = currentList.filter(
-        (it) => it.id !== newItem.id && (!newItem.productId || it.productId !== newItem.productId)
-      );
-      const next = [newItem, ...filtered];
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
-        } catch (e) {}
-      }
-      return next;
-    });
+    const currentList = Array.isArray(stockAlerts) ? stockAlerts : [];
+    const filtered = currentList.filter(
+      (it) => it.id !== newItem.id && (!newItem.productId || it.productId !== newItem.productId)
+    );
+    const next = [newItem, ...filtered];
+    setStockAlerts(next);
+    persistStockAlerts(next);
   };
 
   const openCustomerMessage = (order: any, channel: 'whatsapp' | 'messenger' = 'whatsapp') => {

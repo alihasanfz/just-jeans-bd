@@ -12,6 +12,7 @@ import {
   MapPin,
   Plus,
   Check,
+  ExternalLink,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 
@@ -198,9 +199,20 @@ export default function Footer() {
                   {emailAddr}
                 </a>
               </li>
-              <li className="flex items-start gap-2">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-                <span className="leading-snug">{address}</span>
+              <li className="flex items-start gap-2 group">
+                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5 group-hover:text-amber-400 transition-colors" />
+                <div className="space-y-1">
+                  <span className="leading-snug block">{address}</span>
+                  <a
+                    href={siteSettings?.googleMapUrl || 'https://maps.app.goo.gl/FQtyZRiWgho2owgr7'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <span>📍 View Live Google Map</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </li>
             </ul>
           </div>
