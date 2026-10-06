@@ -334,11 +334,18 @@ function AdminSettingsContent() {
   const handleSlideVideoFileUpload = async (idx: number, file: File) => {
     if (!file) return;
     if (!file.type.startsWith('video/') && !/\.(mp4|webm|mov|mkv|avi)$/i.test(file.name)) {
-      alert('Please select a valid video file (MP4, WebM, MOV, MKV)');
+      alert('অনুগ্রহ করে একটি সঠিক ভিডিও ফাইল (MP4, WebM, MOV) সিলেক্ট করুন।');
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      alert('Video file exceeds 100MB. For large videos, we recommend uploading to YouTube/Vimeo and pasting the link!');
+
+    const fileSizeMB = file.size / (1024 * 1024);
+
+    // Vercel serverless request body is limited to 4.5MB for direct file upload
+    if (fileSizeMB > 4.5) {
+      alert(
+        `⚠️ ভিডিও ফাইলের সাইজ ${fileSizeMB.toFixed(1)}MB (৪.৫MB-এর বেশি)।\n\n` +
+        `বড় ভিডিও ফাইলের জন্য ভিডিওটি YouTube (Unlisted বা Public), Vimeo, Google Drive, বা Streamable-এ আপলোড করে নিচের "Video Link" বক্সে লিঙ্কটি পেস্ট করুন। এতে কাস্টমাররা কোনো বাফারিং ছাড়াই দ্রুত 1080p কোয়ালিটিতে ভিডিও দেখতে পাবে!`
+      );
       return;
     }
 
@@ -360,11 +367,20 @@ function AdminSettingsContent() {
           return;
         }
       }
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson?.error || 'Upload failed');
+
+      let errorMsg = 'Upload failed';
+      try {
+        const errJson = await res.json();
+        if (errJson?.error) errorMsg = errJson.error;
+      } catch (_) {
+        if (res.status === 413) {
+          errorMsg = 'File is too large for direct upload. Please paste a YouTube/Vimeo/Streamable link instead.';
+        }
+      }
+      throw new Error(errorMsg);
     } catch (err: any) {
       console.error('Slide video upload error:', err);
-      alert(`Video upload failed: ${err?.message || 'Please check file or paste a video link'}`);
+      alert(`ভিডিও আপলোড এরর: ${err?.message || 'অনুগ্রহ করে YouTube / Vimeo / MP4 ভিডিও লিংক ব্যবহার করুন।'}`);
       setUploadingSlideIdx(null);
     }
   };
@@ -1113,24 +1129,35 @@ function AdminSettingsContent() {
                           </div>
 
                           {/* Video URL Input */}
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={slide.videoUrl || ''}
-                              onChange={(e) => handleUpdateSlide(idx, 'videoUrl', e.target.value)}
-                              placeholder="Or paste video link: https://www.youtube.com/watch?v=... or /uploads/video.mp4"
-                              className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-400 rounded-xl px-3 py-2 text-white text-xs font-mono placeholder-slate-500 focus:outline-none"
-                            />
-                            {slide.videoUrl && (
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateSlide(idx, 'videoUrl', '')}
-                                className="p-2 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition"
-                                title="Remove video background"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            )}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={slide.videoUrl || ''}
+                                onChange={(e) => handleUpdateSlide(idx, 'videoUrl', e.target.value)}
+                                placeholder="Paste video link: YouTube, Vimeo, Google Drive, Streamable, or MP4 URL"
+                                className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-400 rounded-xl px-3 py-2 text-white text-xs font-mono placeholder-slate-500 focus:outline-none"
+                              />
+                              {slide.videoUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateSlide(idx, 'videoUrl', '')}
+                                  className="p-2 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition shrink-0"
+                                  title="Remove video background"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+                              <span className="font-bold text-slate-300">Supported Formats:</span>
+                              <span className="bg-red-500/15 text-red-300 px-1.5 py-0.5 rounded border border-red-500/20 font-medium">YouTube</span>
+                              <span className="bg-sky-500/15 text-sky-300 px-1.5 py-0.5 rounded border border-sky-500/20 font-medium">Vimeo</span>
+                              <span className="bg-blue-500/15 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/20 font-medium">Google Drive</span>
+                              <span className="bg-indigo-500/15 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/20 font-medium">Streamable</span>
+                              <span className="bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/20 font-medium">Direct MP4</span>
+                            </div>
                           </div>
 
                           {slide.videoUrl && (

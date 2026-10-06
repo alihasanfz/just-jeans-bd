@@ -36,18 +36,46 @@ export function parseVideoUrl(url: string | null | undefined): VideoInfo | null 
     const videoId = vimeoMatch[1];
     return {
       type: 'vimeo',
-      embedUrl: `https://player.vimeo.com/video/${videoId}?autoplay=1`,
+      embedUrl: `https://player.vimeo.com/video/${videoId}?autoplay=1&loop=1&muted=1`,
       originalUrl: cleanUrl,
       videoId,
-      thumbnailUrl: '', // Vimeo thumbnails require async oEmbed
+      thumbnailUrl: '',
     };
   }
 
-  // 3. Direct video files (MP4, WebM, MOV, OGG, or uploaded /uploads/ or data:video)
+  // 3. Streamable (streamable.com/code)
+  const streamableRegex = /streamable\.com\/(?:[e\/]+)?([a-zA-Z0-9]+)/i;
+  const streamableMatch = cleanUrl.match(streamableRegex);
+  if (streamableMatch && streamableMatch[1]) {
+    const code = streamableMatch[1];
+    return {
+      type: 'youtube', // Use iframe player
+      embedUrl: `https://streamable.com/e/${code}?autoplay=1&muted=1`,
+      originalUrl: cleanUrl,
+      videoId: code,
+    };
+  }
+
+  // 4. Google Drive (drive.google.com/file/d/ID/...)
+  const driveRegex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i;
+  const driveMatch = cleanUrl.match(driveRegex);
+  if (driveMatch && driveMatch[1]) {
+    const fileId = driveMatch[1];
+    return {
+      type: 'youtube', // Use iframe player
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      originalUrl: cleanUrl,
+      videoId: fileId,
+    };
+  }
+
+  // 5. Direct video files (MP4, WebM, MOV, OGG, Catbox CDN, or uploaded /uploads/)
   const isDirect =
     cleanUrl.startsWith('data:video/') ||
     cleanUrl.startsWith('blob:') ||
     cleanUrl.startsWith('/uploads/') ||
+    cleanUrl.includes('files.catbox.moe') ||
+    cleanUrl.includes('litter.catbox.moe') ||
     /\.(mp4|webm|mov|ogg|m4v)(\?.*)?$/i.test(cleanUrl);
 
   if (isDirect || cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {

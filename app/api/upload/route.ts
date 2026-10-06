@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 // Allowed image & video formats
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
