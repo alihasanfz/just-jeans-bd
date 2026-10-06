@@ -10,8 +10,11 @@ import {
   Truck,
   RotateCcw,
   Lock,
+  Play,
+  Film,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
+import { parseVideoUrl } from '@/lib/utils/video';
 
 const FALLBACK_SLIDES = [
   {
@@ -121,13 +124,41 @@ export default function HeroBanner() {
               isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
-            {/* Background Image with Dark Vignette */}
-            <img
-              src={slide.imageUrl || 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1400&q=85'}
-              alt={slide.title}
-              className="w-full h-full object-cover object-right lg:object-center transform scale-105 transition-transform duration-[8000ms] ease-out"
-            />
-            {/* Gradient Mask matching Image 2 */}
+            {/* Background Video or Image with Dark Vignette */}
+            {slide.videoUrl ? (
+              (() => {
+                const info = parseVideoUrl(slide.videoUrl);
+                if (info?.type === 'youtube' || info?.type === 'vimeo') {
+                  return (
+                    <div className="w-full h-full relative overflow-hidden pointer-events-none scale-125">
+                      <iframe
+                        src={`${info.embedUrl}&controls=0&mute=1&loop=1&playlist=${info.videoId || ''}&background=1`}
+                        title={slide.title}
+                        className="w-full h-full object-cover scale-150 pointer-events-none"
+                        allow="autoplay; encrypted-media"
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <video
+                    src={slide.videoUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover object-center transform scale-105"
+                  />
+                );
+              })()
+            ) : (
+              <img
+                src={slide.imageUrl || 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1400&q=85'}
+                alt={slide.title}
+                className="w-full h-full object-cover object-right lg:object-center transform scale-105 transition-transform duration-[8000ms] ease-out"
+              />
+            )}
+            {/* Gradient Mask */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#070b14] via-[#070b14]/85 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-transparent" />
           </div>

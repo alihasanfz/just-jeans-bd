@@ -233,6 +233,7 @@ export interface SiteSettings {
       button2Text?: string;
       button2Link?: string;
       imageUrl: string;
+      videoUrl?: string; // Optional motion video background (MP4 file or streaming link)
     }[];
   };
   promoBanner?: {

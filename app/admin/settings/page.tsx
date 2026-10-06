@@ -30,9 +30,15 @@ import {
   Loader2,
   AlertCircle,
   Compass,
+  Video,
+  Film,
+  Play,
+  Link2,
+  X,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { formatPrice } from '@/lib/utils';
+import { parseVideoUrl } from '@/lib/utils/video';
 import ImageUploadField from '@/components/admin/ImageUploadField';
 
 export default function AdminSettingsPage() {
@@ -1010,15 +1016,91 @@ function AdminSettingsContent() {
                         />
                       </div>
 
-                      {/* Image Upload from Computer */}
-                      <div className="md:col-span-2">
+                      {/* Media (Image / Video Background) */}
+                      <div className="md:col-span-2 space-y-3 pt-2 border-t border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-slate-300 font-bold uppercase text-[11px] flex items-center gap-1.5">
+                            <Film className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Slide Background Media (Image or Motion Video)</span>
+                          </label>
+                          <span className="text-[10px] text-slate-400">
+                            Upload a photo or background video
+                          </span>
+                        </div>
+
+                        {/* Image Upload from Computer */}
                         <ImageUploadField
-                          label="Slide Background Image (Upload from Computer)"
+                          label="1. Background Image (Default / Fallback)"
                           value={slide.imageUrl}
                           onChange={(val) => handleUpdateSlide(idx, 'imageUrl', val)}
                           aspect="landscape"
-                          helpText="Upload a high-resolution hero banner photo from your computer."
+                          helpText="High-resolution hero banner photo."
                         />
+
+                        {/* Video Background Options */}
+                        <div className="p-3.5 bg-slate-950/90 rounded-2xl border border-indigo-500/30 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-indigo-600 text-white font-black text-[9px] px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                                <Video className="w-3 h-3" />
+                                <span>2. Background Video (Optional)</span>
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                MP4 file from computer, YouTube, or Vimeo URL
+                              </span>
+                            </div>
+
+                            {/* Direct file upload input for video */}
+                            <label className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg flex items-center gap-1 transition shadow active:scale-95">
+                              <Film className="w-3 h-3" />
+                              <span>Upload Video File</span>
+                              <input
+                                type="file"
+                                accept="video/mp4,video/webm,video/quicktime,video/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      const res = event.target?.result as string;
+                                      if (res) handleUpdateSlide(idx, 'videoUrl', res);
+                                    };
+                                    reader.readAsDataURL(f);
+                                  }
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {/* Video URL Input */}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={slide.videoUrl || ''}
+                              onChange={(e) => handleUpdateSlide(idx, 'videoUrl', e.target.value)}
+                              placeholder="Or paste video link: https://www.youtube.com/watch?v=... or /uploads/video.mp4"
+                              className="w-full bg-[#090d16] border border-slate-700 focus:border-indigo-400 rounded-xl px-3 py-2 text-white text-xs font-mono placeholder-slate-500 focus:outline-none"
+                            />
+                            {slide.videoUrl && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateSlide(idx, 'videoUrl', '')}
+                                className="p-2 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition"
+                                title="Remove video background"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          {slide.videoUrl && (
+                            <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                              <span>✓ Video background active for this slide!</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
