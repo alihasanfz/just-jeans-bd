@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import {
   LayoutGrid,
   Layers,
@@ -34,6 +34,7 @@ import {
   Bell,
   Activity,
   Settings,
+  Lock,
 } from 'lucide-react';
 import { useOrder } from '@/lib/store/orderContext';
 import { useProducts } from '@/lib/store/productsContext';
@@ -46,10 +47,55 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (pathname === '/admin/login') {
+      setIsAuthenticated(true);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const auth = localStorage.getItem('jeansbd_admin_auth');
+      const hasCookie = document.cookie.includes('jeansbd_admin_session=');
+
+      if (auth === 'true' || hasCookie) {
+        if (!hasCookie) {
+          document.cookie = 'jeansbd_admin_session=authenticated; path=/; max-age=604800; SameSite=Lax';
+        }
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+        router.replace(`/admin/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+    }
+  }, [pathname, router]);
 
   // If viewing login page, render full screen without sidebar
   if (pathname === '/admin/login') {
     return <>{children}</>;
+  }
+
+  // While checking auth, show protective shield
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-[#090d16] flex items-center justify-center p-8 text-slate-400">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <Lock className="w-5 h-5 animate-pulse" />
+          </div>
+          <span className="text-xs font-bold font-mono tracking-wider text-slate-300">
+            VERIFYING ADMIN ACCESS...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // If unauthorized, block rendering while redirecting to login
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -712,6 +758,8 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
             onClick={() => {
               if (typeof window !== 'undefined') {
                 localStorage.removeItem('jeansbd_admin_auth');
+                localStorage.removeItem('jeansbd_admin_user');
+                document.cookie = 'jeansbd_admin_session=; path=/; max-age=0; SameSite=Lax';
                 window.location.href = '/admin/login';
               }
             }}

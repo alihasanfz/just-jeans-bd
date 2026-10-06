@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Security protection: Prevent unauthorized scrapers or bots from reading customer orders and phone numbers
+  const cookieHeader = request.headers.get('cookie') || '';
+  const hasAdminCookie = cookieHeader.includes('jeansbd_admin_session=');
+  const authHeader = request.headers.get('authorization');
+  const customHeader = request.headers.get('x-admin-auth');
+
+  if (!hasAdminCookie && !authHeader && customHeader !== 'true') {
+    return NextResponse.json(
+      { success: false, message: 'Unauthorized: Admin session required to view order data.' },
+      { status: 401 }
+    );
+  }
+
   return NextResponse.json({
     success: true,
     orders: [

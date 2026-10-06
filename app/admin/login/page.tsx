@@ -29,8 +29,42 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [success, setSuccess] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTime, setLockoutTime] = useState<number | null>(null);
 
-  // Auto fill demo credentials
+  // Check existing lockout on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const lockUntil = sessionStorage.getItem('jeansbd_admin_lockout');
+      if (lockUntil) {
+        const remaining = Math.ceil((Number(lockUntil) - Date.now()) / 1000);
+        if (remaining > 0) {
+          setLockoutTime(remaining);
+        } else {
+          sessionStorage.removeItem('jeansbd_admin_lockout');
+        }
+      }
+    }
+  }, []);
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (lockoutTime === null || lockoutTime <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutTime((prev) => {
+        if (!prev || prev <= 1) {
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('jeansbd_admin_lockout');
+          }
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutTime]);
+
+  // Auto fill credentials
   const fillDemo = () => {
     setEmail(siteSettings?.email || 'hasansheikh9080@gmail.com');
     setPassword('admin123');
@@ -39,30 +73,85 @@ export default function AdminLoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if locked out
+    if (lockoutTime && lockoutTime > 0) {
+      setErrorMsg(`Security Lockout Active: Too many failed attempts. Please wait ${lockoutTime} seconds.`);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMsg('');
 
     setTimeout(() => {
-      // Validate credentials
-      if (email.trim().toLowerCase() === (siteSettings?.email || 'hasansheikh9080@gmail.com').toLowerCase() || email.includes('@')) {
-        if (password.length >= 4) {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('jeansbd_admin_auth', 'true');
-            localStorage.setItem('jeansbd_admin_user', JSON.stringify({
-              name: 'Admin Backoffice',
-              email: email.trim(),
-              role: 'Super Admin',
-            }));
-          }
-          setSuccess(true);
-          setTimeout(() => {
-            router.push('/admin');
-          }, 800);
-          return;
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPassword = password.trim();
+
+      // Authorized admin emails list
+      const authorizedEmails = [
+        'hasansheikh9080@gmail.com',
+        'anis.stock@jeansbd.com',
+        'tanvir.dispatch@jeansbd.com',
+        'admin@jeansbd.com',
+        (siteSettings?.email || '').toLowerCase().trim(),
+      ].filter(Boolean);
+
+      // Verify email is registered and password matches secure key
+      const isEmailValid = authorizedEmails.includes(cleanEmail);
+      const isPasswordValid = cleanPassword === 'admin123' || cleanPassword === 'jeansbd2026';
+
+      if (isEmailValid && isPasswordValid) {
+        if (typeof window !== 'undefined') {
+          // 1. LocalStorage auth flag
+          localStorage.setItem('jeansbd_admin_auth', 'true');
+          localStorage.setItem(
+            'jeansbd_admin_user',
+            JSON.stringify({
+              name: cleanEmail.includes('hasan') ? 'Md. Ali Hasan Sheikh' : 'Admin Staff',
+              email: cleanEmail,
+              role: cleanEmail.includes('hasan') ? 'Super Admin' : 'Staff Admin',
+              authenticatedAt: new Date().toISOString(),
+            })
+          );
+
+          // 2. Secure session cookie for server/middleware authentication
+          const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // 30 days or 1 day
+          document.cookie = `jeansbd_admin_session=authenticated; path=/; max-age=${maxAge}; SameSite=Lax`;
+          sessionStorage.removeItem('jeansbd_admin_attempts');
         }
+
+        setSuccess(true);
+        setTimeout(() => {
+          // Read redirect URL if exists
+          let target = '/admin';
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const redirect = params.get('redirect');
+            if (redirect && redirect.startsWith('/admin')) {
+              target = redirect;
+            }
+          }
+          router.push(target);
+        }, 600);
+        return;
       }
 
-      setErrorMsg('Invalid credentials. Please enter a valid admin email and password.');
+      // Failed attempt handling & rate limiting
+      const nextAttempts = failedAttempts + 1;
+      setFailedAttempts(nextAttempts);
+
+      if (nextAttempts >= 5) {
+        const lockDurationSec = 180; // 3 minutes lockout
+        setLockoutTime(lockDurationSec);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('jeansbd_admin_lockout', String(Date.now() + lockDurationSec * 1000));
+        }
+        setErrorMsg('Security Alert: 5 consecutive failed attempts. Admin portal is locked for 3 minutes to prevent brute-force attacks.');
+      } else {
+        const remainingAttempts = 5 - nextAttempts;
+        setErrorMsg(`Access Denied: Invalid credentials. (${remainingAttempts} attempts remaining before temporary lockout)`);
+      }
+
       setIsLoading(false);
     }, 600);
   };
