@@ -3,342 +3,226 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import {
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
   Phone,
   Mail,
   MapPin,
-  Facebook,
-  Instagram,
-  Youtube,
-  Send,
-  CheckCircle,
-  Truck,
-  RotateCcw,
-  ShieldCheck,
-  CreditCard,
+  Plus,
+  Check,
 } from 'lucide-react';
-import { useProducts } from '@/lib/store/productsContext';
 
 export default function Footer() {
-  const { siteSettings } = useProducts();
-  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newsletterEmail.trim()) {
+    if (email.trim()) {
       setSubscribed(true);
-      setNewsletterEmail('');
-      setTimeout(() => setSubscribed(false), 4000);
+      setEmail('');
+      setTimeout(() => setSubscribed(false), 3000);
     }
   };
 
   return (
-    <footer className="bg-slate-950 text-slate-300 pt-16 pb-8 border-t border-slate-900">
-      {/* Top Value Badges */}
-      <div className="container mx-auto px-4 lg:px-6 mb-16 pb-12 border-b border-slate-900">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
-          <div className="flex flex-col md:flex-row items-center gap-3.5 p-4 rounded-2xl bg-slate-900/50 border border-slate-800/80">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center flex-shrink-0">
-              <Truck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-sm">
-                {siteSettings.trustBadges?.deliveryTitle || 'Nationwide Delivery'}
-              </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {siteSettings.trustBadges?.deliverySubtitle || '24-48h Dhaka, 48-72h All BD'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3.5 p-4 rounded-2xl bg-slate-900/50 border border-slate-800/80">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center flex-shrink-0">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-sm">
-                {siteSettings.trustBadges?.cottonTitle || '100% Authentic Cotton'}
-              </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {siteSettings.trustBadges?.cottonSubtitle || 'Premium Turkish Ring-Spun'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3.5 p-4 rounded-2xl bg-slate-900/50 border border-slate-800/80">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center flex-shrink-0">
-              <RotateCcw className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-sm">
-                {siteSettings.trustBadges?.exchangeTitle || 'Hassle-Free Exchange'}
-              </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {siteSettings.trustBadges?.exchangeSubtitle || '7 days size replacement'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-3.5 p-4 rounded-2xl bg-slate-900/50 border border-slate-800/80">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center flex-shrink-0">
-              <CreditCard className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-sm">
-                {siteSettings.trustBadges?.paymentTitle || 'Secure Payment'}
-              </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {siteSettings.trustBadges?.paymentSubtitle || 'COD, bKash & Nagad'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Footer Links */}
+    <footer className="bg-[#070b14] text-slate-300 pt-16 pb-8 border-t border-white/10">
       <div className="container mx-auto px-4 lg:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-16">
-          {/* Brand Col */}
-          <div className="lg:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-white text-slate-950 rounded-xl flex items-center justify-center font-black text-xl">
+        {/* Main Footer Content matching Image 2 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 pb-12 border-b border-white/10">
+          {/* Brand Info (4 Cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-gradient-to-tr from-blue-700 to-blue-500 text-white rounded-xl flex items-center justify-center font-black text-base shadow-md">
                 JB
               </div>
-              <span className="text-2xl font-black tracking-tight text-white uppercase">
-                JEANS <span className="text-blue-500">BD</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="text-lg font-black tracking-tight text-white uppercase leading-none font-display">
+                  JEANS<span className="text-blue-500">BD</span>
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-tight mt-0.5">
+                  PREMIUM DENIM STORE
+                </span>
+              </div>
             </Link>
+
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              {siteSettings.footerBrandDescription ||
-                "Bangladesh's premier denim destination. Engineered with international quality fabrics, tailored cuts, and contemporary street aesthetic for both men and women."}
+              Premium quality denim for every style. From classic to trend, we've got you covered.
             </p>
 
-            <div className="space-y-2 pt-2 text-xs text-slate-300">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                {siteSettings.googleMapUrl ? (
-                  <a
-                    href={siteSettings.googleMapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-blue-400 transition-colors group"
-                  >
-                    <span>{siteSettings.address}</span>
-                    <span className="block text-[11px] text-blue-400 group-hover:underline mt-0.5 font-medium">
-                      View on Google Maps &rarr;
-                    </span>
-                  </a>
-                ) : (
-                  <span>{siteSettings.address}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
-                <a href={`tel:${siteSettings.phone}`} className="hover:text-white transition-colors">
-                  {siteSettings.phone}
-                </a>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-amber-400 shrink-0" />
-                <a href={`mailto:${siteSettings.email}`} className="hover:text-white transition-colors">
-                  {siteSettings.email}
-                </a>
-              </div>
-            </div>
-
             {/* Social Icons */}
-            <div className="flex items-center gap-3 pt-3">
+            <div className="flex items-center gap-2.5 pt-1 text-slate-400">
               <a
-                href={siteSettings.socialLinks.facebook || '#'}
+                href="https://facebook.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                aria-label="Facebook"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors"
               >
                 <Facebook className="w-4 h-4" />
               </a>
               <a
-                href={siteSettings.socialLinks.instagram || '#'}
+                href="https://instagram.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-pink-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                aria-label="Instagram"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-pink-600 hover:text-white flex items-center justify-center transition-colors"
               >
                 <Instagram className="w-4 h-4" />
               </a>
               <a
-                href={siteSettings.socialLinks.youtube || '#'}
+                href="https://twitter.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                aria-label="Youtube"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <Twitter className="w-4 h-4" />
+              </a>
+              <a
+                href="https://youtube.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
               >
                 <Youtube className="w-4 h-4" />
               </a>
             </div>
           </div>
 
-          {/* Men Denim */}
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-white mb-4">
-              Men's Denim
+          {/* Quick Links (2 Cols) */}
+          <div className="lg:col-span-2 space-y-3">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider">
+              Quick Links
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-2 text-xs text-slate-400">
               <li>
-                <Link href="/shop?gender=men&fit=Slim+Fit" className="hover:text-white transition-colors">
-                  Slim Fit Jeans
+                <Link href="/" className="hover:text-white transition-colors">
+                  Home
                 </Link>
               </li>
               <li>
-                <Link href="/shop?gender=men&fit=Baggy+Fit" className="hover:text-white transition-colors">
-                  Baggy & Skater Fits
+                <Link href="/shop?gender=men" className="hover:text-white transition-colors">
+                  Men
                 </Link>
               </li>
               <li>
-                <Link href="/shop?gender=men&fit=Straight+Fit" className="hover:text-white transition-colors">
-                  Straight Leg Denim
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=men&fit=Cargo+Jeans" className="hover:text-white transition-colors">
-                  Tactical Cargo Pants
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=men&fit=Denim+Jacket" className="hover:text-white transition-colors">
-                  Denim Trucker Jackets
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=men" className="text-blue-400 font-semibold hover:underline">
-                  View All Men Collection &rarr;
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Women Denim */}
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-white mb-4">
-              Women's Denim
-            </h4>
-            <ul className="space-y-2.5 text-xs">
-              <li>
-                <Link href="/shop?gender=women&fit=Wide+Leg" className="hover:text-white transition-colors">
-                  High-Rise Wide Leg
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=women&fit=Mom+Jeans" className="hover:text-white transition-colors">
-                  90s Vintage Mom Jeans
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=women&fit=Skinny+Fit" className="hover:text-white transition-colors">
-                  Sculpt Skinny Jeans
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=women&fit=Baggy+Fit" className="hover:text-white transition-colors">
-                  Women's Baggy Jeans
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?gender=women" className="text-blue-400 font-semibold hover:underline">
-                  View All Women Collection &rarr;
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Customer Support & Newsletter */}
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-white mb-4">
-              Customer Care
-            </h4>
-            <ul className="space-y-2.5 text-xs mb-6">
-              <li>
-                <Link href="/track-order" className="text-amber-400 font-bold hover:underline">
-                  Track Your Order
+                <Link href="/shop?gender=women" className="hover:text-white transition-colors">
+                  Women
                 </Link>
               </li>
               <li>
                 <Link href="/shop" className="hover:text-white transition-colors">
-                  Size Guide & Fit Advice
+                  All Denim
                 </Link>
               </li>
               <li>
-                <Link href="/account" className="hover:text-white transition-colors">
-                  My Profile & Orders
+                <Link href="/shop?filter=new" className="hover:text-white transition-colors">
+                  New In
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">
-                  Admin Login
+                <Link href="/shop?filter=sale" className="hover:text-white transition-colors">
+                  Sale
                 </Link>
               </li>
             </ul>
+          </div>
 
-            <h5 className="text-[11px] font-black uppercase tracking-wider text-white mb-2">
-              Stay in the loop
-            </h5>
-            <form onSubmit={handleSubscribe} className="space-y-2">
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email"
-                  value={newsletterEmail}
-                  onChange={(e) => setNewsletterEmail(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-3 pr-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-1.5 top-1.5 p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  aria-label="Subscribe"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              {subscribed && (
-                <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-medium animate-fade-in">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span>Thank you for subscribing!</span>
-                </div>
-              )}
+          {/* Customer Service (2 Cols) */}
+          <div className="lg:col-span-2 space-y-3">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider">
+              Customer Service
+            </h4>
+            <ul className="space-y-2 text-xs text-slate-400">
+              <li>
+                <Link href="/contact" className="hover:text-white transition-colors">
+                  Contact Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/track-order" className="hover:text-white transition-colors">
+                  Track Order
+                </Link>
+              </li>
+              <li>
+                <Link href="/returns" className="hover:text-white transition-colors">
+                  Return Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/shipping" className="hover:text-white transition-colors">
+                  Shipping Info
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="hover:text-white transition-colors">
+                  FAQ
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Get in Touch (2 Cols) */}
+          <div className="lg:col-span-2 space-y-3">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider">
+              Get in Touch
+            </h4>
+            <ul className="space-y-2.5 text-xs text-slate-400">
+              <li className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>+880 1711234567</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>support@jeansbd.com</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>Dhaka, Bangladesh</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Newsletter (2 Cols) */}
+          <div className="lg:col-span-2 space-y-3">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider">
+              Subscribe to Our Newsletter
+            </h4>
+            <p className="text-[11px] text-slate-400">
+              Get the latest updates, offers and style tips.
+            </p>
+
+            <form onSubmit={handleSubscribe} className="relative flex items-center">
+              <input
+                type="email"
+                required
+                placeholder="Your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-white/5 border border-white/15 text-white placeholder:text-slate-500 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 pr-10"
+              />
+              <button
+                type="submit"
+                aria-label="Subscribe"
+                className="absolute right-1 top-1 bottom-1 w-7 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center justify-center transition-colors"
+              >
+                {subscribed ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              </button>
             </form>
-
-            <div className="pt-4 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-              <Link href="/shop" className="hover:text-slate-300 transition-colors">Privacy Policy</Link>
-              <span>•</span>
-              <Link href="/shop" className="hover:text-slate-300 transition-colors">Terms & Conditions</Link>
-              <span>•</span>
-              <Link href="/track-order" className="hover:text-slate-300 transition-colors">Delivery Info</Link>
-            </div>
           </div>
         </div>
 
-        {/* Bottom Bar & Payment Gateway Badges */}
-        <div className="pt-8 border-t border-slate-900 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div>
-            &copy; {new Date().getFullYear()} <strong className="text-white">Jeans BD</strong>. {siteSettings.copyrightText || 'All rights reserved. Crafted for Denim Lovers in Bangladesh.'}
-          </div>
-
-          {/* Payment Methods */}
-          <div className="flex items-center gap-2.5 flex-wrap justify-center">
-            <span className="text-[11px] text-slate-400 font-semibold mr-1">Accepted Payments:</span>
-            <span className="bg-slate-900 border border-slate-800 text-[#e2136e] font-black text-xs px-2.5 py-1 rounded-md">
-              bKash
-            </span>
-            <span className="bg-slate-900 border border-slate-800 text-[#f7941d] font-black text-xs px-2.5 py-1 rounded-md">
-              Nagad
-            </span>
-            <span className="bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-xs px-2.5 py-1 rounded-md">
-              Cash on Delivery
-            </span>
-            <span className="bg-slate-900 border border-slate-800 text-blue-400 font-bold text-xs px-2.5 py-1 rounded-md">
-              Visa / Mastercard
-            </span>
+        {/* Bottom Bar matching Image 2 */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <span>© 2026 Jeans BD. All rights reserved.</span>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+              Privacy Policy
+            </Link>
+            <span>|</span>
+            <Link href="/terms" className="hover:text-slate-300 transition-colors">
+              Terms & Conditions
+            </Link>
           </div>
         </div>
       </div>

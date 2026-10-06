@@ -1,108 +1,101 @@
 'use client';
 
 import React from 'react';
-import { Star, Quote, CheckCircle2, ThumbsUp } from 'lucide-react';
-import { useProducts } from '@/lib/store/productsContext';
+import { Star } from 'lucide-react';
+
+const REVIEWS = [
+  {
+    id: 'rev-1',
+    name: 'Rahim Hossain',
+    city: 'Dhaka',
+    rating: 5,
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
+    comment: 'Premium quality denim. Fits perfectly and very comfortable. Highly recommended!',
+  },
+  {
+    id: 'rev-2',
+    name: 'Nusrat Jahan',
+    city: 'Chittagong',
+    rating: 5,
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
+    comment: 'Fast delivery and exceptional product. Love the style and quality. Will shop again!',
+  },
+  {
+    id: 'rev-3',
+    name: 'Tanjim Ahmed',
+    city: 'Sylhet',
+    rating: 5,
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
+    comment: 'Best denim store in Bangladesh. Great prices and excellent customer service.',
+  },
+];
 
 export default function CustomerReviews() {
-  const { siteSettings } = useProducts();
-  const reviewsData = siteSettings.customerReviews || {
-    badge: 'VERIFIED CUSTOMER TESTIMONIALS',
-    title: 'LOVED ACROSS BANGLADESH',
-    subtitle: 'Over 15,000+ pairs delivered nationwide with a 4.9/5 verified satisfaction rate.',
-    items: [
-      {
-        id: '1',
-        name: 'Ashfaqur Rahman',
-        city: 'Gulshan, Dhaka',
-        rating: 5,
-        productName: 'Vintage Washed Slim Tapered Jeans',
-        comment:
-          'The fabric quality is unreal! Usually imported brands charge ৳4000+ for this kind of ring-spun denim with flex stretch. Perfect waist fit and the hand-whiskering is top notch.',
-      },
-      {
-        id: '2',
-        name: 'Farzana Chowdhury',
-        city: 'Nasirabad, Chattogram',
-        rating: 5,
-        productName: "Women's High-Rise Wide Leg Jeans",
-        comment:
-          'I was skeptical about ordering jeans online, but the size chart was 100% accurate. Received in Chattogram within 48 hours via Steadfast Courier. Beautiful drape!',
-      },
-      {
-        id: '3',
-        name: 'Mahir Faisal',
-        city: 'Uttara, Dhaka',
-        rating: 5,
-        productName: 'Midnight Black Baggy Skater Jeans',
-        comment:
-          'Heavyweight rigid denim that stacks perfectly over my Dunks. Deep black color did not bleed during wash. Will definitely order the raw selvedge next.',
-      },
-    ],
-  };
-
-  const reviews = reviewsData.items && reviewsData.items.length > 0 ? reviewsData.items : [];
-
   return (
-    <section className="py-16 lg:py-24 bg-slate-50/70 border-y border-slate-200/70 relative">
+    <section className="py-16 lg:py-24 bg-white relative">
       <div className="container mx-auto px-4 lg:px-6">
-        <div className="text-center max-w-2xl mx-auto mb-12 lg:mb-16">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-black uppercase tracking-widest mb-3 border border-blue-100">
-            <ThumbsUp className="w-3.5 h-3.5" />
-            <span>{reviewsData.badge}</span>
+        {/* Section Header matching Image 2 */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+          <div>
+            <span className="text-xs font-black text-blue-600 uppercase tracking-widest block mb-2">
+              OUR CUSTOMERS LOVE US
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-black text-slate-950 tracking-tight">
+              Loved Across Bangladesh
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Real reviews from real customers. Join thousands who trust Jeans BD.
+            </p>
           </div>
-          <h2 className="text-3xl lg:text-4xl xl:text-5xl font-black text-slate-950 tracking-tight uppercase mb-3 font-display">
-            {reviewsData.title}
-          </h2>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            {reviewsData.subtitle}
-          </p>
+
+          {/* Aggregate Rating on Top Right */}
+          <div className="flex flex-col md:items-end">
+            <div className="flex items-center gap-2">
+              <div className="flex text-amber-400 gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-4 h-4 fill-current text-amber-400" />
+                ))}
+              </div>
+              <span className="text-xl font-black text-slate-900">4.7/5</span>
+            </div>
+            <span className="text-xs text-slate-400 mt-0.5">Based on 12,540+ reviews</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-          {reviews.map((r) => (
+        {/* 3 Review Cards matching Image 2 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {REVIEWS.map((r) => (
             <div
               key={r.id}
-              className="bg-white rounded-3xl p-7 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all duration-300"
+              className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
             >
               <div>
-                {/* Rating Stars & Quote */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex text-amber-400 gap-0.5">
-                    {[...Array(r.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
-                    ))}
+                {/* User Info */}
+                <div className="flex items-center gap-3 mb-4">
+                  <img
+                    src={r.avatar}
+                    alt={r.name}
+                    className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                  />
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 leading-tight">
+                      {r.name}
+                    </h3>
+                    <span className="text-xs text-slate-400">{r.city}</span>
                   </div>
-                  <Quote className="w-7 h-7 text-slate-200" />
                 </div>
 
-                {r.productName && (
-                  <div className="text-[11px] font-bold text-blue-600 mb-2.5 truncate">
-                    Purchased: {r.productName}
-                  </div>
-                )}
+                {/* Rating Stars */}
+                <div className="flex text-amber-400 gap-0.5 mb-3">
+                  {[...Array(r.rating)].map((_, i) => (
+                    <Star key={i} className="w-3.5 h-3.5 fill-current text-amber-400" />
+                  ))}
+                </div>
 
-                <p className="text-sm text-slate-700 leading-relaxed italic mb-6">
+                {/* Comment Text */}
+                <p className="text-xs text-slate-600 leading-relaxed">
                   "{r.comment}"
                 </p>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-black text-xs flex items-center justify-center">
-                    {r.name.slice(0, 1)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
-                      <span>{r.name}</span>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    </div>
-                    <span className="text-[11px] text-slate-400">{r.city}</span>
-                  </div>
-                </div>
-                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
-                  Verified
-                </span>
               </div>
             </div>
           ))}

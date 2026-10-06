@@ -1,131 +1,124 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, HelpCircle } from 'lucide-react';
-import SizeGuideModal from '@/components/ui/SizeGuideModal';
-import { useProducts } from '@/lib/store/productsContext';
+import { ArrowRight, Tag, Layers, Compass, Sparkles } from 'lucide-react';
 
-const DEFAULT_FITS = [
+const FIT_GUIDE_ITEMS = [
   {
-    id: 'fit-1',
+    id: 'fit-slim',
     name: 'Slim Fit',
-    tagline: 'Modern & Tailored',
-    desc: 'Form-fitting through hip and thigh, tapering neatly at the ankle. Woven with 2% elastane flex for effortless stretch.',
-    bestFor: 'Everyday casual, sneakers, dress shirts',
-    image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
+    desc: 'A modern fit for a sharp look.',
+    linkText: 'Shop Slim Fit',
     link: '/shop?fit=Slim+Fit',
+    image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=700&q=80',
+    icon: Tag,
   },
   {
-    id: 'fit-2',
-    name: 'Baggy & Skater Fit',
-    tagline: 'Relaxed Street Silhouette',
-    desc: 'Generous room from waist to hem. Heavyweight 13.5oz rigid cotton that stacks naturally over chunky footwear.',
-    bestFor: 'Streetwear, graphic tees, hoodies',
-    image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=600&q=80',
+    id: 'fit-baggy',
+    name: 'Baggy & Relaxed Fit',
+    desc: 'Maximum comfort, effortless style.',
+    linkText: 'Shop Baggy Fit',
     link: '/shop?fit=Baggy+Fit',
+    image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=700&q=80',
+    icon: Layers,
   },
   {
-    id: 'fit-3',
+    id: 'fit-straight',
     name: 'Straight Leg',
-    tagline: 'Timeless Heritage Cut',
-    desc: 'Consistent parallel width from knee to cuff. Vintage American workwear heritage styling with authentic selvedge trims.',
-    bestFor: 'Classic styles, boots, polo shirts',
-    image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=600&q=80',
+    desc: 'Timeless and versatile.',
+    linkText: 'Shop Straight Fit',
     link: '/shop?fit=Straight+Fit',
+    image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&w=700&q=80',
+    icon: Compass,
   },
   {
-    id: 'fit-4',
+    id: 'fit-wide',
     name: 'High-Rise Wide Leg',
-    tagline: 'Chic Elongated Drape',
-    desc: 'Cinched high waist that flows into a wide flare. Creates an elegant proportion and floor-sweeping grace.',
-    bestFor: 'Crop tops, heels, relaxed blazers',
-    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=600&q=80',
+    desc: 'Extra adore, modern comfort.',
+    linkText: 'Shop Wide Leg',
     link: '/shop?fit=Wide+Leg',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=700&q=80',
+    icon: Sparkles,
   },
 ];
 
 export default function DenimFitGuide() {
-  const { siteSettings } = useProducts();
-  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
-
-  const fitGuide = siteSettings.fitGuide;
-  const sectionBadge = fitGuide?.badge || 'FIT CONSULTATION';
-  const sectionTitle = fitGuide?.title || 'THE DENIM FIT GUIDE';
-  const fits = (fitGuide?.items && fitGuide.items.length > 0) ? fitGuide.items : DEFAULT_FITS;
-
   return (
-    <section className="py-16 lg:py-24 bg-slate-900 text-white relative overflow-hidden">
-      <div className="container mx-auto px-4 lg:px-6 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+    <section className="py-16 lg:py-24 bg-[#070b14] text-white relative">
+      <div className="container mx-auto px-4 lg:px-6">
+        {/* Section Header matching Image 2 */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 lg:mb-12 gap-4">
           <div>
-            <div className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2">
-              {sectionBadge}
-            </div>
-            <h2 className="text-3xl lg:text-4xl font-black tracking-tight uppercase">
-              {sectionTitle}
+            <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tight text-white">
+              THE DENIM FIT GUIDE
             </h2>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Find your perfect fit with our style guide.
+            </p>
           </div>
-          <button
-            onClick={() => setIsSizeGuideOpen(true)}
-            className="inline-flex items-center gap-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-blue-300 px-4 py-2.5 rounded-xl border border-white/10 transition-all self-start md:self-auto"
+
+          <Link
+            href="/shop"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 border border-slate-700 hover:border-white px-5 py-2.5 rounded-full transition-all hover:bg-white/10 self-start md:self-auto"
           >
-            <HelpCircle className="w-4 h-4" />
-            <span>Open Measurement Chart</span>
-          </button>
+            <span>View All Guides</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
-        {/* Fit Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {fits.map((f, i) => (
-            <div
-              key={f.id || i}
-              className="bg-slate-950/80 rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-blue-500/50 transition-all duration-300 group"
-            >
-              <div>
-                <div className="relative aspect-video rounded-2xl overflow-hidden mb-5 bg-slate-800">
-                  <img
-                    src={f.image || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80'}
-                    alt={f.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
+        {/* 4 Fit Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          {FIT_GUIDE_ITEMS.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.id}
+                href={item.link}
+                className="group relative rounded-2xl overflow-hidden aspect-[4/5] bg-slate-900 border border-white/10 shadow-lg transition-all duration-500 hover:-translate-y-1 hover:border-blue-500/50"
+              >
+                {/* Image */}
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108"
+                  loading="lazy"
+                />
+
+                {/* Gradient Vignette */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-black/30 group-hover:via-slate-950/40 transition-all duration-300" />
+
+                {/* Frosted Icon Top Left */}
+                <div className="absolute top-4 left-4 w-9 h-9 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-sm">
+                  <Icon className="w-4 h-4" />
                 </div>
 
-                <span className="text-[11px] font-black text-blue-400 uppercase tracking-wider block mb-1">
-                  {f.tagline}
-                </span>
-                <h3 className="text-xl font-bold text-white mb-2">{f.name}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">{f.desc}</p>
-              </div>
+                {/* Bottom Content */}
+                <div className="absolute inset-x-0 bottom-0 p-5 flex items-end justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-base sm:text-lg font-black text-white leading-tight">
+                      {item.name}
+                    </h3>
+                    <p className="text-xs text-slate-300 line-clamp-1 font-normal opacity-90">
+                      {item.desc}
+                    </p>
+                    <span className="text-xs font-bold text-blue-400 group-hover:text-white transition-colors inline-flex items-center gap-1 pt-1">
+                      <span>{item.linkText}</span>
+                      <span className="text-[10px]">→</span>
+                    </span>
+                  </div>
 
-              <div>
-                <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-800/80 text-[11px] text-slate-300 mb-4">
-                  <span className="text-slate-400 font-semibold block mb-0.5">Best Paired With:</span>
-                  <span>{f.bestFor}</span>
+                  {/* Circular Arrow Button */}
+                  <div className="w-8 h-8 rounded-full border border-white/30 bg-white/10 group-hover:bg-blue-600 group-hover:border-blue-600 text-white flex items-center justify-center transition-all shrink-0">
+                    <ArrowRight className="w-3.5 h-3.5 transform -rotate-45 group-hover:rotate-0 transition-transform" />
+                  </div>
                 </div>
-
-                <Link
-                  href={f.link}
-                  className="w-full bg-white/10 hover:bg-blue-600 text-white py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <span>Shop {f.name}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
-
-      <SizeGuideModal
-        isOpen={isSizeGuideOpen}
-        onClose={() => setIsSizeGuideOpen(false)}
-      />
     </section>
   );
 }
