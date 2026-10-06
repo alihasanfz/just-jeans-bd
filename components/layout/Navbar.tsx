@@ -20,6 +20,7 @@ import {
 import { useCart } from '@/lib/store/cartContext';
 import { useWishlist } from '@/lib/store/wishlistContext';
 import { useProducts } from '@/lib/store/productsContext';
+import { useAuth } from '@/lib/store/authContext';
 import { formatPrice } from '@/lib/utils';
 import MobileNav from './MobileNav';
 
@@ -29,6 +30,7 @@ export default function Navbar() {
   const { cart, setIsCartOpen } = useCart();
   const { wishlistCount } = useWishlist();
   const { products, categories } = useProducts();
+  const { user, isLoggedIn } = useAuth();
 
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -275,9 +277,23 @@ export default function Navbar() {
               <Link
                 href="/account"
                 aria-label="Account"
-                className="p-2.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                className="p-1.5 sm:p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center gap-1.5"
+                title={isLoggedIn && user ? `Account: ${user.fullName}` : 'Account / Sign In'}
               >
-                <User className="w-5 h-5" />
+                {isLoggedIn && user ? (
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center shadow-xs">
+                    {user.fullName
+                      ? user.fullName
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)
+                      : 'JB'}
+                  </span>
+                ) : (
+                  <User className="w-5 h-5" />
+                )}
               </Link>
 
               {/* Cart Button with Red Badge */}

@@ -317,6 +317,28 @@ export default function AdminCustomersPage() {
     }
   };
 
+  const handleViewAsCustomer = (cust: Customer) => {
+    const userProf = {
+      id: cust.id,
+      fullName: cust.name,
+      phone: cust.phone,
+      email: cust.email,
+      city: cust.city,
+      address: cust.address,
+      tier: cust.tier,
+      joinedDate: cust.joinDate || 'September 2026',
+      totalOrders: cust.totalOrders,
+      totalSpent: cust.totalSpent,
+      role: 'customer',
+    };
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('jeansbd_current_user', JSON.stringify(userProf));
+      } catch (e) {}
+    }
+    window.open('/account', '_blank');
+  };
+
   // Filtered list
   const filteredCustomers = customers.filter((c) => {
     const matchesSearch =
@@ -622,6 +644,18 @@ export default function AdminCustomersPage() {
                         </button>
 
                         <button
+                          onClick={() => handleViewAsCustomer(customer)}
+                          className={`p-1.5 rounded-xl transition-all font-bold text-xs active:scale-95 ${
+                            isDark
+                              ? 'bg-emerald-500/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20'
+                              : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white border border-emerald-200'
+                          }`}
+                          title="View /account as this user"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
                           onClick={() => openEditModal(customer)}
                           className={`p-1.5 rounded-xl transition-all font-bold text-xs active:scale-95 ${
                             isDark
@@ -744,6 +778,15 @@ export default function AdminCustomersPage() {
               </button>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleViewAsCustomer(selectedCustomer)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                  title="Open /account page as this customer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>View Account</span>
+                </button>
                 <button
                   onClick={() => openEditModal(selectedCustomer)}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"

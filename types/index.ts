@@ -1,4 +1,4 @@
-export type ProductFit = 
+export type ProductFit =
   | 'Slim Fit'
   | 'Regular Fit'
   | 'Straight Fit'
@@ -94,7 +94,7 @@ export type PaymentMethod = 'cod' | 'bkash' | 'nagad';
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 
-export type OrderStatus = 
+export type OrderStatus =
   | 'Pending'
   | 'Confirmed'
   | 'Processing'

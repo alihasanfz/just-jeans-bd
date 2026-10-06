@@ -5,6 +5,7 @@ import { ProductsProvider } from '@/lib/store/productsContext';
 import { CartProvider } from '@/lib/store/cartContext';
 import { WishlistProvider } from '@/lib/store/wishlistContext';
 import { OrderProvider } from '@/lib/store/orderContext';
+import { AuthProvider } from '@/lib/store/authContext';
 import StoreLayoutShell from '@/components/layout/StoreLayoutShell';
 
 const inter = Inter({
@@ -67,7 +68,9 @@ export default function RootLayout({
           <WishlistProvider>
             <CartProvider>
               <OrderProvider>
-                <StoreLayoutShell>{children}</StoreLayoutShell>
+                <AuthProvider>
+                  <StoreLayoutShell>{children}</StoreLayoutShell>
+                </AuthProvider>
               </OrderProvider>
             </CartProvider>
           </WishlistProvider>
