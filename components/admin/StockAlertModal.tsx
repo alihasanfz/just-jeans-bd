@@ -18,14 +18,14 @@ interface StockAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddAlert: (item: StockAlertItem) => void;
-  existingAlertIds: string[];
+  existingAlertIds?: string[];
 }
 
 export default function StockAlertModal({
   isOpen,
   onClose,
   onAddAlert,
-  existingAlertIds,
+  existingAlertIds = [],
 }: StockAlertModalProps) {
   const { products } = useProducts();
   const [tab, setTab] = useState<'catalog' | 'custom'>('catalog');
@@ -43,23 +43,36 @@ export default function StockAlertModal({
 
   if (!isOpen) return null;
 
-  const filteredProducts = products.filter((p) => {
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeAlertIds = Array.isArray(existingAlertIds) ? existingAlertIds : [];
+
+  const filteredProducts = safeProducts.filter((p) => {
+    if (!p || typeof p !== 'object') return false;
     if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return p.name.toLowerCase().includes(q) || (p.fit && p.fit.toLowerCase().includes(q));
+    const q = search.trim().toLowerCase();
+    const nameMatch = typeof p.name === 'string' && p.name.toLowerCase().includes(q);
+    const fitMatch = typeof p.fit === 'string' && p.fit.toLowerCase().includes(q);
+    return nameMatch || fitMatch;
   });
+
+  const getProductImage = (p: Product) => {
+    if (p.thumbnail && typeof p.thumbnail === 'string') return p.thumbnail;
+    if (Array.isArray(p.images) && p.images.length > 0 && typeof p.images[0] === 'string') return p.images[0];
+    return 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=400&q=80';
+  };
 
   const handleAddFromCatalog = () => {
     if (!selectedProduct) return;
     const newItem: StockAlertItem = {
-      id: `alert-${selectedProduct.id}-${Date.now()}`,
-      name: selectedProduct.name,
-      fit: selectedProduct.fit || 'STRAIGHT FIT',
-      stock: Number(alertStock) || selectedProduct.totalStock || 15,
-      image: selectedProduct.thumbnail || (selectedProduct.images && selectedProduct.images[0]) || '',
+      id: `alert-${selectedProduct.id || Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: selectedProduct.name || 'Denim Jeans',
+      fit: (selectedProduct.fit || 'STRAIGHT FIT').toUpperCase(),
+      stock: Math.max(0, Number(alertStock) || selectedProduct.totalStock || 15),
+      image: getProductImage(selectedProduct),
       productId: selectedProduct.id,
     };
     onAddAlert(newItem);
+    setSelectedProduct(null);
     onClose();
   };
 
@@ -70,13 +83,14 @@ export default function StockAlertModal({
       return;
     }
     const newItem: StockAlertItem = {
-      id: `custom-alert-${Date.now()}`,
+      id: `custom-alert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       name: customName.trim(),
-      fit: customFit.toUpperCase(),
-      stock: Number(customStock) || 20,
-      image: customImage,
+      fit: (customFit || 'STRAIGHT FIT').toUpperCase(),
+      stock: Math.max(0, Number(customStock) || 20),
+      image: customImage.trim() || 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=400&q=80',
     };
     onAddAlert(newItem);
+    setCustomName('');
     onClose();
   };
 
@@ -112,18 +126,18 @@ export default function StockAlertModal({
           <button
             type="button"
             onClick={() => setTab('catalog')}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all border ${
+            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
               tab === 'catalog'
                 ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
                 : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
             }`}
           >
-            Select from Store Catalog ({products.length})
+            Select from Store Catalog ({safeProducts.length})
           </button>
           <button
             type="button"
             onClick={() => setTab('custom')}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all border ${
+            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
               tab === 'custom'
                 ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
                 : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
@@ -158,11 +172,12 @@ export default function StockAlertModal({
                 ) : (
                   filteredProducts.map((p) => {
                     const isSelected = selectedProduct?.id === p.id;
-                    const isAlreadyAlert = existingAlertIds.includes(p.id);
+                    const isAlreadyAlert = p.id ? safeAlertIds.includes(p.id) : false;
+                    const pImg = getProductImage(p);
 
                     return (
                       <div
-                        key={p.id}
+                        key={p.id || Math.random().toString()}
                         onClick={() => {
                           setSelectedProduct(p);
                           setAlertStock(p.totalStock || 20);
@@ -175,16 +190,16 @@ export default function StockAlertModal({
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <img
-                            src={p.thumbnail || (p.images && p.images[0]) || ''}
-                            alt={p.name}
+                            src={pImg}
+                            alt={p.name || 'Product'}
                             className="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0"
                           />
                           <div className="min-w-0">
-                            <h4 className="font-bold text-xs text-white truncate">{p.name}</h4>
+                            <h4 className="font-bold text-xs text-white truncate">{p.name || 'Untitled Product'}</h4>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
                               <span className="uppercase font-semibold">{p.fit || 'Straight Fit'}</span>
                               <span>•</span>
-                              <span>Current Stock: {p.totalStock}</span>
+                              <span>Current Stock: {p.totalStock ?? 0}</span>
                             </div>
                           </div>
                         </div>
@@ -214,10 +229,10 @@ export default function StockAlertModal({
               {selectedProduct && (
                 <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-300">
+                    <label className="text-xs font-bold text-slate-300 truncate pr-2">
                       Alert Quantity for '{selectedProduct.name}':
                     </label>
-                    <span className="text-xs font-mono font-bold text-amber-400">
+                    <span className="text-xs font-mono font-bold text-amber-400 shrink-0">
                       {alertStock} in stock
                     </span>
                   </div>
@@ -236,7 +251,7 @@ export default function StockAlertModal({
                           key={preset}
                           type="button"
                           onClick={() => setAlertStock(preset)}
-                          className="px-2.5 py-2 rounded-xl text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                          className="px-2.5 py-2 rounded-xl text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
                         >
                           {preset}
                         </button>
@@ -289,7 +304,7 @@ export default function StockAlertModal({
                     type="number"
                     min={1}
                     value={customStock}
-                    onChange={(e) => setCustomStock(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setCustomStock(Math.max(1, parseInt(e.target.value) || 1))}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-mono font-bold"
                   />
                 </div>
@@ -315,7 +330,7 @@ export default function StockAlertModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             Cancel
           </button>

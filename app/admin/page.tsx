@@ -164,6 +164,21 @@ export default function AdminDashboardPage() {
     },
   ];
 
+  // Helper to sanitize stock alerts data
+  const sanitizeAlerts = (items: any[]): StockAlertItem[] => {
+    if (!Array.isArray(items)) return fallbackStockProducts;
+    return items
+      .filter((it) => it && typeof it === 'object')
+      .map((it, idx) => ({
+        id: String(it.id || `alert-${idx}-${Date.now()}`),
+        name: String(it.name || 'Denim Jeans'),
+        fit: String(it.fit || 'STRAIGHT FIT').toUpperCase(),
+        stock: Number.isFinite(Number(it.stock)) ? Math.max(0, Number(it.stock)) : 25,
+        image: String(it.image || 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=400&q=80'),
+        productId: it.productId ? String(it.productId) : undefined,
+      }));
+  };
+
   // Dynamic stock alerts with localStorage persistence
   const [stockAlerts, setStockAlerts] = useState<StockAlertItem[]>(fallbackStockProducts);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
@@ -178,50 +193,67 @@ export default function AdminDashboardPage() {
   // Load stock alerts from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('jeansbd_admin_stock_alerts');
-      if (saved) {
-        try {
+      try {
+        const saved = localStorage.getItem('jeansbd_admin_stock_alerts');
+        if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setStockAlerts(parsed);
+            setStockAlerts(sanitizeAlerts(parsed));
           }
-        } catch (e) {}
+        }
+      } catch (e) {
+        console.warn('Failed to parse saved stock alerts', e);
       }
     }
   }, []);
 
   const handleUpdateStock = (id: string, newStock: number) => {
-    const val = Math.max(0, newStock);
+    const val = Math.max(0, Number(newStock) || 0);
     setStockAlerts((prev) => {
-      const next = prev.map((item) => (item.id === id ? { ...item, stock: val } : item));
+      const currentList = Array.isArray(prev) ? prev : fallbackStockProducts;
+      const next = currentList.map((item) => (item.id === id ? { ...item, stock: val } : item));
       if (typeof window !== 'undefined') {
-        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
+        try {
+          localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
+        } catch (e) {}
       }
       return next;
     });
 
-    const item = stockAlerts.find((it) => it.id === id);
-    if (item?.productId) {
-      updateProduct(item.productId, { totalStock: val });
+    const item = stockAlerts?.find((it) => it.id === id);
+    if (item?.productId && typeof updateProduct === 'function') {
+      try {
+        updateProduct(item.productId, { totalStock: val });
+      } catch (e) {}
     }
     setEditingStockId(null);
   };
 
   const handleRemoveStockAlert = (id: string) => {
     setStockAlerts((prev) => {
-      const next = prev.filter((item) => item.id !== id);
+      const currentList = Array.isArray(prev) ? prev : fallbackStockProducts;
+      const next = currentList.filter((item) => item.id !== id);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
+        try {
+          localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
+        } catch (e) {}
       }
       return next;
     });
   };
 
   const handleAddStockAlert = (newItem: StockAlertItem) => {
+    if (!newItem || !newItem.id) return;
     setStockAlerts((prev) => {
-      const next = [newItem, ...prev];
+      const currentList = Array.isArray(prev) ? prev : fallbackStockProducts;
+      const filtered = currentList.filter(
+        (it) => it.id !== newItem.id && (!newItem.productId || it.productId !== newItem.productId)
+      );
+      const next = [newItem, ...filtered];
       if (typeof window !== 'undefined') {
-        localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
+        try {
+          localStorage.setItem('jeansbd_admin_stock_alerts', JSON.stringify(next));
+        } catch (e) {}
       }
       return next;
     });
@@ -902,7 +934,7 @@ export default function AdminDashboardPage() {
                 className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Alert</span>
+                <span>Add Alert</span>
               </button>
 
               <Link
@@ -916,7 +948,7 @@ export default function AdminDashboardPage() {
 
           {/* Dynamic Products List with Inline Edit & Remove */}
           <div className="space-y-3">
-            {stockAlerts.length === 0 ? (
+            {(!stockAlerts || stockAlerts.length === 0) ? (
               <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-800 rounded-2xl p-4">
                 <Package className="w-8 h-8 text-slate-600 mx-auto mb-2" />
                 <p>No low stock alerts configured.</p>
@@ -929,12 +961,18 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             ) : (
-              stockAlerts.map((p) => {
-                const isEditing = editingStockId === p.id;
+              (Array.isArray(stockAlerts) ? stockAlerts : []).map((p, pIdx) => {
+                if (!p) return null;
+                const pId = p.id || `stock-${pIdx}`;
+                const isEditing = editingStockId === pId;
+                const pName = p.name || 'Denim Item';
+                const pFit = p.fit || 'STRAIGHT FIT';
+                const pStock = Number.isFinite(Number(p.stock)) ? Math.max(0, Number(p.stock)) : 0;
+                const pImage = p.image || 'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=400&q=80';
 
                 return (
                   <div
-                    key={p.id}
+                    key={pId}
                     className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all group ${
                       isDark
                         ? 'bg-[#0d172e]/60 border-slate-800/80 hover:border-slate-700'
@@ -943,23 +981,23 @@ export default function AdminDashboardPage() {
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <img
-                        src={p.image}
-                        alt={p.name}
+                        src={pImage}
+                        alt={pName}
                         className="w-10 h-10 rounded-xl object-cover border border-slate-700/60 shrink-0"
                       />
                       <div className="min-w-0 flex-1 pr-2">
                         <h4 className={`font-bold text-xs truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {p.name}
+                          {pName}
                         </h4>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[10px] uppercase font-bold text-slate-400">
-                            {p.fit}
+                            {pFit}
                           </span>
                           <span className="text-slate-500 text-[10px]">•</span>
                           <span className={`text-[10px] font-bold ${
-                            p.stock <= 10 ? 'text-rose-400' : 'text-amber-400'
+                            pStock <= 10 ? 'text-rose-400' : 'text-amber-400'
                           }`}>
-                            {p.stock <= 10 ? 'Critical Stock' : 'Low Stock'}
+                            {pStock <= 10 ? 'Critical Stock' : 'Low Stock'}
                           </span>
                         </div>
                       </div>
@@ -1302,7 +1340,7 @@ export default function AdminDashboardPage() {
         isOpen={isStockModalOpen}
         onClose={() => setIsStockModalOpen(false)}
         onAddAlert={handleAddStockAlert}
-        existingAlertIds={stockAlerts.map((s) => s.productId || s.id)}
+        existingAlertIds={Array.isArray(stockAlerts) ? stockAlerts.map((s) => s?.productId || s?.id || '').filter(Boolean) : []}
       />
     </div>
   );
