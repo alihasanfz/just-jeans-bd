@@ -12,6 +12,8 @@ interface OrderContextType {
   findOrderForTracking: (orderNumber: string, phone: string) => Order | undefined;
   updateOrderStatus: (orderId: string, status: OrderStatus, note?: string) => void;
   updateOrderDelivery: (orderId: string, delivery: Partial<OrderDelivery>) => void;
+  updateOrder: (orderId: string, orderData: Partial<Order>) => void;
+  deleteOrder: (orderId: string) => void;
 }
 
 const INITIAL_DEMO_ORDERS: Order[] = [
@@ -224,6 +226,26 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const updateOrder = (orderId: string, orderData: Partial<Order>) => {
+    const now = new Date().toISOString();
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        return {
+          ...o,
+          ...orderData,
+          customer: orderData.customer ? { ...o.customer, ...orderData.customer } : o.customer,
+          delivery: orderData.delivery ? { ...o.delivery, ...orderData.delivery } : o.delivery,
+          updatedAt: now,
+        };
+      })
+    );
+  };
+
+  const deleteOrder = (orderId: string) => {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  };
+
   return (
     <OrderContext.Provider
       value={{
@@ -234,6 +256,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         findOrderForTracking,
         updateOrderStatus,
         updateOrderDelivery,
+        updateOrder,
+        deleteOrder,
       }}
     >
       {children}
