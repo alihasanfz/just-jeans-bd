@@ -51,7 +51,7 @@ export default function ProductDetailPage() {
 
   // States
   const [selectedImage, setSelectedImage] = useState<string>('');
-  const [activeMediaType, setActiveMediaType] = useState<'image' | 'video'>('image');
+  const [activeMediaType, setActiveMediaType] = useState<'image' | 'video' | '3d'>('image');
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
@@ -63,11 +63,29 @@ export default function ProductDetailPage() {
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
 
+  // 3D Motion & 360 Spin State
+  const [is3DAutoSpin, setIs3DAutoSpin] = useState<boolean>(false);
+  const [tilt3D, setTilt3D] = useState({ x: 0, y: 0 });
+  const [dragStartX, setDragStartX] = useState<number | null>(null);
+
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setShareUrl(window.location.href);
     }
   }, []);
+
+  // 3D Auto Spin Effect
+  React.useEffect(() => {
+    let interval: any;
+    if (activeMediaType === '3d' && is3DAutoSpin && product && product.images && product.images.length > 1) {
+      interval = setInterval(() => {
+        setActiveImgIndex((prev) => (prev + 1) % product.images.length);
+      }, 700);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeMediaType, is3DAutoSpin, product]);
 
   // Review Form state
   const [reviewName, setReviewName] = useState('');
@@ -262,9 +280,56 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
             
             {/* Left Column: Premium Gallery (5 cols) */}
-            <div className="lg:col-span-6 xl:col-span-5 space-y-4">
+            <div className="lg:col-span-6 xl:col-span-5 space-y-3">
+              {/* Media Mode Switcher Top Bar */}
+              <div className="flex items-center justify-between gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setActiveMediaType('image')}
+                  className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    activeMediaType === 'image'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Photos</span>
+                </button>
+
+                {product.videoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaType('video')}
+                    className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                      activeMediaType === 'video'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Video</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMediaType('3d');
+                    setIs3DAutoSpin(true);
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    activeMediaType === '3d'
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>3D Motion (360°)</span>
+                </button>
+              </div>
+
+              {/* 1. VIDEO VIEW */}
               {activeMediaType === 'video' && product.videoUrl ? (
-                /* Video Showcase Player */
                 <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-xl flex items-center justify-center">
                   {(() => {
                     const info = parseVideoUrl(product.videoUrl);
@@ -290,18 +355,93 @@ export default function ProductDetailPage() {
                       />
                     );
                   })()}
-
-                  {/* Switch back to Photos button */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveMediaType('image')}
-                    className="absolute top-3 left-3 z-10 bg-black/70 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-md flex items-center gap-1.5 transition shadow"
+                </div>
+              ) : activeMediaType === '3d' ? (
+                /* 2. 3D MOTION & 360 SPIN VIEW */
+                <div
+                  className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-black border border-indigo-500/30 shadow-2xl flex flex-col items-center justify-center select-none cursor-ew-resize group"
+                  onMouseDown={(e) => setDragStartX(e.clientX)}
+                  onMouseUp={() => setDragStartX(null)}
+                  onMouseLeave={() => {
+                    setDragStartX(null);
+                    setTilt3D({ x: 0, y: 0 });
+                  }}
+                  onMouseMove={(e) => {
+                    if (dragStartX !== null && allImages.length > 1) {
+                      const diff = e.clientX - dragStartX;
+                      if (Math.abs(diff) > 25) {
+                        if (diff > 0) {
+                          setActiveImgIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+                        } else {
+                          setActiveImgIndex((prev) => (prev + 1) % allImages.length);
+                        }
+                        setDragStartX(e.clientX);
+                      }
+                    }
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 16;
+                    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -16;
+                    setTilt3D({ x, y });
+                  }}
+                  onTouchStart={(e) => setDragStartX(e.touches[0].clientX)}
+                  onTouchEnd={() => setDragStartX(null)}
+                  onTouchMove={(e) => {
+                    if (dragStartX !== null && allImages.length > 1) {
+                      const diff = e.touches[0].clientX - dragStartX;
+                      if (Math.abs(diff) > 20) {
+                        if (diff > 0) {
+                          setActiveImgIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+                        } else {
+                          setActiveImgIndex((prev) => (prev + 1) % allImages.length);
+                        }
+                        setDragStartX(e.touches[0].clientX);
+                      }
+                    }
+                  }}
+                >
+                  {/* 3D Image with perspective rotation */}
+                  <div
+                    className="w-full h-full p-4 flex items-center justify-center transition-transform duration-100 ease-out"
+                    style={{
+                      transform: `perspective(800px) rotateY(${tilt3D.x}deg) rotateX(${tilt3D.y}deg) scale(0.96)`,
+                    }}
                   >
-                    <span>← Photos</span>
-                  </button>
+                    <img
+                      src={allImages[activeImgIndex] || product.thumbnail}
+                      alt={`${product.name} 3D Spin Angle`}
+                      className="w-full h-full object-contain filter drop-shadow-[0_20px_30px_rgba(0,0,0,0.8)]"
+                      draggable={false}
+                    />
+                  </div>
+
+                  {/* 3D Badge on Top */}
+                  <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 bg-purple-950/80 border border-purple-500/40 text-purple-200 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full backdrop-blur-md shadow-lg">
+                    <Sparkles className="w-3 h-3 text-amber-400 animate-spin" />
+                    <span>3D 360° MOTION VIEW</span>
+                  </div>
+
+                  {/* 3D Auto Spin Controls on Bottom */}
+                  <div className="absolute bottom-3.5 inset-x-3.5 flex items-center justify-between gap-2 z-10">
+                    <button
+                      type="button"
+                      onClick={() => setIs3DAutoSpin(!is3DAutoSpin)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg backdrop-blur-md transition-all ${
+                        is3DAutoSpin
+                          ? 'bg-amber-400 text-slate-950 shadow-amber-400/20'
+                          : 'bg-black/70 text-white border border-white/20 hover:bg-black'
+                      }`}
+                    >
+                      <Play className={`w-3.5 h-3.5 ${is3DAutoSpin ? 'fill-current animate-pulse' : ''}`} />
+                      <span>{is3DAutoSpin ? '3D Auto-Spin: ON' : 'Start 3D Auto-Spin'}</span>
+                    </button>
+
+                    <span className="text-[10px] text-white/80 font-bold bg-black/60 px-2.5 py-1 rounded-lg backdrop-blur-sm">
+                      ↔️ Drag to Rotate ({activeImgIndex + 1}/{allImages.length})
+                    </span>
+                  </div>
                 </div>
               ) : (
-                /* Photo Showcase with Zoom */
+                /* 3. PHOTO SHOWCASE WITH ZOOM */
                 <div 
                   className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-inner group cursor-crosshair"
                   onMouseEnter={() => setIsZoomed(true)}
@@ -393,51 +533,68 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Thumbnails Row (Images + Video button) */}
-              {(allImages.length > 1 || product.videoUrl) && (
-                <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
-                  {allImages.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setSelectedImage(img);
-                        setActiveImgIndex(idx);
-                        setActiveMediaType('image');
-                      }}
-                      className={`relative w-20 h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
-                        activeMediaType === 'image' && (selectedImage === img || (!selectedImage && idx === 0))
-                          ? 'border-blue-600 ring-4 ring-blue-50 shadow-md scale-[1.02]'
-                          : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300'
-                      }`}
-                    >
-                      <img src={img} alt={`${product.name} preview ${idx + 1}`} className="w-full h-full object-cover" />
-                      {activeMediaType === 'image' && (selectedImage === img || (!selectedImage && idx === 0)) && (
-                        <div className="absolute inset-0 bg-blue-600/10" />
-                      )}
-                    </button>
-                  ))}
+              {/* Thumbnails Row (Images + Video + 3D button) */}
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+                {allImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setSelectedImage(img);
+                      setActiveImgIndex(idx);
+                      setActiveMediaType('image');
+                    }}
+                    className={`relative w-16 sm:w-20 h-20 sm:h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
+                      activeMediaType === 'image' && (selectedImage === img || (!selectedImage && idx === 0))
+                        ? 'border-blue-600 ring-4 ring-blue-50 shadow-md scale-[1.02]'
+                        : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300'
+                    }`}
+                  >
+                    <img src={img} alt={`${product.name} preview ${idx + 1}`} className="w-full h-full object-cover" />
+                    {activeMediaType === 'image' && (selectedImage === img || (!selectedImage && idx === 0)) && (
+                      <div className="absolute inset-0 bg-blue-600/10" />
+                    )}
+                  </button>
+                ))}
 
-                  {/* Video Thumbnail Button */}
-                  {product.videoUrl && (
-                    <button
-                      onClick={() => setActiveMediaType('video')}
-                      className={`relative w-20 h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-slate-950 flex flex-col items-center justify-center text-white ${
-                        activeMediaType === 'video'
-                          ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-md scale-[1.02]'
-                          : 'border-slate-800 opacity-80 hover:opacity-100 hover:border-indigo-500/50'
-                      }`}
-                      title="Watch Product Video"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white mb-1 shadow">
-                        <Play className="w-4 h-4 fill-current ml-0.5" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
-                        VIDEO
-                      </span>
-                    </button>
-                  )}
-                </div>
-              )}
+                {/* 3D Motion Thumbnail Button */}
+                <button
+                  onClick={() => {
+                    setActiveMediaType('3d');
+                    setIs3DAutoSpin(true);
+                  }}
+                  className={`relative w-16 sm:w-20 h-20 sm:h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-gradient-to-br from-slate-900 to-purple-950 flex flex-col items-center justify-center text-white ${
+                    activeMediaType === '3d'
+                      ? 'border-purple-500 ring-4 ring-purple-500/20 shadow-md scale-[1.02]'
+                      : 'border-slate-800 opacity-80 hover:opacity-100 hover:border-purple-500/50'
+                  }`}
+                  title="3D Motion 360° Spin"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300 mb-0.5 animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-wider text-purple-200">
+                    3D SPIN
+                  </span>
+                </button>
+
+                {/* Video Thumbnail Button */}
+                {product.videoUrl && (
+                  <button
+                    onClick={() => setActiveMediaType('video')}
+                    className={`relative w-16 sm:w-20 h-20 sm:h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-slate-950 flex flex-col items-center justify-center text-white ${
+                      activeMediaType === 'video'
+                        ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-md scale-[1.02]'
+                        : 'border-slate-800 opacity-80 hover:opacity-100 hover:border-indigo-500/50'
+                    }`}
+                    title="Watch Product Video"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white mb-0.5 shadow">
+                      <Play className="w-3 h-3 fill-current ml-0.5" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-indigo-300">
+                      VIDEO
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Right Column: Product Info & Conversion Engine (7 cols) */}

@@ -45,7 +45,9 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState<string>('');
-  const [activeMediaType, setActiveMediaType] = useState<'image' | 'video'>('image');
+  const [activeMediaType, setActiveMediaType] = useState<'image' | 'video' | '3d'>('image');
+  const [is3DSpin, setIs3DSpin] = useState<boolean>(false);
+  const [activeImgIndex, setActiveImgIndex] = useState<number>(0);
   const [quantity, setQuantity] = useState<number>(1);
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
   const [shareUrl, setShareUrl] = useState<string>('');
@@ -56,6 +58,19 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
     }
   }, [product]);
 
+  // 3D Auto Spin Effect in QuickView
+  React.useEffect(() => {
+    let interval: any;
+    if (activeMediaType === '3d' && is3DSpin && product && product.images && product.images.length > 1) {
+      interval = setInterval(() => {
+        setActiveImgIndex((prev) => (prev + 1) % product.images.length);
+      }, 700);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeMediaType, is3DSpin, product]);
+
   // Sync state when product changes
   React.useEffect(() => {
     if (product) {
@@ -64,6 +79,7 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
       setSelectedColor(firstVariant?.color || 'Blue');
       setSelectedImage(product.images[0] || product.thumbnail);
       setActiveMediaType('image');
+      setActiveImgIndex(0);
       setQuantity(1);
       setAddedSuccess(false);
     }
@@ -178,6 +194,28 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
                   ← Photos
                 </button>
               </div>
+            ) : activeMediaType === '3d' ? (
+              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-black border border-purple-500/30 shadow-inner flex flex-col items-center justify-center p-3">
+                <img
+                  src={(product.images && product.images[activeImgIndex]) || product.thumbnail}
+                  alt={`${product.name} 3D Angle`}
+                  className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
+                />
+                <div className="absolute top-2 left-2 bg-purple-950/90 text-purple-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-purple-500/40 flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5 text-amber-300" />
+                  <span>3D Motion (360°)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIs3DSpin(!is3DSpin)}
+                  className={`absolute bottom-2 left-2 px-2.5 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 transition ${
+                    is3DSpin ? 'bg-amber-400 text-slate-950' : 'bg-black/70 text-white border border-white/20'
+                  }`}
+                >
+                  <Play className="w-2.5 h-2.5 fill-current" />
+                  <span>{is3DSpin ? 'Spin: ON' : 'Auto-Spin'}</span>
+                </button>
+              </div>
             ) : (
               <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
                 <img
@@ -204,39 +242,54 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
               </div>
             )}
 
-            {(product.images.length > 1 || product.videoUrl) && (
-              <div className="flex gap-2.5 overflow-x-auto pb-1">
-                {product.images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setSelectedImage(img);
-                      setActiveMediaType('image');
-                    }}
-                    className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
-                      activeMediaType === 'image' && selectedImage === img ? 'border-blue-600 ring-2 ring-blue-50 shadow-sm' : 'border-slate-200 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {product.images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSelectedImage(img);
+                    setActiveMediaType('image');
+                  }}
+                  className={`relative w-14 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
+                    activeMediaType === 'image' && selectedImage === img ? 'border-blue-600 ring-2 ring-blue-50 shadow-sm' : 'border-slate-200 opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
 
-                {product.videoUrl && (
-                  <button
-                    onClick={() => setActiveMediaType('video')}
-                    className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-slate-950 flex flex-col items-center justify-center text-white ${
-                      activeMediaType === 'video'
-                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm'
-                        : 'border-slate-800 opacity-80 hover:opacity-100'
-                    }`}
-                    title="Watch Video"
-                  >
-                    <Play className="w-4 h-4 fill-current text-indigo-400 mb-0.5" />
-                    <span className="text-[9px] font-black text-indigo-300">VIDEO</span>
-                  </button>
-                )}
-              </div>
-            )}
+              {/* 3D Spin Button */}
+              <button
+                onClick={() => {
+                  setActiveMediaType('3d');
+                  setIs3DSpin(true);
+                }}
+                className={`relative w-14 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-gradient-to-br from-slate-900 to-purple-950 flex flex-col items-center justify-center text-white ${
+                  activeMediaType === '3d'
+                    ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-sm'
+                    : 'border-slate-800 opacity-80 hover:opacity-100'
+                }`}
+                title="3D Motion View"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 mb-0.5 animate-pulse" />
+                <span className="text-[8px] font-black uppercase text-purple-200">3D</span>
+              </button>
+
+              {product.videoUrl && (
+                <button
+                  onClick={() => setActiveMediaType('video')}
+                  className={`relative w-14 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 bg-slate-950 flex flex-col items-center justify-center text-white ${
+                    activeMediaType === 'video'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm'
+                      : 'border-slate-800 opacity-80 hover:opacity-100'
+                  }`}
+                  title="Watch Video"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current text-indigo-400 mb-0.5" />
+                  <span className="text-[8px] font-black text-indigo-300">VIDEO</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Product Info */}
