@@ -325,24 +325,11 @@ function AdminProductsContent() {
         }
       }
 
-      // Fallback: FileReader Base64 Data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          setFormVideoUrl(result);
-          setFormVideos((prev) => Array.from(new Set([...prev, result])));
-        }
-        setUploadingVideo(false);
-      };
-      reader.onerror = () => {
-        alert('Failed to read video file.');
-        setUploadingVideo(false);
-      };
-      reader.readAsDataURL(file);
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson?.error || 'Video upload processing failed');
     } catch (err: any) {
       console.error('Video upload error:', err);
-      alert(`Video upload failed: ${err?.message || 'Network error'}`);
+      alert(`Video upload failed: ${err?.message || 'Please check your connection or use + Video Link'}`);
       setUploadingVideo(false);
     }
   };

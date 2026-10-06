@@ -91,21 +91,67 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Ensure public/uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadsDir, { recursive: true });
+    // Strategy 1: For videos or on serverless hosting (Vercel), upload to Catbox permanent CDN
+    if (isVideo || process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      try {
+        const catboxForm = new FormData();
+        catboxForm.append('reqtype', 'fileupload');
+        const fileBlob = new Blob([buffer], { type: file.type });
+        catboxForm.append('fileToUpload', fileBlob, safeFilename);
 
-    const filePath = path.join(uploadsDir, safeFilename);
+        const uploadRes = await fetch('https://catbox.moe/user/api.php', {
+          method: 'POST',
+          body: catboxForm,
+        });
 
-    // Save file to disk
-    await writeFile(filePath, buffer);
+        if (uploadRes.ok) {
+          const cdnUrl = (await uploadRes.text()).trim();
+          if (cdnUrl && cdnUrl.startsWith('http')) {
+            return NextResponse.json({ success: true, url: cdnUrl });
+          }
+        }
+      } catch (cdnErr) {
+        console.warn('Catbox CDN upload fallback:', cdnErr);
+      }
+    }
 
-    const publicUrl = `/uploads/${safeFilename}`;
-    return NextResponse.json({ success: true, url: publicUrl });
+    // Strategy 2: Local filesystem write (for local dev)
+    try {
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      await mkdir(uploadsDir, { recursive: true });
+      const filePath = path.join(uploadsDir, safeFilename);
+      await writeFile(filePath, buffer);
+
+      const publicUrl = `/uploads/${safeFilename}`;
+      return NextResponse.json({ success: true, url: publicUrl });
+    } catch (fsErr) {
+      console.warn('Local fs write error, attempting Litterbox fallback:', fsErr);
+
+      // Strategy 3: Litterbox fallback if local fs is read-only
+      const lbForm = new FormData();
+      lbForm.append('reqtype', 'fileupload');
+      lbForm.append('time', '72h');
+      const fileBlob = new Blob([buffer], { type: file.type });
+      lbForm.append('fileToUpload', fileBlob, safeFilename);
+
+      const lbRes = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+        method: 'POST',
+        body: lbForm,
+      });
+
+      if (lbRes.ok) {
+        const lbUrl = (await lbRes.text()).trim();
+        if (lbUrl && lbUrl.startsWith('http')) {
+          return NextResponse.json({ success: true, url: lbUrl });
+        }
+      }
+
+      throw fsErr;
+    }
   } catch (error: any) {
     console.error('File upload error:', error);
     return NextResponse.json(
-      { error: 'File upload processing failed' },
+      { error: `File upload processing failed: ${error?.message || 'Unknown error'}` },
       { status: 500 }
     );
   }

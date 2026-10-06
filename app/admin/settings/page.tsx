@@ -329,6 +329,46 @@ function AdminSettingsContent() {
     setHeroSlides((prev) => [...prev, newSlide]);
   };
 
+  const [uploadingSlideIdx, setUploadingSlideIdx] = useState<number | null>(null);
+
+  const handleSlideVideoFileUpload = async (idx: number, file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('video/') && !/\.(mp4|webm|mov|mkv|avi)$/i.test(file.name)) {
+      alert('Please select a valid video file (MP4, WebM, MOV, MKV)');
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      alert('Video file exceeds 100MB. For large videos, we recommend uploading to YouTube/Vimeo and pasting the link!');
+      return;
+    }
+
+    setUploadingSlideIdx(idx);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          handleUpdateSlide(idx, 'videoUrl', data.url);
+          setUploadingSlideIdx(null);
+          return;
+        }
+      }
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson?.error || 'Upload failed');
+    } catch (err: any) {
+      console.error('Slide video upload error:', err);
+      alert(`Video upload failed: ${err?.message || 'Please check file or paste a video link'}`);
+      setUploadingSlideIdx(null);
+    }
+  };
+
   const handleDeleteSlide = (index: number) => {
     if (heroSlides.length <= 1) {
       alert('You must have at least 1 hero banner slide!');
@@ -1051,23 +1091,21 @@ function AdminSettingsContent() {
                             </div>
 
                             {/* Direct file upload input for video */}
-                            <label className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg flex items-center gap-1 transition shadow active:scale-95">
-                              <Film className="w-3 h-3" />
-                              <span>Upload Video File</span>
+                            <label className={`cursor-pointer ${uploadingSlideIdx === idx ? 'bg-indigo-700 opacity-80' : 'bg-indigo-600 hover:bg-indigo-500'} text-white font-bold text-[10px] px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow active:scale-95`}>
+                              {uploadingSlideIdx === idx ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-white" />
+                              ) : (
+                                <Film className="w-3 h-3" />
+                              )}
+                              <span>{uploadingSlideIdx === idx ? 'Uploading Video...' : 'Upload Video File'}</span>
                               <input
                                 type="file"
+                                disabled={uploadingSlideIdx === idx}
                                 accept="video/mp4,video/webm,video/quicktime,video/*"
                                 className="hidden"
                                 onChange={(e) => {
                                   const f = e.target.files?.[0];
-                                  if (f) {
-                                    const reader = new FileReader();
-                                    reader.onload = (event) => {
-                                      const res = event.target?.result as string;
-                                      if (res) handleUpdateSlide(idx, 'videoUrl', res);
-                                    };
-                                    reader.readAsDataURL(f);
-                                  }
+                                  if (f) handleSlideVideoFileUpload(idx, f);
                                   e.target.value = '';
                                 }}
                               />

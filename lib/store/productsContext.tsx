@@ -387,13 +387,39 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     // 3. Supabase Cloud Database sync so all devices and live Vercel store update immediately
     if (isSupabaseConfigured) {
       try {
+        // Strip out massive >100KB Base64 video/data blobs from SQL query payload to prevent Postgres statement_timeout
+        const cleanForCloud = (item: any): any => {
+          if (!item) return item;
+          if (typeof item === 'string') {
+            if (item.startsWith('data:video/') && item.length > 100000) {
+              return ''; // Prevent sending 20MB raw Base64 video string directly in SQL query
+            }
+            return item;
+          }
+          if (Array.isArray(item)) return item.map(cleanForCloud);
+          if (typeof item === 'object') {
+            const res: any = {};
+            for (const key of Object.keys(item)) {
+              res[key] = cleanForCloud(item[key]);
+            }
+            return res;
+          }
+          return item;
+        };
+
+        const dbPayload = cleanForCloud(updated);
+
         const { error: sbError } = await supabase.from('site_settings').upsert({
           id: 1,
-          data: updated,
+          data: dbPayload,
           updated_at: new Date().toISOString(),
         });
         if (sbError) {
           console.error('Supabase updateSiteSettings error:', sbError);
+          // If statement timeout happens, alert user cleanly
+          if (sbError.message && sbError.message.includes('timeout')) {
+            throw new Error('Database timeout: Please use video links (YouTube/Vimeo/MP4 CDN) instead of huge raw video files.');
+          }
           throw new Error(sbError.message || 'Supabase save error');
         }
       } catch (err: any) {
@@ -437,6 +463,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           discount_percentage: newProduct.discountPercentage || 0,
           thumbnail: newProduct.thumbnail,
           images: newProduct.images || [],
+          video_url: (newProduct.videoUrl && !newProduct.videoUrl.startsWith('data:video/')) ? newProduct.videoUrl : '',
+          videos: (newProduct.videos || []).filter((v) => !v.startsWith('data:video/')),
           description: newProduct.description || '',
           details: newProduct.details || [],
           fabric_care: newProduct.fabricCare || [],
@@ -471,8 +499,12 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         if (updates.discountPercentage !== undefined) payload.discount_percentage = updates.discountPercentage;
         if (updates.thumbnail) payload.thumbnail = updates.thumbnail;
         if (updates.images) payload.images = updates.images;
-        if (updates.videoUrl !== undefined) payload.video_url = updates.videoUrl;
-        if (updates.videos !== undefined) payload.videos = updates.videos;
+        if (updates.videoUrl !== undefined) {
+          payload.video_url = updates.videoUrl.startsWith('data:video/') ? '' : updates.videoUrl;
+        }
+        if (updates.videos !== undefined) {
+          payload.videos = (updates.videos || []).filter((v) => !v.startsWith('data:video/'));
+        }
         if (updates.description) payload.description = updates.description;
         if (updates.totalStock !== undefined) payload.total_stock = updates.totalStock;
         if (updates.variants) payload.variants = updates.variants;
