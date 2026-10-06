@@ -39,6 +39,7 @@ import {
 import { useProducts } from '@/lib/store/productsContext';
 import { formatPrice } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/utils/video';
+import { uploadVideoFile } from '@/lib/utils/uploader';
 import ImageUploadField from '@/components/admin/ImageUploadField';
 
 export default function AdminSettingsPage() {
@@ -330,6 +331,7 @@ function AdminSettingsContent() {
   };
 
   const [uploadingSlideIdx, setUploadingSlideIdx] = useState<number | null>(null);
+  const [uploadProgressText, setUploadProgressText] = useState<string>('');
 
   const handleSlideVideoFileUpload = async (idx: number, file: File) => {
     if (!file) return;
@@ -338,50 +340,25 @@ function AdminSettingsContent() {
       return;
     }
 
-    const fileSizeMB = file.size / (1024 * 1024);
-
-    // Vercel serverless request body is limited to 4.5MB for direct file upload
-    if (fileSizeMB > 4.5) {
-      alert(
-        `⚠️ ভিডিও ফাইলের সাইজ ${fileSizeMB.toFixed(1)}MB (৪.৫MB-এর বেশি)।\n\n` +
-        `বড় ভিডিও ফাইলের জন্য ভিডিওটি YouTube (Unlisted বা Public), Vimeo, Google Drive, বা Streamable-এ আপলোড করে নিচের "Video Link" বক্সে লিঙ্কটি পেস্ট করুন। এতে কাস্টমাররা কোনো বাফারিং ছাড়াই দ্রুত 1080p কোয়ালিটিতে ভিডিও দেখতে পাবে!`
-      );
-      return;
-    }
-
     setUploadingSlideIdx(idx);
+    setUploadProgressText('Uploading...');
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
+      const videoUrl = await uploadVideoFile(file, (p) => {
+        setUploadProgressText(p.statusText || `${p.percent}%`);
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          handleUpdateSlide(idx, 'videoUrl', data.url);
-          setUploadingSlideIdx(null);
-          return;
-        }
+      if (videoUrl) {
+        handleUpdateSlide(idx, 'videoUrl', videoUrl);
+        setUploadingSlideIdx(null);
+        setUploadProgressText('');
+        return;
       }
-
-      let errorMsg = 'Upload failed';
-      try {
-        const errJson = await res.json();
-        if (errJson?.error) errorMsg = errJson.error;
-      } catch (_) {
-        if (res.status === 413) {
-          errorMsg = 'File is too large for direct upload. Please paste a YouTube/Vimeo/Streamable link instead.';
-        }
-      }
-      throw new Error(errorMsg);
+      throw new Error('No video URL returned');
     } catch (err: any) {
       console.error('Slide video upload error:', err);
-      alert(`ভিডিও আপলোড এরর: ${err?.message || 'অনুগ্রহ করে YouTube / Vimeo / MP4 ভিডিও লিংক ব্যবহার করুন।'}`);
+      alert(`ভিডিও আপলোড এরর: ${err?.message || 'অনুগ্রহ করে আবার চেষ্টা করুন বা YouTube/Vimeo/MP4 লিংক পেস্ট করুন।'}`);
       setUploadingSlideIdx(null);
+      setUploadProgressText('');
     }
   };
 
@@ -1113,7 +1090,7 @@ function AdminSettingsContent() {
                               ) : (
                                 <Film className="w-3 h-3" />
                               )}
-                              <span>{uploadingSlideIdx === idx ? 'Uploading Video...' : 'Upload Video File'}</span>
+                              <span>{uploadingSlideIdx === idx ? (uploadProgressText || 'Uploading Video...') : 'Upload Video File'}</span>
                               <input
                                 type="file"
                                 disabled={uploadingSlideIdx === idx}

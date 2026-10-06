@@ -35,6 +35,7 @@ import { Product, ProductFit, GenderCategory } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { compressImageFile } from '@/lib/utils/db';
 import { parseVideoUrl, isVideoUrl } from '@/lib/utils/video';
+import { uploadVideoFile } from '@/lib/utils/uploader';
 
 const ANGLE_SLOTS = [
   { id: 0, label: '1. FRONT VIEW (MAIN)', hint: 'Front angle' },
@@ -297,39 +298,23 @@ function AdminProductsContent() {
   const handleVideoFile = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('video/') && !/\.(mp4|webm|mov|mkv|avi)$/i.test(file.name)) {
-      alert('Please select a valid video file (MP4, WebM, MOV, MKV)');
-      return;
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      alert('Video file exceeds 50MB. For large videos, we recommend uploading to YouTube/Vimeo and using the "+ Video Link" option!');
+      alert('অনুগ্রহ করে একটি সঠিক ভিডিও ফাইল (MP4, WebM, MOV) সিলেক্ট করুন।');
       return;
     }
 
     setUploadingVideo(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          setFormVideoUrl(data.url);
-          setFormVideos((prev) => Array.from(new Set([...prev, data.url])));
-          setUploadingVideo(false);
-          return;
-        }
+      const videoUrl = await uploadVideoFile(file);
+      if (videoUrl) {
+        setFormVideoUrl(videoUrl);
+        setFormVideos((prev) => Array.from(new Set([...prev, videoUrl])));
+        setUploadingVideo(false);
+        return;
       }
-
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson?.error || 'Video upload processing failed');
+      throw new Error('No video URL returned');
     } catch (err: any) {
       console.error('Video upload error:', err);
-      alert(`Video upload failed: ${err?.message || 'Please check your connection or use + Video Link'}`);
+      alert(`ভিডিও আপলোড এরর: ${err?.message || 'অনুগ্রহ করে আবার চেষ্টা করুন বা + Video Link ব্যবহার করুন।'}`);
       setUploadingVideo(false);
     }
   };
