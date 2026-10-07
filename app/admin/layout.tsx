@@ -52,27 +52,21 @@ export interface AdminUser {
   permissions?: string[];
 }
 
-export function isUserSuperAdmin(user: AdminUser | null, siteSettingsEmail?: string): boolean {
+export function isUserSuperAdmin(user: AdminUser | null): boolean {
   if (!user) return false;
-  const cleanEmail = (user.email || '').toLowerCase().trim();
-  const siteEmail = (siteSettingsEmail || '').toLowerCase().trim();
-
+  // Strictly check if the user is designated as Super Admin or has All Permissions
   return (
     user.role === 'Super Admin' ||
-    cleanEmail === 'hasansheikh9080@gmail.com' ||
-    cleanEmail === 'admin@jeansbd.com' ||
-    (siteEmail && cleanEmail === siteEmail) ||
-    (user.permissions && user.permissions.includes('All Permissions'))
+    (Array.isArray(user.permissions) && user.permissions.includes('All Permissions'))
   );
 }
 
 export function hasPermissionForPath(
   user: AdminUser | null,
-  pathname: string,
-  siteSettingsEmail?: string
+  pathname: string
 ): boolean {
   if (!user) return true; // loading or default
-  if (isUserSuperAdmin(user, siteSettingsEmail)) return true;
+  if (isUserSuperAdmin(user)) return true;
 
   const perms = user.permissions || [];
 
@@ -123,7 +117,7 @@ export function hasPermissionForPath(
 
   // 9. Staff Management (RBAC) - Strictly Super Admin only
   if (pathname.startsWith('/admin/staff')) {
-    return isUserSuperAdmin(user, siteSettingsEmail);
+    return isUserSuperAdmin(user);
   }
 
   return true;
@@ -207,7 +201,6 @@ export default function AdminLayout({
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '';
   const { theme } = useAdminTheme();
-  const { siteSettings } = useProducts();
   const isDark = theme === 'dark';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -220,7 +213,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         const saved = localStorage.getItem('jeansbd_admin_user');
         if (saved) {
           const parsed = JSON.parse(saved);
-          // Sync with staff list if permissions were updated by super admin
+          // Sync with staff list if permissions or role were updated by super admin
           const savedStaff = localStorage.getItem('jeansbd_staff');
           if (savedStaff && parsed.email) {
             const staffList = JSON.parse(savedStaff);
@@ -245,7 +238,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  const hasAccess = hasPermissionForPath(currentUser, pathname, siteSettings?.email);
+  const hasAccess = hasPermissionForPath(currentUser, pathname);
 
   return (
     <div
@@ -417,13 +410,14 @@ function AdminSidebar({
   const currentAction = searchParams ? searchParams.get('action') : null;
 
   const { orders } = useOrder();
-  const { products, siteSettings } = useProducts();
+  const { products } = useProducts();
   const { theme } = useAdminTheme();
   const isDark = theme === 'dark';
 
-  const isSuperAdmin = isUserSuperAdmin(currentUser || null, siteSettings?.email);
+  const isSuperAdmin = isUserSuperAdmin(currentUser || null);
   const userPerms = currentUser?.permissions || [];
 
+  // Granular permission flags
   const canManageProducts = isSuperAdmin || userPerms.includes('Manage Products');
   const canManageOrders = isSuperAdmin || userPerms.includes('Manage Orders');
   const canManageCouriers =
@@ -784,7 +778,7 @@ function AdminSidebar({
             </Link>
           )}
 
-          {/* 8. Sub-Admins & Staff (RBAC: Super Admin strictly) */}
+          {/* 8. Sub-Admins & Staff (RBAC: Strictly Super Admin only) */}
           {canManageStaff && (
             <Link
               href="/admin/staff"
@@ -966,7 +960,7 @@ function AdminSidebar({
                 {currentUser?.name || 'Admin User'}
               </h4>
               <p className="text-[10px] text-blue-400 font-semibold truncate mt-0.5">
-                {currentUser?.role || (siteSettings?.email || 'Super Admin')}
+                {currentUser?.role || 'Staff Admin'}
               </p>
             </div>
           </div>
