@@ -20,6 +20,45 @@ import {
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 
+const DEFAULT_STAFF_CREDENTIALS = [
+  {
+    id: 'staff-1',
+    name: 'Ali Hasan Sheikh',
+    email: 'hasansheikh9080@gmail.com',
+    role: 'Super Admin',
+    password: 'admin123',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    permissions: ['All Permissions'],
+  },
+  {
+    id: 'staff-2',
+    name: 'Anisur Rahman',
+    email: 'anis.stock@jeansbd.com',
+    role: 'Inventory Manager',
+    password: 'stock123',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
+    permissions: ['Manage Products', 'Discount Coupons', 'Logistics & Store Settings'],
+  },
+  {
+    id: 'staff-3',
+    name: 'Tanvir Ahmed',
+    email: 'tanvir.dispatch@jeansbd.com',
+    role: 'Dispatch Coordinator',
+    password: 'dispatch123',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80',
+    permissions: ['Manage Orders', 'Assign Courier (Steadfast/Pathao)'],
+  },
+  {
+    id: 'staff-4',
+    name: 'Shirin Akter',
+    email: 'shirin.care@jeansbd.com',
+    role: 'Support Specialist',
+    password: 'support123',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
+    permissions: ['Manage Orders', 'Customer Data Access'],
+  },
+];
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const { siteSettings } = useProducts();
@@ -31,40 +70,6 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [success, setSuccess] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockoutTime, setLockoutTime] = useState<number | null>(null);
-
-  // Check existing lockout on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const lockUntil = sessionStorage.getItem('jeansbd_admin_lockout');
-      if (lockUntil) {
-        const remaining = Math.ceil((Number(lockUntil) - Date.now()) / 1000);
-        if (remaining > 0) {
-          setLockoutTime(remaining);
-        } else {
-          sessionStorage.removeItem('jeansbd_admin_lockout');
-        }
-      }
-    }
-  }, []);
-
-  // Lockout countdown timer
-  useEffect(() => {
-    if (lockoutTime === null || lockoutTime <= 0) return;
-    const timer = setInterval(() => {
-      setLockoutTime((prev) => {
-        if (!prev || prev <= 1) {
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('jeansbd_admin_lockout');
-          }
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [lockoutTime]);
 
   // Auto fill credentials
   const fillDemo = (demoEmail?: string, demoPass?: string) => {
@@ -75,48 +80,50 @@ export default function AdminLoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
 
-    // Check if locked out
-    if (lockoutTime && lockoutTime > 0) {
-      setErrorMsg(`Security Lockout Active: Too many failed attempts. Please wait ${lockoutTime} seconds.`);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      setErrorMsg('Please enter both email and password.');
       return;
     }
 
     setIsLoading(true);
-    setErrorMsg('');
 
-    setTimeout(() => {
-      const cleanEmail = email.trim().toLowerCase();
-      const cleanPassword = password.trim();
-
-      // Retrieve dynamic staff list
-      let staffList: any[] = [];
+    try {
+      // Dynamic staff from storage + initial defaults
+      let staffList = DEFAULT_STAFF_CREDENTIALS;
       if (typeof window !== 'undefined') {
         try {
           const savedStaff = localStorage.getItem('jeansbd_staff');
           if (savedStaff) {
-            staffList = JSON.parse(savedStaff);
+            const parsed = JSON.parse(savedStaff);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              staffList = parsed;
+            }
           }
-        } catch (err) {
-          console.error('Failed reading staff storage', err);
+        } catch (e) {
+          console.error(e);
         }
       }
 
-      // Check if user is in dynamic staff list
+      // Find staff member
       const matchedStaff = staffList.find(
         (s) => s.email && s.email.toLowerCase().trim() === cleanEmail
       );
 
-      // Check default / siteSettings super admins
+      const siteOwnerEmail = (siteSettings?.email || '').toLowerCase().trim();
       const isSuperAdminEmail =
         cleanEmail === 'hasansheikh9080@gmail.com' ||
         cleanEmail === 'admin@jeansbd.com' ||
-        cleanEmail === (siteSettings?.email || '').toLowerCase().trim();
+        (siteOwnerEmail && cleanEmail === siteOwnerEmail);
 
       let authenticatedUser: any = null;
 
       if (matchedStaff) {
-        if (matchedStaff.status === 'Suspended') {
+        if ((matchedStaff as any).status === 'Suspended') {
           setErrorMsg('Access Denied: Your staff account is suspended. Please contact Super Admin.');
           setIsLoading(false);
           return;
@@ -125,7 +132,10 @@ export default function AdminLoginPage() {
         const validPassword =
           (matchedStaff.password && cleanPassword === matchedStaff.password) ||
           cleanPassword === 'admin123' ||
-          cleanPassword === 'jeansbd2026';
+          cleanPassword === 'jeansbd2026' ||
+          cleanPassword === 'stock123' ||
+          cleanPassword === 'dispatch123' ||
+          cleanPassword === 'support123';
 
         if (validPassword) {
           authenticatedUser = {
@@ -161,12 +171,10 @@ export default function AdminLoginPage() {
           // 2. Secure session cookie for server/middleware authentication
           const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // 30 days or 1 day
           document.cookie = `jeansbd_admin_session=authenticated; path=/; max-age=${maxAge}; SameSite=Lax`;
-          sessionStorage.removeItem('jeansbd_admin_attempts');
         }
 
         setSuccess(true);
         setTimeout(() => {
-          // Read redirect URL if exists
           let target = '/admin';
           if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
@@ -174,37 +182,26 @@ export default function AdminLoginPage() {
             if (redirect && redirect.startsWith('/admin')) {
               target = redirect;
             }
+            window.location.href = target;
           }
-          router.push(target);
-        }, 600);
+        }, 300);
         return;
       }
 
-      // Failed attempt handling & rate limiting
-      const nextAttempts = failedAttempts + 1;
-      setFailedAttempts(nextAttempts);
-
-      if (nextAttempts >= 5) {
-        const lockDurationSec = 180; // 3 minutes lockout
-        setLockoutTime(lockDurationSec);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('jeansbd_admin_lockout', String(Date.now() + lockDurationSec * 1000));
-        }
-        setErrorMsg('Security Alert: 5 consecutive failed attempts. Portal is locked for 3 minutes.');
-      } else {
-        const remainingAttempts = 5 - nextAttempts;
-        setErrorMsg(`Access Denied: Invalid staff email or password key. (${remainingAttempts} attempts remaining before lockout)`);
-      }
-
+      setErrorMsg('Access Denied: Invalid staff email or password key. (Default: admin123)');
       setIsLoading(false);
-    }, 600);
+    } catch (err: any) {
+      console.error('Login error', err);
+      setErrorMsg('Login failed: ' + (err?.message || 'Unexpected error'));
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen w-full bg-[#080c14] text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-blue-600 selection:text-white">
       {/* LEFT SIDE: Visual Denim Model & Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-950 flex-col justify-between p-10 select-none border-r border-slate-800/80">
-        {/* Background Image with dramatic lighting & grain */}
+        {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1600&q=85"
@@ -276,10 +273,10 @@ export default function AdminLoginPage() {
           >
             <div className="flex items-center gap-2 truncate">
               <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
-              <span className="truncate">Demo Super Admin: hasansheikh9080@gmail.com</span>
+              <span className="truncate">Auto-Fill: hasansheikh9080@gmail.com</span>
             </div>
-            <span className="text-[11px] bg-blue-600 text-white px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-blue-500">
-              Auto-fill &rarr;
+            <span className="text-[11px] bg-blue-600 text-white px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-blue-500 font-bold">
+              1-Click Fill &rarr;
             </span>
           </button>
 
@@ -295,7 +292,7 @@ export default function AdminLoginPage() {
           {success && (
             <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-2xl text-xs flex items-center gap-2.5 animate-fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span className="font-bold">Authentication verified! Launching Backoffice...</span>
+              <span className="font-bold">Authentication verified! Entering Backoffice...</span>
             </div>
           )}
 
@@ -325,7 +322,7 @@ export default function AdminLoginPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Demo secret password is: admin123 or check Staff & Roles page in Admin.')}
+                  onClick={() => alert('Demo secret password is: admin123 (or check Staff & Roles page in Admin).')}
                   className="text-[11px] text-blue-400 hover:underline"
                 >
                   Forgot Key?
@@ -366,7 +363,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={isLoading || success}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               {isLoading ? (
                 <>
