@@ -229,6 +229,26 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
   const { theme } = useAdminTheme();
   const isDark = theme === 'dark';
 
+  const [currentUser, setCurrentUser] = useState<{
+    name?: string;
+    email?: string;
+    role?: string;
+    avatar?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('jeansbd_admin_user');
+        if (saved) {
+          setCurrentUser(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
   // Collapsible sections state
   const isProductsActive =
     pathname.startsWith('/admin/products') ||
@@ -719,19 +739,35 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
                 : 'bg-white border-slate-200/90 shadow-xs'
             }`}
           >
-            <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-500 font-black text-xs flex items-center justify-center shrink-0">
-              AD
-            </div>
+            {currentUser?.avatar ? (
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name || 'Admin'}
+                className="w-8 h-8 rounded-xl object-cover border border-blue-500/40 shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-500 font-black text-xs flex items-center justify-center shrink-0 uppercase">
+                {currentUser?.name
+                  ? currentUser.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .slice(0, 2)
+                  : 'AD'}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              <h4
-                className={`font-bold text-xs leading-tight truncate ${
-                  isDark ? 'text-white' : 'text-slate-900'
-                }`}
-              >
-                Admin Control
-              </h4>
-              <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
-                {siteSettings?.email || 'admin@jeansbd.com'}
+              <div className="flex items-center justify-between gap-1">
+                <h4
+                  className={`font-bold text-xs leading-tight truncate ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}
+                >
+                  {currentUser?.name || 'Admin Control'}
+                </h4>
+              </div>
+              <p className="text-[10px] text-blue-400 font-semibold truncate mt-0.5">
+                {currentUser?.role || (siteSettings?.email || 'Super Admin')}
               </p>
             </div>
           </div>

@@ -121,9 +121,8 @@ export default function HeroBanner() {
         return (
           <div
             key={slide.id || index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-            }`}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+              }`}
           >
             {/* Background Video or Image with Dark Vignette */}
             {slide.videoUrl ? (
@@ -323,11 +322,10 @@ export default function HeroBanner() {
             <button
               key={i}
               onClick={() => setCurrentSlide(i)}
-              className={`transition-all duration-300 rounded-full ${
-                i === currentSlide
-                  ? 'w-6 h-2 bg-blue-500'
-                  : 'w-2 h-2 bg-white/40 hover:bg-white/70'
-              }`}
+              className={`transition-all duration-300 rounded-full ${i === currentSlide
+                ? 'w-6 h-2 bg-blue-500'
+                : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+                }`}
               aria-label={`Go to slide ${i + 1}`}
             />
           ))}

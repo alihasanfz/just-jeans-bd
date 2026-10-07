@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Sparkles,
   KeyRound,
+  Users,
+  Shield,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 
@@ -65,9 +67,9 @@ export default function AdminLoginPage() {
   }, [lockoutTime]);
 
   // Auto fill credentials
-  const fillDemo = () => {
-    setEmail(siteSettings?.email || 'hasansheikh9080@gmail.com');
-    setPassword('admin123');
+  const fillDemo = (demoEmail?: string, demoPass?: string) => {
+    setEmail(demoEmail || siteSettings?.email || 'hasansheikh9080@gmail.com');
+    setPassword(demoPass || 'admin123');
     setErrorMsg('');
   };
 
@@ -87,32 +89,74 @@ export default function AdminLoginPage() {
       const cleanEmail = email.trim().toLowerCase();
       const cleanPassword = password.trim();
 
-      // Authorized admin emails list
-      const authorizedEmails = [
-        'hasansheikh9080@gmail.com',
-        'anis.stock@jeansbd.com',
-        'tanvir.dispatch@jeansbd.com',
-        'admin@jeansbd.com',
-        (siteSettings?.email || '').toLowerCase().trim(),
-      ].filter(Boolean);
+      // Retrieve dynamic staff list
+      let staffList: any[] = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const savedStaff = localStorage.getItem('jeansbd_staff');
+          if (savedStaff) {
+            staffList = JSON.parse(savedStaff);
+          }
+        } catch (err) {
+          console.error('Failed reading staff storage', err);
+        }
+      }
 
-      // Verify email is registered and password matches secure key
-      const isEmailValid = authorizedEmails.includes(cleanEmail);
-      const isPasswordValid = cleanPassword === 'admin123' || cleanPassword === 'jeansbd2026';
+      // Check if user is in dynamic staff list
+      const matchedStaff = staffList.find(
+        (s) => s.email && s.email.toLowerCase().trim() === cleanEmail
+      );
 
-      if (isEmailValid && isPasswordValid) {
+      // Check default / siteSettings super admins
+      const isSuperAdminEmail =
+        cleanEmail === 'hasansheikh9080@gmail.com' ||
+        cleanEmail === 'admin@jeansbd.com' ||
+        cleanEmail === (siteSettings?.email || '').toLowerCase().trim();
+
+      let authenticatedUser: any = null;
+
+      if (matchedStaff) {
+        if (matchedStaff.status === 'Suspended') {
+          setErrorMsg('Access Denied: Your staff account is suspended. Please contact Super Admin.');
+          setIsLoading(false);
+          return;
+        }
+
+        const validPassword =
+          (matchedStaff.password && cleanPassword === matchedStaff.password) ||
+          cleanPassword === 'admin123' ||
+          cleanPassword === 'jeansbd2026';
+
+        if (validPassword) {
+          authenticatedUser = {
+            id: matchedStaff.id,
+            name: matchedStaff.name,
+            email: matchedStaff.email,
+            role: matchedStaff.role || 'Staff Admin',
+            avatar: matchedStaff.avatar,
+            permissions: matchedStaff.permissions || [],
+            authenticatedAt: new Date().toISOString(),
+          };
+        }
+      } else if (isSuperAdminEmail) {
+        if (cleanPassword === 'admin123' || cleanPassword === 'jeansbd2026') {
+          authenticatedUser = {
+            id: 'super-admin-root',
+            name: 'Ali Hasan Sheikh',
+            email: cleanEmail,
+            role: 'Super Admin',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+            permissions: ['All Permissions'],
+            authenticatedAt: new Date().toISOString(),
+          };
+        }
+      }
+
+      if (authenticatedUser) {
         if (typeof window !== 'undefined') {
-          // 1. LocalStorage auth flag
+          // 1. LocalStorage auth flag & user profile
           localStorage.setItem('jeansbd_admin_auth', 'true');
-          localStorage.setItem(
-            'jeansbd_admin_user',
-            JSON.stringify({
-              name: cleanEmail.includes('hasan') ? 'Md. Ali Hasan Sheikh' : 'Admin Staff',
-              email: cleanEmail,
-              role: cleanEmail.includes('hasan') ? 'Super Admin' : 'Staff Admin',
-              authenticatedAt: new Date().toISOString(),
-            })
-          );
+          localStorage.setItem('jeansbd_admin_user', JSON.stringify(authenticatedUser));
 
           // 2. Secure session cookie for server/middleware authentication
           const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // 30 days or 1 day
@@ -146,10 +190,10 @@ export default function AdminLoginPage() {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('jeansbd_admin_lockout', String(Date.now() + lockDurationSec * 1000));
         }
-        setErrorMsg('Security Alert: 5 consecutive failed attempts. Admin portal is locked for 3 minutes to prevent brute-force attacks.');
+        setErrorMsg('Security Alert: 5 consecutive failed attempts. Portal is locked for 3 minutes.');
       } else {
         const remainingAttempts = 5 - nextAttempts;
-        setErrorMsg(`Access Denied: Invalid credentials. (${remainingAttempts} attempts remaining before temporary lockout)`);
+        setErrorMsg(`Access Denied: Invalid staff email or password key. (${remainingAttempts} attempts remaining before lockout)`);
       }
 
       setIsLoading(false);
@@ -158,7 +202,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#080c14] text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-blue-600 selection:text-white">
-      {/* LEFT SIDE: Visual Denim Model & Branding (Matching Screenshot 2) */}
+      {/* LEFT SIDE: Visual Denim Model & Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-950 flex-col justify-between p-10 select-none border-r border-slate-800/80">
         {/* Background Image with dramatic lighting & grain */}
         <div className="absolute inset-0 z-0">
@@ -188,7 +232,7 @@ export default function AdminLoginPage() {
           </Link>
         </div>
 
-        {/* Bottom Floating Glass Card (Exact design from Screenshot 2) */}
+        {/* Bottom Floating Glass Card */}
         <div className="relative z-10 max-w-lg">
           <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-6 shadow-2xl space-y-3">
             <div className="flex items-center gap-2">
@@ -198,60 +242,60 @@ export default function AdminLoginPage() {
               </span>
             </div>
             <h2 className="text-lg font-black text-white uppercase tracking-tight leading-snug">
-              Bangladesh’s Premier Denim Inventory & Logistics Backoffice
+              Bangladesh’s Premier Denim Inventory &amp; Logistics Backoffice
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Real-time synchronization across nationwide Steadfast & Pathao courier hubs,
+              Real-time synchronization across nationwide Steadfast &amp; Pathao courier hubs,
               multi-attribute stock tracking, customer orders, and financial analytics.
             </p>
           </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE: Admin Authentication Form (Matching Screenshot 2) */}
+      {/* RIGHT SIDE: Admin Authentication Form */}
       <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative z-10 bg-[#080c14]">
-        <div className="w-full max-w-md space-y-7">
+        <div className="w-full max-w-md space-y-6">
           {/* Card Header & Icon */}
-          <div className="text-center space-y-2.5">
-            <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/10 mb-4">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/10 mb-3">
               <KeyRound className="w-7 h-7" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
-              Admin Authentication
+              Staff &amp; Admin Login
             </h1>
             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-              Enter your registered staff credentials to access Jeans BD backoffice
+              Enter your assigned staff email address &amp; password key to access Jeans BD backoffice
             </p>
           </div>
 
-          {/* Quick Demo Pill Helper (Screenshot 2 banner) */}
+          {/* Quick Demo Pill Helper */}
           <button
             type="button"
-            onClick={fillDemo}
+            onClick={() => fillDemo()}
             className="w-full bg-blue-950/40 hover:bg-blue-900/40 border border-blue-800/60 text-blue-300 py-2.5 px-3.5 rounded-2xl text-xs font-bold flex items-center justify-between transition-all group shadow-sm"
           >
             <div className="flex items-center gap-2 truncate">
               <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
-              <span className="truncate">Auto-fill: {siteSettings?.email || 'hasansheikh9080@gmail.com'}</span>
+              <span className="truncate">Demo Super Admin: hasansheikh9080@gmail.com</span>
             </div>
             <span className="text-[11px] bg-blue-600 text-white px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-blue-500">
-              Demo Fill &rarr;
+              Auto-fill &rarr;
             </span>
           </button>
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3 rounded-2xl text-xs flex items-center gap-2 animate-shake">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
+            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3.5 rounded-2xl text-xs flex items-center gap-2.5 animate-shake">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span className="font-medium">{errorMsg}</span>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-2xl text-xs flex items-center gap-2 animate-fade-in">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Authentication verified! Launching Backoffice...</span>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-2xl text-xs flex items-center gap-2.5 animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span className="font-bold">Authentication verified! Launching Backoffice...</span>
             </div>
           )}
 
@@ -266,7 +310,7 @@ export default function AdminLoginPage() {
                 <input
                   type="email"
                   required
-                  placeholder="hasansheikh9080@gmail.com"
+                  placeholder="name@jeansbd.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-[#101726] border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
@@ -277,11 +321,11 @@ export default function AdminLoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Secret Key / Password
+                  Password / Staff Key
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Demo secret password is: admin123')}
+                  onClick={() => alert('Demo secret password is: admin123 or check Staff & Roles page in Admin.')}
                   className="text-[11px] text-blue-400 hover:underline"
                 >
                   Forgot Key?
@@ -322,7 +366,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={isLoading || success}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
             >
               {isLoading ? (
                 <>
@@ -332,11 +376,11 @@ export default function AdminLoginPage() {
               ) : success ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-white" />
-                  <span>Authorized & Entering...</span>
+                  <span>Authorized &amp; Entering...</span>
                 </>
               ) : (
                 <>
-                  <span>Authenticate & Enter Backoffice</span>
+                  <span>Authenticate &amp; Enter Backoffice</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
