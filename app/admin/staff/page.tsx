@@ -293,23 +293,46 @@ export default function AdminStaffPage() {
     const passwordVal = formPassword.trim() || 'admin123';
 
     if (editingStaff) {
+      const updatedStaffMember = {
+        ...editingStaff,
+        name: formName.trim(),
+        email: formEmail.trim().toLowerCase(),
+        phone: formPhone.trim(),
+        role: formRole,
+        avatar: formAvatar.trim() || undefined,
+        password: passwordVal,
+        status: formStatus,
+        permissions: selectedPermissions,
+      };
+
       setStaff((prev) =>
-        prev.map((s) =>
-          s.id === editingStaff.id
-            ? {
-                ...s,
-                name: formName.trim(),
-                email: formEmail.trim().toLowerCase(),
-                phone: formPhone.trim(),
-                role: formRole,
-                avatar: formAvatar.trim() || undefined,
-                password: passwordVal,
-                status: formStatus,
-                permissions: selectedPermissions,
-              }
-            : s
-        )
+        prev.map((s) => (s.id === editingStaff.id ? updatedStaffMember : s))
       );
+
+      // Sync active session if this is the currently logged in user
+      if (typeof window !== 'undefined') {
+        try {
+          const authUser = localStorage.getItem('jeansbd_admin_user');
+          if (authUser) {
+            const parsed = JSON.parse(authUser);
+            if (parsed.email && parsed.email.toLowerCase() === updatedStaffMember.email) {
+              localStorage.setItem(
+                'jeansbd_admin_user',
+                JSON.stringify({
+                  ...parsed,
+                  name: updatedStaffMember.name,
+                  role: updatedStaffMember.role,
+                  avatar: updatedStaffMember.avatar,
+                  permissions: updatedStaffMember.permissions,
+                })
+              );
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       showToast(`Updated profile & privileges for ${formName}!`);
     } else {
       const newStaff: StaffMember = {

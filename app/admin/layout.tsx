@@ -35,11 +35,99 @@ import {
   Activity,
   Settings,
   Lock,
+  ShieldAlert,
+  ArrowLeft,
 } from 'lucide-react';
 import { useOrder } from '@/lib/store/orderContext';
 import { useProducts } from '@/lib/store/productsContext';
 import { AdminThemeProvider, useAdminTheme } from '@/lib/store/adminThemeContext';
 import AdminThemeToggle from '@/components/admin/AdminThemeToggle';
+
+export interface AdminUser {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  avatar?: string;
+  permissions?: string[];
+}
+
+export function isUserSuperAdmin(user: AdminUser | null, siteSettingsEmail?: string): boolean {
+  if (!user) return false;
+  const cleanEmail = (user.email || '').toLowerCase().trim();
+  const siteEmail = (siteSettingsEmail || '').toLowerCase().trim();
+
+  return (
+    user.role === 'Super Admin' ||
+    cleanEmail === 'hasansheikh9080@gmail.com' ||
+    cleanEmail === 'admin@jeansbd.com' ||
+    (siteEmail && cleanEmail === siteEmail) ||
+    (user.permissions && user.permissions.includes('All Permissions'))
+  );
+}
+
+export function hasPermissionForPath(
+  user: AdminUser | null,
+  pathname: string,
+  siteSettingsEmail?: string
+): boolean {
+  if (!user) return true; // loading or default
+  if (isUserSuperAdmin(user, siteSettingsEmail)) return true;
+
+  const perms = user.permissions || [];
+
+  // 1. Dashboard is always accessible
+  if (pathname === '/admin') return true;
+
+  // 2. Products & Catalog Group
+  if (
+    pathname.startsWith('/admin/products') ||
+    pathname.startsWith('/admin/departments') ||
+    pathname.startsWith('/admin/categories') ||
+    pathname.startsWith('/admin/subcategories') ||
+    pathname.startsWith('/admin/tags') ||
+    pathname.startsWith('/admin/attributes')
+  ) {
+    return perms.includes('Manage Products');
+  }
+
+  // 3. Orders
+  if (pathname.startsWith('/admin/orders')) {
+    return perms.includes('Manage Orders');
+  }
+
+  // 4. Delivery & Couriers
+  if (pathname.startsWith('/admin/delivery')) {
+    return perms.includes('Assign Courier (Steadfast/Pathao)') || perms.includes('Manage Orders');
+  }
+
+  // 5. Coupons & Discounts
+  if (pathname.startsWith('/admin/coupons')) {
+    return perms.includes('Discount Coupons');
+  }
+
+  // 6. Customers
+  if (pathname.startsWith('/admin/customers')) {
+    return perms.includes('Customer Data Access');
+  }
+
+  // 7. Sales Analytics
+  if (pathname.startsWith('/admin/analytics')) {
+    return perms.includes('Financial Reports & Analytics');
+  }
+
+  // 8. Store Settings
+  if (pathname.startsWith('/admin/settings')) {
+    return perms.includes('Logistics & Store Settings');
+  }
+
+  // 9. Staff Management (RBAC) - Strictly Super Admin only
+  if (pathname.startsWith('/admin/staff')) {
+    return isUserSuperAdmin(user, siteSettingsEmail);
+  }
+
+  return true;
+}
 
 export default function AdminLayout({
   children,
@@ -117,17 +205,52 @@ export default function AdminLayout({
 }
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || '';
   const { theme } = useAdminTheme();
+  const { siteSettings } = useProducts();
   const isDark = theme === 'dark';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('jeansbd_admin_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Sync with staff list if permissions were updated by super admin
+          const savedStaff = localStorage.getItem('jeansbd_staff');
+          if (savedStaff && parsed.email) {
+            const staffList = JSON.parse(savedStaff);
+            const found = staffList.find(
+              (s: any) => s.email && s.email.toLowerCase() === parsed.email.toLowerCase()
+            );
+            if (found) {
+              parsed.permissions = found.permissions || [];
+              parsed.role = found.role || parsed.role;
+              parsed.avatar = found.avatar || parsed.avatar;
+              parsed.name = found.name || parsed.name;
+              localStorage.setItem('jeansbd_admin_user', JSON.stringify(parsed));
+            }
+          }
+          setCurrentUser(parsed);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsUserLoaded(true);
+      }
+    }
+  }, [pathname]);
+
+  const hasAccess = hasPermissionForPath(currentUser, pathname, siteSettings?.email);
 
   return (
     <div
       className={`min-h-screen flex flex-col md:flex-row font-sans transition-colors duration-200 selection:bg-blue-600 selection:text-white ${
-        isDark
-          ? 'bg-[#090d16] text-slate-100'
-          : 'bg-[#f4f7fb] text-slate-800'
+        isDark ? 'bg-[#090d16] text-slate-100' : 'bg-[#f4f7fb] text-slate-800'
       }`}
     >
       {/* Mobile Top Header */}
@@ -170,6 +293,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           }
         >
           <AdminSidebar
+            currentUser={currentUser}
             isCollapsed={isCollapsed}
             onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
           />
@@ -192,6 +316,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
               }
             >
               <AdminSidebar
+                currentUser={currentUser}
                 isCollapsed={false}
                 onCloseMobile={() => setIsMobileMenuOpen(false)}
               />
@@ -206,19 +331,86 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           isDark ? 'bg-[#090d16]/95' : 'bg-[#f4f7fb]'
         }`}
       >
-        {children}
+        {isUserLoaded && !hasAccess ? (
+          /* Sleek Access Restricted Alert Shield Screen */
+          <div className="min-h-[70vh] flex items-center justify-center p-4">
+            <div
+              className={`max-w-md w-full p-8 rounded-3xl border text-center space-y-5 shadow-2xl animate-scale-up ${
+                isDark ? 'bg-slate-950 border-rose-500/30' : 'bg-white border-rose-200 shadow-xl'
+              }`}
+            >
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center mx-auto shadow-lg shadow-rose-500/10">
+                <ShieldAlert className="w-8 h-8 animate-pulse" />
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20">
+                  Access Restricted • RBAC Security
+                </span>
+                <h2 className={`text-xl font-black uppercase tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Insufficient Permissions
+                </h2>
+                <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Your staff account (<strong className="text-blue-400">{currentUser?.email}</strong>) does not have permission to view or manage this section.
+                </p>
+              </div>
+
+              <div
+                className={`p-3.5 rounded-2xl border text-left text-xs ${
+                  isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={`text-[10px] uppercase font-bold block mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Your Current Granted Privileges:
+                </span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {currentUser?.permissions && currentUser.permissions.length > 0 ? (
+                    currentUser.permissions.map((p) => (
+                      <span
+                        key={p}
+                        className="text-[10px] font-semibold bg-blue-600/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md"
+                      >
+                        {p}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-500 italic">No special privileges assigned</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href="/admin"
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Return to Authorized Dashboard</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );
 }
 
 interface AdminSidebarProps {
+  currentUser?: AdminUser | null;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onCloseMobile?: () => void;
 }
 
-function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: AdminSidebarProps) {
+function AdminSidebar({
+  currentUser,
+  isCollapsed = false,
+  onToggleCollapse,
+  onCloseMobile,
+}: AdminSidebarProps) {
   const pathname = usePathname() || '';
   const searchParams = useSearchParams();
   const currentTab = searchParams ? searchParams.get('tab') : null;
@@ -229,25 +421,20 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
   const { theme } = useAdminTheme();
   const isDark = theme === 'dark';
 
-  const [currentUser, setCurrentUser] = useState<{
-    name?: string;
-    email?: string;
-    role?: string;
-    avatar?: string;
-  } | null>(null);
+  const isSuperAdmin = isUserSuperAdmin(currentUser || null, siteSettings?.email);
+  const userPerms = currentUser?.permissions || [];
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('jeansbd_admin_user');
-        if (saved) {
-          setCurrentUser(JSON.parse(saved));
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, []);
+  const canManageProducts = isSuperAdmin || userPerms.includes('Manage Products');
+  const canManageOrders = isSuperAdmin || userPerms.includes('Manage Orders');
+  const canManageCouriers =
+    isSuperAdmin ||
+    userPerms.includes('Assign Courier (Steadfast/Pathao)') ||
+    userPerms.includes('Manage Orders');
+  const canManageCoupons = isSuperAdmin || userPerms.includes('Discount Coupons');
+  const canManageCustomers = isSuperAdmin || userPerms.includes('Customer Data Access');
+  const canViewAnalytics = isSuperAdmin || userPerms.includes('Financial Reports & Analytics');
+  const canManageSettings = isSuperAdmin || userPerms.includes('Logistics & Store Settings');
+  const canManageStaff = isSuperAdmin;
 
   // Collapsible sections state
   const isProductsActive =
@@ -268,9 +455,7 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
       className={`h-full border-r flex-shrink-0 flex flex-col justify-between select-none transition-all duration-300 ${
         isCollapsed ? 'w-20' : 'w-64'
       } ${
-        isDark
-          ? 'bg-[#0d1322] border-slate-800/80'
-          : 'bg-white border-slate-200 shadow-sm'
+        isDark ? 'bg-[#0d1322] border-slate-800/80' : 'bg-white border-slate-200 shadow-sm'
       }`}
     >
       <div className="p-3.5 space-y-3 overflow-y-auto">
@@ -323,7 +508,7 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
 
         {/* Navigation */}
         <nav className="space-y-1 text-[13px]">
-          {/* 1. Dashboard */}
+          {/* 1. Dashboard (Always Accessible) */}
           <Link
             href="/admin"
             onClick={onCloseMobile}
@@ -340,383 +525,399 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
             {!isCollapsed && <span>Dashboard</span>}
           </Link>
 
-          {/* 2. Denim Products Group */}
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => setProductsOpen((prev) => !prev)}
-              title="Denim Products"
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-colors ${
-                isProductsActive
-                  ? isDark
-                    ? 'text-white bg-slate-800/40'
-                    : 'text-slate-900 bg-slate-100'
+          {/* 2. Denim Products Group (RBAC: Manage Products) */}
+          {canManageProducts && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setProductsOpen((prev) => !prev)}
+                title="Denim Products"
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-colors ${
+                  isProductsActive
+                    ? isDark
+                      ? 'text-white bg-slate-800/40'
+                      : 'text-slate-900 bg-slate-100'
+                    : isDark
+                    ? 'text-slate-300 hover:text-white hover:bg-slate-800/30'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Layers className="w-4 h-4 text-amber-500 shrink-0" />
+                  {!isCollapsed && <span>Products</span>}
+                </div>
+                {!isCollapsed && (
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border ${
+                        isDark
+                          ? 'bg-slate-800 text-slate-300 border-slate-700/60'
+                          : 'bg-slate-200/70 text-slate-700 border-slate-300'
+                      }`}
+                    >
+                      {products.length || 6}
+                    </span>
+                    {productsOpen ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {/* Sub-menu */}
+              {productsOpen && !isCollapsed && (
+                <div
+                  className={`ml-5 pl-3 border-l my-1 space-y-1 ${
+                    isDark ? 'border-slate-800/80' : 'border-slate-200'
+                  }`}
+                >
+                  <Link
+                    href="/admin/products"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/products' && currentAction !== 'add'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Box className="w-3.5 h-3.5" />
+                    <span>All Products</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/products?action=add"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/products' && currentAction === 'add'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Add Product</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/departments"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/departments'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Split className="w-3.5 h-3.5" />
+                    <span>Departments</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/categories"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/categories'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Categories</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/subcategories"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/subcategories'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>Sub-Categories</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/tags"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/tags'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Tags className="w-3.5 h-3.5" />
+                    <span>Tags</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/attributes"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/attributes'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        : isDark
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>Attributes (Sizes, Fits)</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Orders (RBAC: Manage Orders) */}
+          {canManageOrders && (
+            <Link
+              href="/admin/orders"
+              onClick={onCloseMobile}
+              title="Orders"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/orders'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                   : isDark
-                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/30'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <div className="flex items-center gap-3">
-                <Layers className="w-4 h-4 text-amber-500 shrink-0" />
-                {!isCollapsed && <span>Products</span>}
+                <ShoppingBag className="w-4 h-4 text-blue-500 shrink-0" />
+                {!isCollapsed && <span>Orders</span>}
               </div>
               {!isCollapsed && (
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border ${
-                      isDark
-                        ? 'bg-slate-800 text-slate-300 border-slate-700/60'
-                        : 'bg-slate-200/70 text-slate-700 border-slate-300'
-                    }`}
-                  >
-                    {products.length || 6}
-                  </span>
-                  {productsOpen ? (
+                <span className="bg-blue-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                  {orders.length}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {/* 4. Customers (RBAC: Customer Data Access) */}
+          {canManageCustomers && (
+            <Link
+              href="/admin/customers"
+              onClick={onCloseMobile}
+              title="Customers"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/customers'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-4 h-4 text-blue-500 shrink-0" />
+              {!isCollapsed && <span>Customers</span>}
+            </Link>
+          )}
+
+          {/* 5. Delivery Management (RBAC: Assign Courier / Manage Orders) */}
+          {canManageCouriers && (
+            <Link
+              href="/admin/delivery"
+              onClick={onCloseMobile}
+              title="Delivery Management"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/delivery'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-blue-500 shrink-0" />
+              {!isCollapsed && <span>Delivery & Couriers</span>}
+            </Link>
+          )}
+
+          {/* 6. Discounts & Promos (RBAC: Discount Coupons) */}
+          {canManageCoupons && (
+            <Link
+              href="/admin/coupons"
+              onClick={onCloseMobile}
+              title="Discounts & Promos"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/coupons'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Percent className="w-4 h-4 text-blue-500 shrink-0" />
+              {!isCollapsed && <span>Coupons</span>}
+            </Link>
+          )}
+
+          {/* 7. Sales Analytics (RBAC: Financial Reports & Analytics) */}
+          {canViewAnalytics && (
+            <Link
+              href="/admin/analytics"
+              onClick={onCloseMobile}
+              title="Sales Analytics"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/analytics'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4 text-blue-500 shrink-0" />
+              {!isCollapsed && <span>Analytics</span>}
+            </Link>
+          )}
+
+          {/* 8. Sub-Admins & Staff (RBAC: Super Admin strictly) */}
+          {canManageStaff && (
+            <Link
+              href="/admin/staff"
+              onClick={onCloseMobile}
+              title="Sub-Admins & Staff"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/staff'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+              {!isCollapsed && <span>Staff & Roles</span>}
+            </Link>
+          )}
+
+          {/* 9. Store Settings Group (RBAC: Logistics & Store Settings) */}
+          {canManageSettings && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setSettingsOpen((prev) => !prev)}
+                title="Store Settings"
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-colors ${
+                  isSettingsActive
+                    ? isDark
+                      ? 'text-white bg-slate-800/40'
+                      : 'text-slate-900 bg-slate-100'
+                    : isDark
+                    ? 'text-slate-300 hover:text-white hover:bg-slate-800/30'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sliders className="w-4 h-4 text-blue-500 shrink-0" />
+                  {!isCollapsed && <span>Settings</span>}
+                </div>
+                {!isCollapsed && (
+                  settingsOpen ? (
                     <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
                   ) : (
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  )}
+                  )
+                )}
+              </button>
+
+              {/* Sub-menu */}
+              {settingsOpen && !isCollapsed && (
+                <div
+                  className={`ml-5 pl-3 border-l my-1 space-y-0.5 ${
+                    isDark ? 'border-slate-800/80' : 'border-slate-200'
+                  }`}
+                >
+                  <Link
+                    href="/admin/settings?tab=store"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && (!currentTab || currentTab === 'store')
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Store Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=home"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && currentTab === 'home'
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <LayoutTemplate className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Home Sections</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=header-footer"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && currentTab === 'header-footer'
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Rows className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Trust & Footer</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=payments"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && currentTab === 'payments'
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Payments</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=shipping"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && currentTab === 'shipping'
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Shipping Fees</span>
+                  </Link>
                 </div>
               )}
-            </button>
-
-            {/* Sub-menu with vertical tree line */}
-            {productsOpen && !isCollapsed && (
-              <div
-                className={`ml-5 pl-3 border-l my-1 space-y-1 ${
-                  isDark ? 'border-slate-800/80' : 'border-slate-200'
-                }`}
-              >
-                <Link
-                  href="/admin/products"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/products' && currentAction !== 'add'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Box className="w-3.5 h-3.5" />
-                  <span>All Products</span>
-                </Link>
-
-                <Link
-                  href="/admin/products?action=add"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/products' && currentAction === 'add'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Add Product</span>
-                </Link>
-
-                <Link
-                  href="/admin/departments"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/departments'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Split className="w-3.5 h-3.5" />
-                  <span>Departments</span>
-                </Link>
-
-                <Link
-                  href="/admin/categories"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/categories'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Categories</span>
-                </Link>
-
-                <Link
-                  href="/admin/subcategories"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/subcategories'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>Sub-Categories</span>
-                </Link>
-
-                <Link
-                  href="/admin/tags"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/tags'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Tags className="w-3.5 h-3.5" />
-                  <span>Tags</span>
-                </Link>
-
-                <Link
-                  href="/admin/attributes"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    pathname === '/admin/attributes'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                      : isDark
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Palette className="w-3.5 h-3.5" />
-                  <span>Attributes (Sizes, Fits)</span>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* 3. Orders */}
-          <Link
-            href="/admin/orders"
-            onClick={onCloseMobile}
-            title="Orders"
-            className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
-              pathname === '/admin/orders'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : isDark
-                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ShoppingBag className="w-4 h-4 text-blue-500 shrink-0" />
-              {!isCollapsed && <span>Orders</span>}
             </div>
-            {!isCollapsed && (
-              <span className="bg-blue-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full shadow-sm">
-                {orders.length}
-              </span>
-            )}
-          </Link>
-
-          {/* 4. Customers */}
-          <Link
-            href="/admin/customers"
-            onClick={onCloseMobile}
-            title="Customers"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
-              pathname === '/admin/customers'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : isDark
-                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Users className="w-4 h-4 text-blue-500 shrink-0" />
-            {!isCollapsed && <span>Customers</span>}
-          </Link>
-
-          {/* 5. Delivery Management (NEW) */}
-          <Link
-            href="/admin/delivery"
-            onClick={onCloseMobile}
-            title="Delivery Management"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
-              pathname === '/admin/delivery'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : isDark
-                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Truck className="w-4 h-4 text-blue-500 shrink-0" />
-            {!isCollapsed && <span>Delivery & Couriers</span>}
-          </Link>
-
-          {/* 6. Discounts & Promos */}
-          <Link
-            href="/admin/coupons"
-            onClick={onCloseMobile}
-            title="Discounts & Promos"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
-              pathname === '/admin/coupons'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : isDark
-                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Percent className="w-4 h-4 text-blue-500 shrink-0" />
-            {!isCollapsed && <span>Coupons</span>}
-          </Link>
-
-          {/* 7. Sales Analytics */}
-          <Link
-            href="/admin/analytics"
-            onClick={onCloseMobile}
-            title="Sales Analytics"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
-              pathname === '/admin/analytics'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : isDark
-                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4 text-blue-500 shrink-0" />
-            {!isCollapsed && <span>Analytics</span>}
-          </Link>
-
-          {/* 8. Sub-Admins & Staff */}
-          <Link
-            href="/admin/staff"
-            onClick={onCloseMobile}
-            title="Sub-Admins & Staff"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
-              pathname === '/admin/staff'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : isDark
-                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-            {!isCollapsed && <span>Staff & Roles</span>}
-          </Link>
-
-          {/* 9. Store Settings Group */}
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => setSettingsOpen((prev) => !prev)}
-              title="Store Settings"
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-colors ${
-                isSettingsActive
-                  ? isDark
-                    ? 'text-white bg-slate-800/40'
-                    : 'text-slate-900 bg-slate-100'
-                  : isDark
-                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/30'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Sliders className="w-4 h-4 text-blue-500 shrink-0" />
-                {!isCollapsed && <span>Settings</span>}
-              </div>
-              {!isCollapsed && (
-                settingsOpen ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                )
-              )}
-            </button>
-
-            {/* Sub-menu */}
-            {settingsOpen && !isCollapsed && (
-              <div
-                className={`ml-5 pl-3 border-l my-1 space-y-0.5 ${
-                  isDark ? 'border-slate-800/80' : 'border-slate-200'
-                }`}
-              >
-                <Link
-                  href="/admin/settings?tab=store"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    pathname === '/admin/settings' && (!currentTab || currentTab === 'store')
-                      ? 'text-blue-500 font-bold bg-blue-500/10'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Store className="w-3.5 h-3.5" />
-                  <span>Store Profile</span>
-                </Link>
-
-                <Link
-                  href="/admin/settings?tab=home"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    pathname === '/admin/settings' && currentTab === 'home'
-                      ? 'text-blue-500 font-bold bg-blue-500/10'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <LayoutTemplate className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Home Sections (Banners &amp; Reviews)</span>
-                </Link>
-
-                <Link
-                  href="/admin/settings?tab=header-footer"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    pathname === '/admin/settings' && currentTab === 'header-footer'
-                      ? 'text-blue-500 font-bold bg-blue-500/10'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Rows className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Trust Badges &amp; Footer</span>
-                </Link>
-
-                <Link
-                  href="/admin/settings?tab=payments"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    pathname === '/admin/settings' && currentTab === 'payments'
-                      ? 'text-blue-500 font-bold bg-blue-500/10'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Payment Gateway</span>
-                </Link>
-
-                <Link
-                  href="/admin/settings?tab=shipping"
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    pathname === '/admin/settings' && currentTab === 'shipping'
-                      ? 'text-blue-500 font-bold bg-blue-500/10'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Truck className="w-3.5 h-3.5" />
-                  <span>Shipping &amp; Fees</span>
-                </Link>
-              </div>
-            )}
-          </div>
+          )}
         </nav>
       </div>
 
@@ -757,15 +958,13 @@ function AdminSidebar({ isCollapsed = false, onToggleCollapse, onCloseMobile }: 
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-1">
-                <h4
-                  className={`font-bold text-xs leading-tight truncate ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}
-                >
-                  {currentUser?.name || 'Admin Control'}
-                </h4>
-              </div>
+              <h4
+                className={`font-bold text-xs leading-tight truncate ${
+                  isDark ? 'text-white' : 'text-slate-900'
+                }`}
+              >
+                {currentUser?.name || 'Admin User'}
+              </h4>
               <p className="text-[10px] text-blue-400 font-semibold truncate mt-0.5">
                 {currentUser?.role || (siteSettings?.email || 'Super Admin')}
               </p>
