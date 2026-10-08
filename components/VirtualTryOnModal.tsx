@@ -198,10 +198,24 @@ export default function VirtualTryOnModal({
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      try {
+        sessionStorage.setItem('auto_open_tryon', '1');
+        if (sessionStorage.getItem('auto_start_camera') === '1') {
+          sessionStorage.removeItem('auto_start_camera');
+          setTimeout(() => {
+            startCamera('user');
+          }, 300);
+        }
+      } catch (_) {}
+    } else {
+      try {
+        sessionStorage.removeItem('auto_open_tryon');
+        sessionStorage.removeItem('auto_start_camera');
+      } catch (_) {}
       stopCamera();
     }
-  }, [isOpen, stopCamera]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isCameraActive && videoRef.current && streamRef.current) {
@@ -245,6 +259,11 @@ export default function VirtualTryOnModal({
 
   // Launch Camera with permission handling & fallback
   const startCamera = async (facing: 'user' | 'environment' = facingMode) => {
+    try {
+      sessionStorage.setItem('auto_open_tryon', '1');
+      sessionStorage.setItem('auto_start_camera', '1');
+    } catch (_) {}
+
     setCameraError(null);
     stopCamera();
 
@@ -273,18 +292,21 @@ export default function VirtualTryOnModal({
       }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
       setIsCameraActive(true);
       setPhotoSourceType('camera');
       setCameraError(null);
+      try {
+        sessionStorage.removeItem('auto_start_camera');
+      } catch (_) {}
     } catch (err: any) {
       console.warn('Camera access denied or unavailable:', err);
+      const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
+      const isDeviceBusy = err.name === 'NotReadableError' || err.name === 'TrackStartError';
       setCameraError(
-        err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
+        isDenied
           ? 'ক্যামেরা পারমিশন অন করা হয়েছে। ব্রাউজারটি Reload দিন।'
+          : isDeviceBusy
+          ? 'ক্যামেরাটি অন্য মেনুতে চালু রয়েছে। সেটিংস মেনুটি বন্ধ করে Reload দিন।'
           : 'ক্যামেরা চালু করা সম্ভব হয়নি: ' + (err.message || 'অন্য কোনো অ্যাপে ক্যামেরা চালু থাকতে পারে')
       );
       setIsCameraActive(false);
