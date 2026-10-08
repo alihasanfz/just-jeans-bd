@@ -232,19 +232,28 @@ export default function VirtualTryOnModal({
     stopCamera();
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setCameraError('Camera is not supported on this browser or connection is insecure (HTTPS required).');
+      setCameraError('এই ব্রাউজারে ক্যামেরা সাপোর্টেড নয় অথবা সিকিউর কানেকশন (HTTPS) প্রয়োজন।');
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: facing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch (_) {
+        // Fallback for desktop PC webcams without specific constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -253,12 +262,13 @@ export default function VirtualTryOnModal({
       }
       setIsCameraActive(true);
       setPhotoSourceType('camera');
+      setCameraError(null);
     } catch (err: any) {
       console.warn('Camera access denied or unavailable:', err);
       setCameraError(
         err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
-          ? 'Camera permission denied. Please allow camera access in browser settings or upload a photo instead.'
-          : 'Unable to access camera: ' + (err.message || 'Device in use')
+          ? 'ক্যামেরা পারমিশন অন করা হয়েছে। ব্রাউজারটি Reload দিন।'
+          : 'ক্যামেরা চালু করা সম্ভব হয়নি: ' + (err.message || 'অন্য কোনো অ্যাপে ক্যামেরা চালু থাকতে পারে')
       );
       setIsCameraActive(false);
     }
@@ -879,14 +889,31 @@ export default function VirtualTryOnModal({
                 {cameraError && (
                   <div className="mt-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-                    <div>
+                    <div className="space-y-1.5 flex-1">
                       <p className="font-semibold">{cameraError}</p>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-blue-600 dark:text-blue-400 font-bold underline mt-1 inline-block"
-                      >
-                        Upload Photo Instead
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => window.location.reload()}
+                          className="px-2.5 py-1 rounded-md bg-blue-600 text-white font-bold text-[11px] shadow-sm hover:bg-blue-700 transition"
+                        >
+                          🔄 পেজ Reload দিন
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startCamera('user')}
+                          className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-[11px] hover:bg-slate-50 transition"
+                        >
+                          ▶️ আবার চালু করুন
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-blue-600 dark:text-blue-400 font-bold text-[11px] underline"
+                        >
+                          ছবি আপলোড করুন
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
