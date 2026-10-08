@@ -73,6 +73,12 @@ export default function ProductDetailPage() {
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setShareUrl(window.location.href);
+      try {
+        if (sessionStorage.getItem('auto_open_tryon') === '1') {
+          sessionStorage.removeItem('auto_open_tryon');
+          setIsTryOnOpen(true);
+        }
+      } catch (_) {}
     }
   }, []);
 

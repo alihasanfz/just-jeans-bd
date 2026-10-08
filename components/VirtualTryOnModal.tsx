@@ -111,6 +111,14 @@ export default function VirtualTryOnModal({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleReloadPage = () => {
+    try {
+      sessionStorage.setItem('auto_open_tryon', '1');
+    } catch (_) {}
+    window.location.reload();
+  };
 
   // Asynchronous Job & Polling States
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -194,6 +202,15 @@ export default function VirtualTryOnModal({
       stopCamera();
     }
   }, [isOpen, stopCamera]);
+
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+      }
+      videoRef.current.play().catch((err) => console.warn('Video play error:', err));
+    }
+  }, [isCameraActive]);
 
   // Image compressor: Scales down large mobile photos to ~1024px JPEG under 1.5MB
   const compressImage = async (dataUrl: string): Promise<string> => {
@@ -883,6 +900,14 @@ export default function VirtualTryOnModal({
                     onChange={handlePhotoUpload}
                     className="hidden"
                   />
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
                 </div>
 
                 {/* Camera Error Message */}
@@ -894,24 +919,32 @@ export default function VirtualTryOnModal({
                       <div className="flex flex-wrap items-center gap-2 pt-0.5">
                         <button
                           type="button"
-                          onClick={() => window.location.reload()}
+                          onClick={handleReloadPage}
                           className="px-2.5 py-1 rounded-md bg-blue-600 text-white font-bold text-[11px] shadow-sm hover:bg-blue-700 transition"
                         >
                           🔄 পেজ Reload দিন
                         </button>
                         <button
                           type="button"
+                          onClick={() => cameraInputRef.current?.click()}
+                          className="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-bold text-[11px] shadow-sm hover:bg-emerald-700 transition flex items-center gap-1"
+                        >
+                          <Camera className="w-3 h-3" />
+                          <span>📸 সরাসরি ক্যামেরা খুলুন</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => startCamera('user')}
                           className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-[11px] hover:bg-slate-50 transition"
                         >
-                          ▶️ আবার চালু করুন
+                          ▶️ আবার ট্রাই করুন
                         </button>
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
                           className="text-blue-600 dark:text-blue-400 font-bold text-[11px] underline"
                         >
-                          ছবি আপলোড করুন
+                          গ্যালারি থেকে ছবি আপলোড
                         </button>
                       </div>
                     </div>
