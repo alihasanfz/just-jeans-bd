@@ -834,28 +834,16 @@ export async function generatePhotorealisticClothingReplacement(
       ? mt.heightPercent * height * userScale
       : Math.max((height - anchorY) * 0.92, targetWidth * (aspect || 1.85));
 
-    // A. Erase / occlude old pants/shorts
     ctx.save();
     ctx.translate(anchorX, anchorY);
     ctx.rotate(tiltAngle);
 
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.roundRect(
-      -targetWidth * 0.45,
-      targetHeight * 0.02,
-      targetWidth * 0.90,
-      targetHeight * 0.96,
-      [16, 16, 12, 12]
-    );
-    ctx.fill();
+    // Realistic ambient shadow for authentic fabric depth
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 8;
 
-    // B. Ambient shadow for authentic fabric depth
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-    ctx.shadowBlur = 24;
-    ctx.shadowOffsetY = 10;
-
-    // C. Draw authentic jeans product
+    // Draw authentic jeans product
     ctx.drawImage(
       garmentSource,
       -targetWidth / 2,
@@ -875,40 +863,26 @@ export async function generatePhotorealisticClothingReplacement(
     // Tops (Jackets, Shirts, Hoodies, T-shirts):
     // Anchored directly at collar / base of the neck
     anchorX = mt?.xPercent !== undefined ? mt.xPercent * width : shoulderCenter.x * width;
-    anchorY = mt?.yPercent !== undefined ? mt.yPercent * height : (shoulderCenter.y - 0.02) * height + userYOffset;
+    anchorY = mt?.yPercent !== undefined ? mt.yPercent * height : (shoulderCenter.y - 0.04) * height + userYOffset;
 
     // Outerwear width encompasses chest + outer deltoids + sleeve drape
     targetWidth = mt?.widthPercent !== undefined
       ? mt.widthPercent * width * userScale
-      : Math.max(width * 0.52, shoulderSpanPixels * 2.35) * userScale;
+      : Math.max(width * 0.50, shoulderSpanPixels * 2.25) * userScale;
     targetHeight = mt?.heightPercent !== undefined
       ? mt.heightPercent * height * userScale
-      : Math.max(torsoHeightPixels * 1.34, targetWidth * (aspect || 0.95));
+      : Math.max(torsoHeightPixels * 1.32, targetWidth * (aspect || 0.95));
 
-    // A. OCCLUSION OF OLD SHIRT:
-    // Erases previous t-shirt/shirt completely so no old clothing can be seen!
     ctx.save();
     ctx.translate(anchorX, anchorY);
     ctx.rotate(tiltAngle);
 
-    // Anatomical torso inpainting undercoat
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.roundRect(
-      -targetWidth * 0.47,
-      targetHeight * 0.03,
-      targetWidth * 0.94,
-      targetHeight * 0.95,
-      [22, 22, 18, 18]
-    );
-    ctx.fill();
+    // Natural ambient shadow onto background & body
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.38)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 8;
 
-    // B. Ambient shadow onto background & body
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-    ctx.shadowBlur = 24;
-    ctx.shadowOffsetY = 10;
-
-    // C. Draw authentic denim outerwear starting at the collar line downwards
+    // Draw authentic denim outerwear starting at the collar line downwards
     ctx.drawImage(
       garmentSource,
       -targetWidth / 2,
@@ -917,7 +891,7 @@ export async function generatePhotorealisticClothingReplacement(
       targetHeight
     );
 
-    // D. Color modulation if wash / color selected
+    // Color modulation if wash / color selected
     if (options.selectedColorHex && options.selectedColorHex !== '#ffffff' && options.selectedColorHex !== '#000000') {
       ctx.globalCompositeOperation = 'multiply';
       ctx.fillStyle = options.selectedColorHex;
@@ -926,18 +900,17 @@ export async function generatePhotorealisticClothingReplacement(
     }
     ctx.restore();
 
-    // 5. Collar Ambient Occlusion Shadow
-    // Seamlessly bonds customer's real neck/skin with the jacket collar
-    const neckX = shoulderCenter.x * width;
+    // Collar Ambient Contact Shadow: seamlessly blends neck/throat with jacket collar
+    const neckX = anchorX;
     const neckY = anchorY;
-    const neckRadius = Math.max(28, shoulderSpanPixels * 0.28);
+    const neckRadius = Math.max(26, shoulderSpanPixels * 0.26);
 
     const neckGradient = ctx.createRadialGradient(
       neckX, neckY + 4, 3,
       neckX, neckY + 12, neckRadius
     );
-    neckGradient.addColorStop(0, 'rgba(0, 0, 0, 0.48)');
-    neckGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.16)');
+    neckGradient.addColorStop(0, 'rgba(0, 0, 0, 0.42)');
+    neckGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.14)');
     neckGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
     ctx.fillStyle = neckGradient;
