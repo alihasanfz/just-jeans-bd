@@ -163,14 +163,39 @@ export default function VirtualFittingRoomModal({
   const garmentAssetUrl = product.tryOnAssetUrl || product.thumbnail || product.images[0];
   const garmentType = garmentCategory === 'tops' ? 'jacket' : 'jeans';
 
-  // Preload garment asset image
+  // Preload garment asset image cleanly to prevent canvas tainting (CORS)
   useEffect(() => {
     if (!garmentAssetUrl) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = garmentAssetUrl;
-    img.onload = () => {
-      garmentImgRef.current = img;
+    let isCancelled = false;
+
+    const loadCleanImage = async () => {
+      try {
+        const res = await fetch(garmentAssetUrl, { mode: 'cors' });
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = objectUrl;
+        img.onload = () => {
+          if (!isCancelled) {
+            garmentImgRef.current = img;
+          }
+        };
+      } catch (_) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = garmentAssetUrl;
+        img.onload = () => {
+          if (!isCancelled) {
+            garmentImgRef.current = img;
+          }
+        };
+      }
+    };
+
+    loadCleanImage();
+    return () => {
+      isCancelled = true;
     };
   }, [garmentAssetUrl]);
 
