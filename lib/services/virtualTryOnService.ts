@@ -319,51 +319,73 @@ Perform a photorealistic Virtual Try-On:
   }
 
   /**
+   * Helper: Ensure URLs are absolute for external cloud AI APIs
+   */
+  private toAbsoluteUrl(urlOrData: string): string {
+    if (!urlOrData) return '';
+    if (urlOrData.startsWith('data:') || urlOrData.startsWith('http://') || urlOrData.startsWith('https://')) {
+      return urlOrData;
+    }
+    const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://just-jeans-bd-4ik7.vercel.app';
+    return `${host.replace(/\/$/, '')}/${urlOrData.replace(/^\//, '')}`;
+  }
+
+  /**
    * Call Replicate IDM-VTON API
    */
   private async callReplicateIDMVTON(input: TryOnInput, apiKey: string): Promise<string | null> {
+    const cleanHumanImg = this.toAbsoluteUrl(input.customerImage);
+    const cleanGarmImg = this.toAbsoluteUrl(input.garmentImage);
+    const category = input.garmentType === 'jeans' || input.garmentType === 'pants' ? 'lower_body' : 'upper_body';
+
     const res = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Token ${apiKey}`,
+        Authorization: `Token ${apiKey.trim()}`,
       },
       body: JSON.stringify({
         version: 'c871bb9b046616b680466e01e6659c258d44743ec992e59174526d246c757cbb',
         input: {
-          human_img: input.customerImage,
-          garm_img: input.garmentImage,
+          human_img: cleanHumanImg,
+          garm_img: cleanGarmImg,
           garment_des: `${input.productName || input.garmentType} in size ${input.size || 'M'} ${input.color || ''}`,
-          category: input.garmentType === 'jeans' || input.garmentType === 'pants' ? 'lower_body' : 'upper_body',
+          category,
+          is_checked: true,
+          is_checked_crop: false,
+          denoise_steps: 30,
+          seed: 42,
         },
       }),
     });
 
     if (!res.ok) {
-      throw new Error(`Replicate HTTP error: ${res.status}`);
+      const errBody = await res.text();
+      console.warn('Replicate HTTP error:', res.status, errBody);
+      throw new Error(`Replicate API error: ${res.status} - ${errBody}`);
     }
 
     const data = await res.json();
     if (data.id && (data.status === 'starting' || data.status === 'processing')) {
-      return await this.pollReplicateStatus(data.urls.get, apiKey);
+      return await this.pollReplicateStatus(data.urls?.get || `https://api.replicate.com/v1/predictions/${data.id}`, apiKey.trim());
     }
 
     return Array.isArray(data.output) ? data.output[0] : data.output || null;
   }
 
   private async pollReplicateStatus(getUrl: string, apiKey: string): Promise<string | null> {
-    for (let attempt = 0; attempt < 20; attempt++) {
-      await new Promise((r) => setTimeout(r, 2000));
+    for (let attempt = 0; attempt < 35; attempt++) {
+      await new Promise((r) => setTimeout(r, 1800));
       const res = await fetch(getUrl, {
-        headers: { Authorization: `Token ${apiKey}` },
+        headers: { Authorization: `Token ${apiKey.trim()}` },
       });
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'succeeded') {
           return Array.isArray(data.output) ? data.output[0] : data.output;
         }
-        if (data.status === 'failed') {
-          throw new Error('Replicate IDM-VTON task failed');
+        if (data.status === 'failed' || data.status === 'canceled') {
+          throw new Error(`Replicate task ${data.status}: ${data.error || 'Unknown'}`);
         }
       }
     }
