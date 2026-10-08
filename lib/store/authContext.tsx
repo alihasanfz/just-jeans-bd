@@ -37,18 +37,18 @@ export interface AuthContextType {
 }
 
 export const DEFAULT_USER: UserProfile = {
-  id: 'cust-tanvir',
-  fullName: 'Tanvir Hossain',
-  phone: '01711223344',
-  email: 'tanvir@gmail.com',
+  id: 'cust-ali-hasan',
+  fullName: 'Ali Hasan',
+  phone: '01775743148',
+  email: 'hasansheikh9080@gmail.com',
   city: 'Dhaka',
-  address: 'House 14, Flat 4B, Road 27, Dhanmondi, Dhaka',
+  address: '13-14 Zoo Road, Mollik Tower, Mirpur- 01, Dhaka -1216',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
   tier: 'VIP',
   role: 'customer',
-  joinedDate: 'September 2026',
-  totalOrders: 2,
-  totalSpent: 4010,
+  joinedDate: 'October 2026',
+  totalOrders: 0,
+  totalSpent: 0,
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const session = localStorage.getItem('jeansbd_current_user');
           if (session) {
             const parsed = JSON.parse(session);
-            if (parsed && parsed.id) {
+            if (parsed && parsed.id && parsed.id !== 'cust-tanvir') {
               // Find latest version from allUsers if available
               const found = loadedUsers.find((u) => u.id === parsed.id || u.phone === parsed.phone);
               setUser(found || parsed);
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Default to logged-in as Tanvir Hossain initially for easy evaluation
+        // Default to logged-in as Ali Hasan initially
         setUser(DEFAULT_USER);
         if (typeof window !== 'undefined') {
           localStorage.setItem('jeansbd_current_user', JSON.stringify(DEFAULT_USER));

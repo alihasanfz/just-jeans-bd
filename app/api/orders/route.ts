@@ -21,12 +21,12 @@ export async function GET(request: Request) {
         id: 'ord-101',
         orderNumber: 'JBD-84920',
         customer: {
-          fullName: 'Tanvir Hossain',
-          phone: '01711223344',
-          email: 'tanvir@gmail.com',
+          fullName: 'Ali Hasan',
+          phone: '01775743148',
+          email: 'hasansheikh9080@gmail.com',
           district: 'Dhaka',
-          area: 'Dhanmondi, Road 27',
-          address: 'House 14, Flat 4B, Road 27, Dhanmondi',
+          area: 'Mirpur-01',
+          address: '13-14 Zoo Road, Mollik Tower, Mirpur- 01, Dhaka',
         },
         items: [
           {

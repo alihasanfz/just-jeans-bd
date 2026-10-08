@@ -121,7 +121,7 @@ export default function AccountPage() {
 
   // Quick 1-click Demo Login
   const handleQuickDemoLogin = () => {
-    login('01711223344');
+    login('01775743148');
   };
 
   // Filter orders matching logged-in user or show all orders
@@ -266,7 +266,7 @@ export default function AccountPage() {
                 onClick={handleQuickDemoLogin}
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Continue as Tanvir Hossain (Demo Account)</span>
+                <span>Continue as Ali Hasan (Account Portal)</span>
               </button>
             </form>
           )}
