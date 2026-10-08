@@ -325,8 +325,13 @@ export type GarmentCategory = 'tops' | 'bottoms' | 'outerwear' | 'fullbody';
 export type GarmentType =
   | 'jacket'
   | 'jeans'
+  | 'tshirt'
   | 't-shirt'
   | 'shirt'
+  | 'polo'
+  | 'panjabi'
+  | 'kurta'
+  | 'blazer'
   | 'hoodie'
   | 'pants'
   | 'dress';

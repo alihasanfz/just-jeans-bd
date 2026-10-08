@@ -1016,12 +1016,16 @@ function AdminProductsContent() {
                               className="w-full bg-[#090d16] border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:outline-none"
                             >
                               <option value="jacket">Jacket / Denim Jacket</option>
-                              <option value="jeans">Jeans / Pants / Trousers</option>
                               <option value="shirt">Casual / Formal Shirt</option>
-                              <option value="tshirt">T-Shirt / Polo</option>
+                              <option value="tshirt">T-Shirt (Crew/V-Neck)</option>
+                              <option value="polo">Polo Shirt</option>
+                              <option value="panjabi">Panjabi (Traditional)</option>
+                              <option value="kurta">Kurta</option>
+                              <option value="blazer">Blazer / Suit</option>
                               <option value="hoodie">Hoodie / Sweatshirt</option>
                               <option value="dress">Dress / Kurtis</option>
-                              <option value="panjabi">Panjabi / Traditional</option>
+                              <option value="jeans">Denim Jeans</option>
+                              <option value="pants">Casual Pants / Trousers</option>
                             </select>
                           </div>
                           <div>

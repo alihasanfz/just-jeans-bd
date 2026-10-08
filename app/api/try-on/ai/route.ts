@@ -1,46 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { VirtualTryOnService } from '@/lib/services/virtualTryOnService';
+import { VirtualTryOnOrchestrator } from '@/lib/services/vton/orchestratorService';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 60; // 60s timeout for AI generation
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
       customerImage,
+      humanImage,
       garmentImage,
       garmentType = 'jacket',
       category = 'tops',
       size = 'M',
       color = '',
       productName = '',
-      manualTransform,
     } = body;
 
-    if (!customerImage || !garmentImage) {
+    const activeHumanImg = humanImage || customerImage;
+    if (!activeHumanImg || !garmentImage) {
       return NextResponse.json(
         { error: 'Missing customerImage or garmentImage in request payload' },
         { status: 400 }
       );
     }
 
-    const tryOnService = VirtualTryOnService.getInstance();
-    const output = await tryOnService.generateTryOn({
-      customerImage,
+    const orchestrator = VirtualTryOnOrchestrator.getInstance();
+    const submission = await orchestrator.submitTryOnJob({
+      humanImage: activeHumanImg,
       garmentImage,
       garmentType,
       category,
+      productName,
       size,
       color,
-      productName,
-      manualTransform,
     });
 
-    return NextResponse.json(output);
+    // Check status or poll briefly for synchronous callers
+    let job = await orchestrator.getJobStatus(submission.jobId);
+    let attempts = 0;
+    while ((job.status === 'queued' || job.status === 'processing') && attempts < 25) {
+      await new Promise((r) => setTimeout(r, 1500));
+      job = await orchestrator.getJobStatus(submission.jobId);
+      attempts++;
+    }
+
+    if (job.status === 'completed' && job.resultImageUrl) {
+      return NextResponse.json({
+        success: true,
+        resultImageUrl: job.resultImageUrl,
+        beforeImageUrl: activeHumanImg,
+        provider: job.provider,
+        status: 'completed',
+        jobId: job.id,
+      });
+    }
+
+    return NextResponse.json({
+      success: job.status !== 'failed',
+      jobId: job.id,
+      status: job.status,
+      resultImageUrl: job.resultImageUrl || activeHumanImg,
+      beforeImageUrl: activeHumanImg,
+      provider: job.provider,
+      stepDescription: job.stepDescription,
+      progressPercent: job.progressPercent,
+      error: job.errorMessage,
+    });
   } catch (error: any) {
-    console.error('Virtual Try-On generation error:', error);
+    console.error('Virtual Try-On AI error:', error);
     return NextResponse.json(
       {
         success: false,

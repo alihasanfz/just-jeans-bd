@@ -831,16 +831,17 @@ export default function ProductDetailPage() {
                 {/* AI Virtual Try-On Primary Launcher */}
                 {product.virtualTryOnEnabled !== false && (
                   <button
+                    id="virtual-tryon-button"
                     type="button"
                     onClick={() => setIsTryOnOpen(true)}
-                    className="w-full bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 hover:from-purple-800 hover:via-indigo-700 hover:to-blue-700 active:scale-[0.98] text-white py-3.5 px-5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-600/30 border border-purple-400/40 transition-all hover:shadow-xl group cursor-pointer"
+                    className="w-full bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-700 hover:from-blue-800 hover:via-indigo-700 hover:to-purple-800 active:scale-[0.98] text-white py-3.5 px-5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-blue-600/30 border border-blue-400/40 transition-all hover:shadow-xl group cursor-pointer"
                   >
                     <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
                       <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
                     </div>
-                    <span>🪄 TRY IT ON (ভার্চুয়াল ফিটিং রুম)</span>
+                    <span>👕 পোশাকটি নিজে পরে দেখুন</span>
                     <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-normal ml-1">
-                      LIVE AR
+                      REAL AI VTON
                     </span>
                   </button>
                 )}
