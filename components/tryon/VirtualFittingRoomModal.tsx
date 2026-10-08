@@ -21,6 +21,7 @@ import {
   Eye,
   Loader2,
   Info,
+  Upload,
 } from 'lucide-react';
 import { Product } from '@/types';
 import { useCart } from '@/lib/store/cartContext';
@@ -67,6 +68,8 @@ export default function VirtualFittingRoomModal({
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const trackerRef = useRef<VirtualFittingPoseTracker | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const userUploadedImgRef = useRef<HTMLImageElement | null>(null);
 
   // Camera Settings
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -330,6 +333,64 @@ export default function VirtualFittingRoomModal({
     link.click();
   };
 
+  // Handle customer photo upload or native mobile camera capture
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return;
+
+      const img = new Image();
+      img.onload = async () => {
+        userUploadedImgRef.current = img;
+        setCameraError(null);
+        setIsCameraActive(true);
+
+        const canvas = canvasRef.current;
+        if (canvas) {
+          canvas.width = img.naturalWidth || 1080;
+          canvas.height = img.naturalHeight || 1440;
+
+          if (!trackerRef.current) {
+            trackerRef.current = new VirtualFittingPoseTracker();
+            await trackerRef.current.init();
+          }
+
+          const pose = await trackerRef.current.sendFrame(img);
+          if (pose && garmentImgRef.current) {
+            renderGarmentOverlay(canvas, img as any, garmentImgRef.current, pose, {
+              garmentType,
+              selectedSize,
+              selectedColorHex,
+              isMirrored: false,
+              scaleAdjust,
+              verticalOffsetAdjust,
+            });
+
+            // Composite user photo with garment
+            const mergedCanvas = document.createElement('canvas');
+            mergedCanvas.width = canvas.width;
+            mergedCanvas.height = canvas.height;
+            const mCtx = mergedCanvas.getContext('2d');
+            if (mCtx) {
+              mCtx.drawImage(img, 0, 0);
+              mCtx.drawImage(canvas, 0, 0);
+              setCapturedImage(mergedCanvas.toDataURL('image/jpeg', 0.92));
+            }
+          } else {
+            setCapturedImage(dataUrl);
+          }
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   // Trigger AI Photo Try-On Request (Mode B)
   const handleTriggerAITryOn = async () => {
     if (!capturedImage && videoRef.current && canvasRef.current) {
@@ -470,6 +531,16 @@ export default function VirtualFittingRoomModal({
 
               <button
                 type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-slate-700/80 text-amber-400 hover:text-white hover:bg-slate-800 transition active:scale-95 shadow flex items-center gap-1.5 text-xs font-bold"
+                title="Take photo with phone or upload picture"
+              >
+                <Camera className="w-4 h-4" />
+                <span className="hidden sm:inline">ছবি আপলোড</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   cleanup();
                   onClose();
@@ -500,8 +571,18 @@ export default function VirtualFittingRoomModal({
             </div>
           )}
 
+          {/* Hidden File Input for Native Phone Camera & Photo Upload */}
+          <input
+            type="file"
+            ref={photoInputRef}
+            accept="image/*"
+            capture="user"
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+
           {/* Camera Error Fallback Message */}
-          {cameraError && (
+          {cameraError && !capturedImage && (
             <div className="absolute inset-0 z-30 bg-[#090d16]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4 max-w-md mx-auto">
               <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <AlertCircle className="w-7 h-7" />
@@ -513,30 +594,30 @@ export default function VirtualFittingRoomModal({
                 <p className="text-xs text-slate-400 leading-relaxed">
                   {cameraError}
                 </p>
-                <p className="text-[11px] text-amber-400 font-medium pt-1">
-                  💡 ভার্চুয়াল ফিটিং রুম ব্যবহারের জন্য ব্রাউজারের অ্যাড্রেস বার থেকে ক্যামেরার পারমিশন অ্যালাউ করুন।
-                </p>
+                <div className="bg-slate-900/90 border border-amber-500/30 rounded-xl p-3 text-left space-y-1.5 mt-2 text-[11px] text-slate-300">
+                  <p className="font-bold text-amber-400">💡 সমাধান পদ্ধতি:</p>
+                  <p>• <b>মোবাইলে:</b> নিচের <span className="text-amber-300 font-bold">"📸 ছবি তুলুন (Native Camera)"</span> চাপুন — ফোনের ক্যামেরা সরাসরি অন হবে।</p>
+                  <p>• <b>উইন্ডোজ ল্যাপটপে:</b> Start Menu &gt; Settings &gt; Privacy &amp; security &gt; Camera &gt; <span className="text-emerald-400 font-bold">"Let desktop apps access your camera"</span> অন (ON) করুন।</p>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 w-full pt-1">
                 <button
                   type="button"
-                  onClick={initSession}
-                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg transition active:scale-95"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Try Again (পুনরায় চেষ্টা করুন)</span>
+                  <Camera className="w-4 h-4 stroke-[2.5]" />
+                  <span>📸 ছবি তুলুন বা আপলোড করুন</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setCameraError(null);
-                    setActiveMode('ai');
-                  }}
-                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 border border-slate-700 transition active:scale-95"
+                  onClick={initSession}
+                  className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition active:scale-95"
                 >
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Use Photo Instead (ছবি আপলোড করুন)</span>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>পুনরায় চেষ্টা করুন</span>
                 </button>
               </div>
             </div>

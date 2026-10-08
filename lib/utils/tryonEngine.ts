@@ -310,22 +310,25 @@ export class VirtualFittingPoseTracker {
     });
   }
 
-  async sendFrame(video: HTMLVideoElement): Promise<PoseResults | null> {
-    if (!this.isModelReady || video.readyState < 2) return null;
+  async sendFrame(
+    source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement
+  ): Promise<PoseResults | null> {
+    const isVideo = 'readyState' in source;
+    if (isVideo && (source as HTMLVideoElement).readyState < 2) return null;
+    if (!isVideo && 'complete' in source && !(source as HTMLImageElement).complete) return null;
 
     if (this.mediaPipePose && !this.isProcessing) {
       this.isProcessing = true;
       try {
-        await this.mediaPipePose.send({ image: video });
+        await this.mediaPipePose.send({ image: source });
       } catch (e) {
-        // Fallback to optical estimation if send fails
-        this.lastResults = this.estimateOpticalPose(video);
+        this.lastResults = this.estimateOpticalPose(source);
       } finally {
         this.isProcessing = false;
       }
       return this.lastResults;
     } else if (!this.mediaPipePose) {
-      return this.estimateOpticalPose(video);
+      return this.estimateOpticalPose(source);
     }
 
     return this.lastResults;
@@ -334,9 +337,12 @@ export class VirtualFittingPoseTracker {
   /**
    * High performance optical body contour estimator for instant zero-latency tracking
    */
-  private estimateOpticalPose(video: HTMLVideoElement): PoseResults {
-    // Generate normalized anatomical landmarks centered on video frame
-    const aspect = video.videoWidth / (video.videoHeight || 1);
+  private estimateOpticalPose(
+    source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement
+  ): PoseResults {
+    const width = (source as any).videoWidth || (source as any).naturalWidth || (source as any).width || 640;
+    const height = (source as any).videoHeight || (source as any).naturalHeight || (source as any).height || 480;
+    const aspect = width / (height || 1);
     const shoulderSpan = Math.min(0.42, 0.35 * aspect);
     const midX = 0.5;
     const shoulderY = 0.35;
