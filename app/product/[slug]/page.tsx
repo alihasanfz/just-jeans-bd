@@ -37,7 +37,7 @@ import { formatPrice } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/utils/video';
 import ProductCard from '@/components/ui/ProductCard';
 import SizeGuideModal from '@/components/ui/SizeGuideModal';
-import VirtualFittingRoomModal from '@/components/tryon/VirtualFittingRoomModal';
+import VirtualTryOnModal from '@/components/VirtualTryOnModal';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -1197,9 +1197,9 @@ export default function ProductDetailPage() {
         gender={product.gender}
       />
 
-      {/* AI Virtual Fitting Room Modal */}
+      {/* AI Virtual Try-On Modal */}
       {product && (
-        <VirtualFittingRoomModal
+        <VirtualTryOnModal
           product={product}
           initialSize={selectedSize}
           initialColor={selectedColor}

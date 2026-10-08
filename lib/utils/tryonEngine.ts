@@ -526,26 +526,48 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
     avgG = Math.round(avgG / (bgSamples.length || 1));
     avgB = Math.round(avgB / (bgSamples.length || 1));
 
-    // Flood-fill BFS background transparency from borders
+    // High-tolerance background removal (removes studio gray, white, and soft gradient boxes)
+    const isBgColor = (r: number, g: number, b: number): boolean => {
+      // 1. Difference from border sample
+      const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
+      if (diff < 75) return true;
+
+      // 2. Light studio background (for dark garments)
+      const lum = (r * 299 + g * 587 + b * 114) / 1000;
+      const isNeutral = Math.abs(r - g) < 25 && Math.abs(g - b) < 25 && Math.abs(r - b) < 25;
+      if (lum > 165 && isNeutral) return true;
+
+      return false;
+    };
+
+    // BFS Flood-fill structures
     const visited = new Uint8Array(w * h);
     const queue: number[] = [];
 
-    const isBg = (x: number, y: number): boolean => {
-      const idx = (y * w + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
-      return diff < 52;
-    };
-
+    // Push all border pixels to BFS queue
     for (let x = 0; x < w; x++) {
-      if (isBg(x, 0)) { queue.push(x, 0); visited[x] = 1; }
-      if (isBg(x, h - 1)) { queue.push(x, h - 1); visited[(h - 1) * w + x] = 1; }
+      const tIdx = x * 4;
+      if (isBgColor(data[tIdx], data[tIdx + 1], data[tIdx + 2])) {
+        queue.push(x, 0);
+        visited[x] = 1;
+      }
+      const bIdx = ((h - 1) * w + x) * 4;
+      if (isBgColor(data[bIdx], data[bIdx + 1], data[bIdx + 2])) {
+        queue.push(x, h - 1);
+        visited[(h - 1) * w + x] = 1;
+      }
     }
     for (let y = 0; y < h; y++) {
-      if (isBg(0, y) && !visited[y * w]) { queue.push(0, y); visited[y * w] = 1; }
-      if (isBg(w - 1, y) && !visited[y * w + (w - 1)]) { queue.push(w - 1, y); visited[y * w + (w - 1)] = 1; }
+      const lIdx = y * w * 4;
+      if (!visited[y * w] && isBgColor(data[lIdx], data[lIdx + 1], data[lIdx + 2])) {
+        queue.push(0, y);
+        visited[y * w] = 1;
+      }
+      const rIdx = (y * w + (w - 1)) * 4;
+      if (!visited[y * w + (w - 1)] && isBgColor(data[rIdx], data[rIdx + 1], data[rIdx + 2])) {
+        queue.push(w - 1, y);
+        visited[y * w + (w - 1)] = 1;
+      }
     }
 
     let head = 0;
@@ -557,12 +579,14 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
       const r = data[pIdx];
       const g = data[pIdx + 1];
       const b = data[pIdx + 2];
-      const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
 
-      if (diff < 40) {
-        data[pIdx + 3] = 0; // Transparent
-      } else if (diff < 58) {
-        data[pIdx + 3] = Math.round(((diff - 40) / 18) * 255); // Smooth anti-aliased edge
+      const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
+      const lum = (r * 299 + g * 587 + b * 114) / 1000;
+
+      if (diff < 65 || lum > 175) {
+        data[pIdx + 3] = 0; // 100% transparent
+      } else {
+        data[pIdx + 3] = Math.max(0, Math.min(255, Math.round(((diff - 65) / 25) * 255)));
       }
 
       const neighbors = [
@@ -577,7 +601,10 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
           const nIdx = ny * w + nx;
           if (!visited[nIdx]) {
             visited[nIdx] = 1;
-            if (isBg(nx, ny)) {
+            const nr = data[nIdx * 4];
+            const ng = data[nIdx * 4 + 1];
+            const nb = data[nIdx * 4 + 2];
+            if (isBgColor(nr, ng, nb)) {
               queue.push(nx, ny);
             }
           }
