@@ -349,6 +349,8 @@ export default function VirtualFittingRoomModal({
           selectedColorHex,
           productName: product.name,
           price: effectivePrice,
+          scaleAdjust,
+          verticalOffsetAdjust,
         });
       }
 
@@ -981,6 +983,64 @@ export default function VirtualFittingRoomModal({
                 </div>
               </div>
             )}
+
+            {/* Garment Fit Adjustments Accordion */}
+            <details className="group rounded-xl border border-slate-800 bg-[#080d1a] p-3 text-xs">
+              <summary className="flex cursor-pointer items-center justify-between font-bold text-slate-300 select-none">
+                <span className="flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Garment Fit Adjustments</span>
+                </span>
+                <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90 text-slate-500" />
+              </summary>
+              <div className="pt-3 space-y-3">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Width / Drape Scale</span>
+                    <span className="font-mono text-amber-400">{(scaleAdjust * 100).toFixed(0)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.85"
+                    max="1.35"
+                    step="0.02"
+                    value={scaleAdjust}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setScaleAdjust(val);
+                      if (beforeImage) {
+                        setTimeout(() => processRealisticTryOn(beforeImage), 60);
+                      }
+                    }}
+                    className="w-full accent-amber-400 cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Vertical Position</span>
+                    <span className="font-mono text-amber-400">
+                      {verticalOffsetAdjust > 0 ? `+${(verticalOffsetAdjust * 100).toFixed(0)}%` : `${(verticalOffsetAdjust * 100).toFixed(0)}%`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-0.08"
+                    max="0.08"
+                    step="0.01"
+                    value={verticalOffsetAdjust}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setVerticalOffsetAdjust(val);
+                      if (beforeImage) {
+                        setTimeout(() => processRealisticTryOn(beforeImage), 60);
+                      }
+                    }}
+                    className="w-full accent-amber-400 cursor-pointer"
+                  />
+                </div>
+              </div>
+            </details>
 
             {/* Quick Actions (Retake, Upload New, Download) */}
             {afterImage && (

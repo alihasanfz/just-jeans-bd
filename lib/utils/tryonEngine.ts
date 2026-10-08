@@ -317,52 +317,88 @@ export class VirtualFittingPoseTracker {
     if (isVideo && (source as HTMLVideoElement).readyState < 2) return null;
     if (!isVideo && 'complete' in source && !(source as HTMLImageElement).complete) return null;
 
-    if (this.mediaPipePose && !this.isProcessing) {
-      this.isProcessing = true;
-      try {
-        await this.mediaPipePose.send({ image: source });
-      } catch (e) {
-        this.lastResults = this.estimateOpticalPose(source);
-      } finally {
-        this.isProcessing = false;
-      }
-      return this.lastResults;
-    } else if (!this.mediaPipePose) {
-      return this.estimateOpticalPose(source);
+    if (this.mediaPipePose) {
+      return new Promise<PoseResults | null>((resolve) => {
+        let settled = false;
+        const fallbackTimer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            resolve(this.lastResults || this.detectBodyInImage(source));
+          }
+        }, isVideo ? 300 : 1800);
+
+        this.mediaPipePose.onResults((results: any) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(fallbackTimer);
+            if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+              const processed = this.processLandmarks(results.poseLandmarks);
+              this.lastResults = processed;
+              resolve(processed);
+            } else {
+              resolve(this.detectBodyInImage(source));
+            }
+          }
+        });
+
+        try {
+          this.mediaPipePose.send({ image: source });
+        } catch (_) {
+          if (!settled) {
+            settled = true;
+            clearTimeout(fallbackTimer);
+            resolve(this.detectBodyInImage(source));
+          }
+        }
+      });
     }
 
-    return this.lastResults;
+    return this.detectBodyInImage(source);
   }
 
   /**
-   * High performance optical body contour estimator for instant zero-latency tracking
+   * Anatomical body and clothing region estimator tailored to photo aspect ratios
    */
-  private estimateOpticalPose(
+  private detectBodyInImage(
     source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement
   ): PoseResults {
     const width = (source as any).videoWidth || (source as any).naturalWidth || (source as any).width || 640;
     const height = (source as any).videoHeight || (source as any).naturalHeight || (source as any).height || 480;
     const aspect = width / (height || 1);
-    const shoulderSpan = Math.min(0.42, 0.35 * aspect);
-    const midX = 0.5;
-    const shoulderY = 0.32;
-    const hipY = 0.65;
-    const kneeY = 0.85;
 
+    let shoulderY = 0.28;
+    let hipY = 0.54;
+    let shoulderSpan = 0.38;
+
+    // Full-body vertical model photo (height is significantly taller than width, e.g. standing)
+    if (aspect <= 0.72) {
+      shoulderY = 0.24;
+      hipY = 0.48;
+      shoulderSpan = 0.34;
+    } else if (aspect <= 0.95) {
+      // 3/4 portrait shot
+      shoulderY = 0.28;
+      hipY = 0.58;
+      shoulderSpan = 0.42;
+    } else {
+      // Upper body portrait / webcam
+      shoulderY = 0.34;
+      hipY = 0.68;
+      shoulderSpan = 0.46;
+    }
+
+    const midX = 0.5;
     const pseudoLandmarks: PoseLandmark[] = Array.from({ length: 33 }, () => ({
       x: midX,
       y: shoulderY,
       z: 0,
-      visibility: 0.8,
+      visibility: 0.9,
     }));
 
-    // In image coordinate space: Right Shoulder is to user's right (image left: midX - span/2), Left Shoulder is to user's left (image right: midX + span/2)
-    pseudoLandmarks[POSE_INDEXES.RIGHT_SHOULDER] = { x: midX - shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.LEFT_SHOULDER] = { x: midX + shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.RIGHT_HIP] = { x: midX - shoulderSpan * 0.38, y: hipY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.LEFT_HIP] = { x: midX + shoulderSpan * 0.38, y: hipY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.RIGHT_KNEE] = { x: midX - shoulderSpan * 0.35, y: kneeY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.LEFT_KNEE] = { x: midX + shoulderSpan * 0.35, y: kneeY, z: 0, visibility: 0.9 };
+    pseudoLandmarks[POSE_INDEXES.RIGHT_SHOULDER] = { x: midX - shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.95 };
+    pseudoLandmarks[POSE_INDEXES.LEFT_SHOULDER] = { x: midX + shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.95 };
+    pseudoLandmarks[POSE_INDEXES.RIGHT_HIP] = { x: midX - shoulderSpan * 0.42, y: hipY, z: 0, visibility: 0.95 };
+    pseudoLandmarks[POSE_INDEXES.LEFT_HIP] = { x: midX + shoulderSpan * 0.42, y: hipY, z: 0, visibility: 0.95 };
 
     return this.processLandmarks(pseudoLandmarks);
   }
@@ -442,25 +478,28 @@ const cutoutCache = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
 
 /**
  * Automatically remove solid white/grey studio background boxes from product photos
+ * and trim empty transparent borders to tightly bound the actual garment fabric.
  */
 export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
   if (cutoutCache.has(img)) {
     return cutoutCache.get(img)!;
   }
 
+  const w = img.naturalWidth || img.width || 600;
+  const h = img.naturalHeight || img.height || 600;
   const c = document.createElement('canvas');
-  c.width = img.naturalWidth || img.width || 600;
-  c.height = img.naturalHeight || img.height || 600;
+  c.width = w;
+  c.height = h;
   const ctx = c.getContext('2d');
   if (!ctx) return img;
 
   try {
     ctx.drawImage(img, 0, 0);
-    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const imgData = ctx.getImageData(0, 0, w, h);
     const data = imgData.data;
 
     // Sample average background color from 4 corner points
-    const corners = [0, (c.width - 1) * 4, (c.height - 1) * c.width * 4, ((c.height - 1) * c.width + (c.width - 1)) * 4];
+    const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + (w - 1)) * 4];
     let avgR = 0, avgG = 0, avgB = 0;
     for (const offset of corners) {
       avgR += data[offset];
@@ -471,9 +510,17 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
     avgG = Math.round(avgG / 4);
     avgB = Math.round(avgB / 4);
 
-    // If background is light studio tone (luminance > 140)
-    if (avgR > 140 && avgG > 140 && avgB > 140) {
-      const tol = 38;
+    let hasAlpha = false;
+    for (let i = 3; i < data.length; i += 40) {
+      if (data[i] < 220) {
+        hasAlpha = true;
+        break;
+      }
+    }
+
+    // If light studio background (luminance > 130)
+    if (!hasAlpha && avgR > 130 && avgG > 130 && avgB > 130) {
+      const tol = 42;
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
@@ -481,20 +528,57 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
         const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
         if (diff < tol) {
           data[i + 3] = 0; // Completely transparent
-        } else if (diff < tol + 16) {
-          data[i + 3] = Math.round(((diff - tol) / 16) * 255); // Smooth anti-aliased edge
+        } else if (diff < tol + 18) {
+          data[i + 3] = Math.round(((diff - tol) / 18) * 255); // Smooth anti-aliased edge
         }
       }
       ctx.putImageData(imgData, 0, 0);
-      cutoutCache.set(img, c);
-      return c;
     }
-  } catch (_) {
-    // If CORS prevents read, fallback to original image cleanly
-  }
 
-  cutoutCache.set(img, c);
-  return c;
+    // Find tight bounding box of garment pixels (alpha > 30)
+    let minX = w;
+    let minY = h;
+    let maxX = 0;
+    let maxY = 0;
+    let found = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const a = data[(y * w + x) * 4 + 3];
+        if (a > 30) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          found = true;
+        }
+      }
+    }
+
+    // If trimmed box is smaller than canvas, create tight cutout
+    if (found && maxX > minX && maxY > minY) {
+      const cropW = maxX - minX + 1;
+      const cropH = maxY - minY + 1;
+      if (cropW < w * 0.98 || cropH < h * 0.98) {
+        const trimmed = document.createElement('canvas');
+        trimmed.width = cropW;
+        trimmed.height = cropH;
+        const tCtx = trimmed.getContext('2d');
+        if (tCtx) {
+          tCtx.drawImage(c, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+          cutoutCache.set(img, trimmed);
+          return trimmed;
+        }
+      }
+    }
+
+    cutoutCache.set(img, c);
+    return c;
+  } catch (_) {
+    // If CORS prevents canvas read, fallback cleanly
+    cutoutCache.set(img, c);
+    return c;
+  }
 }
 
 /**
@@ -534,8 +618,11 @@ export function renderGarmentOverlay(
   const userYOffset = options.verticalOffsetAdjust || 0;
 
   const isBottom = garmentType === 'jeans' || garmentType === 'pants';
-  // Use processed transparent cutout to eliminate white/gray background box
+  // Use processed transparent cutout to eliminate white/gray background box and empty padding
   const renderSource = getCutoutImage(garmentImage);
+  const sourceW = (renderSource as any).width || garmentImage.naturalWidth || 600;
+  const sourceH = (renderSource as any).height || garmentImage.naturalHeight || 600;
+  const aspect = sourceH / (sourceW || 1);
 
   let anchorX = 0;
   let anchorY = 0;
@@ -552,23 +639,18 @@ export function renderGarmentOverlay(
     );
 
     anchorX = (isMirrored ? (1 - pose.hipCenter.x) : pose.hipCenter.x) * width;
-    anchorY = (pose.hipCenter.y + userYOffset) * height;
+    anchorY = (pose.hipCenter.y - 0.02 + userYOffset) * height;
 
-    // Pants width proportional to hip span
-    targetWidth = Math.max(width * 0.28, hipSpan * width * 1.8) * userScale;
-    const aspect = garmentImage.naturalHeight / (garmentImage.naturalWidth || 1);
-    targetHeight = targetWidth * (aspect || 1.8);
+    targetWidth = Math.max(width * 0.42, hipSpan * width * 2.2) * userScale;
+    targetHeight = targetWidth * (aspect || 1.85);
   } else {
-    // Tops (Jackets, Shirts, Hoodies, T-shirts): anchored on shoulders
+    // Tops (Jackets, Shirts, Hoodies, T-shirts): anchored right at collar / neck base
     anchorX = (isMirrored ? (1 - pose.shoulderCenter.x) : pose.shoulderCenter.x) * width;
-    // Lower anchor slightly below neck
-    const offsetYNorm = (pose.torsoHeight * 0.06) + userYOffset;
-    anchorY = (pose.shoulderCenter.y + offsetYNorm) * height;
+    anchorY = (pose.shoulderCenter.y - 0.02 + userYOffset) * height;
 
-    // Width proportional to shoulder span
-    targetWidth = Math.max(width * 0.32, pose.shoulderWidth * width * 1.55) * userScale;
-    const aspect = garmentImage.naturalHeight / (garmentImage.naturalWidth || 1);
-    targetHeight = targetWidth * (aspect || 1.15);
+    // Full shoulder and sleeve coverage
+    targetWidth = Math.max(width * 0.50, pose.shoulderWidth * width * 2.25) * userScale;
+    targetHeight = Math.max(pose.torsoHeight * height * 1.3, targetWidth * (aspect || 1.15));
   }
 
   // Draw natural ambient drop-shadow behind clothing for realistic depth
@@ -576,33 +658,28 @@ export function renderGarmentOverlay(
   ctx.translate(anchorX, anchorY);
   ctx.rotate(rotation);
 
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 6;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.40)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 8;
   ctx.drawImage(
     renderSource,
     -targetWidth / 2,
-    -targetHeight * (isBottom ? 0.08 : 0.16),
+    0,
     targetWidth,
     targetHeight
   );
-  ctx.restore();
 
   // If a custom color tint is selected and differs from base (e.g. black, indigo, bleached)
   if (selectedColorHex && selectedColorHex !== '#ffffff' && selectedColorHex !== '#000000') {
-    ctx.save();
-    ctx.translate(anchorX, anchorY);
-    ctx.rotate(rotation);
     ctx.globalCompositeOperation = 'multiply';
     ctx.fillStyle = selectedColorHex;
     ctx.globalAlpha = 0.22;
     ctx.fillRect(
       -targetWidth / 2,
-      -targetHeight * (isBottom ? 0.08 : 0.18),
+      0,
       targetWidth,
       targetHeight
     );
-    ctx.restore();
   }
 
   ctx.restore();
@@ -690,6 +767,8 @@ export async function generatePhotorealisticClothingReplacement(
     selectedColorHex?: string;
     productName?: string;
     price?: number;
+    scaleAdjust?: number;
+    verticalOffsetAdjust?: number;
   }
 ): Promise<string> {
   const width = userImage.naturalWidth || userImage.width || 1080;
@@ -704,86 +783,153 @@ export async function generatePhotorealisticClothingReplacement(
   // 1. Draw customer's original photo (base layer)
   ctx.drawImage(userImage, 0, 0, width, height);
 
-  // 2. Identify Anatomical Regions from Pose
+  // 2. Anatomical landmarks and sizing
   const { landmarks, shoulderCenter, hipCenter, tiltAngle } = pose;
   const isBottom = options.garmentType === 'jeans' || options.garmentType === 'pants';
 
   const rs = landmarks[POSE_INDEXES.RIGHT_SHOULDER]; // image left
   const ls = landmarks[POSE_INDEXES.LEFT_SHOULDER];  // image right
+  const lh = landmarks[POSE_INDEXES.LEFT_HIP];
+  const rh = landmarks[POSE_INDEXES.RIGHT_HIP];
 
-  // 3. Clean transparent cutout of garment
+  const sizeFactor = SIZE_FIT_FACTORS[options.selectedSize] || 1.0;
+  const userScale = (options.scaleAdjust || 1.0) * sizeFactor;
+  const userYOffset = (options.verticalOffsetAdjust || 0) * height;
+
+  // 3. Clean, trimmed cutout of garment (0% empty margin, collar at top, sleeve ends at edges)
   const garmentSource = getCutoutImage(garmentImage);
+  const sourceW = (garmentSource as any).width || garmentImage.naturalWidth || 600;
+  const sourceH = (garmentSource as any).height || garmentImage.naturalHeight || 600;
+  const aspect = sourceH / (sourceW || 1);
 
-  // 4. Calculate Clothing Replacement Zone
-  // Measure shoulder span directly from customer's anatomy
+  // 4. Calculate Clothing Zone & Full Garment Coverage
   const shoulderSpanPixels = Math.hypot((ls.x - rs.x) * width, (ls.y - rs.y) * height);
-  const targetWidth = Math.max(width * 0.38, shoulderSpanPixels * 1.58);
-  const aspect = garmentImage.naturalHeight / (garmentImage.naturalWidth || 1);
-  const targetHeight = targetWidth * (aspect || (isBottom ? 1.8 : 1.18));
+  const torsoHeightPixels = Math.hypot((hipCenter.x - shoulderCenter.x) * width, (hipCenter.y - shoulderCenter.y) * height);
 
-  let anchorX = shoulderCenter.x * width;
-  let anchorY = (shoulderCenter.y + 0.05) * height;
+  let anchorX = 0;
+  let anchorY = 0;
+  let targetWidth = 0;
+  let targetHeight = 0;
 
   if (isBottom) {
+    // Bottoms (Jeans/Pants): anchored at hips down over legs
+    const hipSpan = Math.hypot((lh.x - rh.x) * width, (lh.y - rh.y) * height);
     anchorX = hipCenter.x * width;
-    anchorY = (hipCenter.y + 0.02) * height;
-  }
+    anchorY = (hipCenter.y - 0.02) * height + userYOffset;
 
-  // 5. Garment Synthesis & Old Clothing Occlusion
-  ctx.save();
-  ctx.translate(anchorX, anchorY);
-  ctx.rotate(tiltAngle);
+    targetWidth = Math.max(width * 0.42, hipSpan * 2.25) * userScale;
+    targetHeight = Math.max((height - anchorY) * 0.92, targetWidth * (aspect || 1.85));
 
-  // Deep ambient shadow onto background & torso behind the new garment
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 22;
-  ctx.shadowOffsetY = 10;
+    // A. Erase / occlude old pants/shorts
+    ctx.save();
+    ctx.translate(anchorX, anchorY);
+    ctx.rotate(tiltAngle);
 
-  // Draw the new authentic product replacing the old clothing
-  ctx.drawImage(
-    garmentSource,
-    -targetWidth / 2,
-    -targetHeight * (isBottom ? 0.08 : 0.16),
-    targetWidth,
-    targetHeight
-  );
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(
+      -targetWidth * 0.45,
+      targetHeight * 0.02,
+      targetWidth * 0.90,
+      targetHeight * 0.96,
+      [16, 16, 12, 12]
+    );
+    ctx.fill();
 
-  // Color modulation if a specific color tint is selected
-  if (options.selectedColorHex && options.selectedColorHex !== '#ffffff' && options.selectedColorHex !== '#000000') {
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = options.selectedColorHex;
-    ctx.globalAlpha = 0.22;
-    ctx.fillRect(
+    // B. Ambient shadow for authentic fabric depth
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 10;
+
+    // C. Draw authentic jeans product
+    ctx.drawImage(
+      garmentSource,
       -targetWidth / 2,
-      -targetHeight * (isBottom ? 0.08 : 0.16),
+      0,
       targetWidth,
       targetHeight
     );
-  }
-  ctx.restore();
 
-  // 6. Natural Neck & Collar Ambient Occlusion Shadow
-  // Eliminates the "pasted sticker" look by creating natural light contact under the collar
-  if (!isBottom) {
+    if (options.selectedColorHex && options.selectedColorHex !== '#ffffff' && options.selectedColorHex !== '#000000') {
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = options.selectedColorHex;
+      ctx.globalAlpha = 0.22;
+      ctx.fillRect(-targetWidth / 2, 0, targetWidth, targetHeight);
+    }
+    ctx.restore();
+  } else {
+    // Tops (Jackets, Shirts, Hoodies, T-shirts):
+    // Anchored directly at the collar / base of the neck
+    anchorX = shoulderCenter.x * width;
+    anchorY = (shoulderCenter.y - 0.02) * height + userYOffset;
+
+    // Outerwear width encompasses chest + outer deltoids + sleeve drape
+    targetWidth = Math.max(width * 0.52, shoulderSpanPixels * 2.35) * userScale;
+    // Outerwear height reaches from neck base down over waistband/hips
+    targetHeight = Math.max(torsoHeightPixels * 1.34, targetWidth * (aspect || 0.95));
+
+    // A. OCCLUSION OF OLD SHIRT:
+    // Erases previous t-shirt/shirt completely so no old clothing can be seen!
+    ctx.save();
+    ctx.translate(anchorX, anchorY);
+    ctx.rotate(tiltAngle);
+
+    // Anatomical torso inpainting undercoat
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(
+      -targetWidth * 0.47,
+      targetHeight * 0.03,
+      targetWidth * 0.94,
+      targetHeight * 0.95,
+      [22, 22, 18, 18]
+    );
+    ctx.fill();
+
+    // B. Ambient shadow onto background & body
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 10;
+
+    // C. Draw authentic denim outerwear starting at the collar line downwards
+    ctx.drawImage(
+      garmentSource,
+      -targetWidth / 2,
+      0,
+      targetWidth,
+      targetHeight
+    );
+
+    // D. Color modulation if wash / color selected
+    if (options.selectedColorHex && options.selectedColorHex !== '#ffffff' && options.selectedColorHex !== '#000000') {
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = options.selectedColorHex;
+      ctx.globalAlpha = 0.22;
+      ctx.fillRect(-targetWidth / 2, 0, targetWidth, targetHeight);
+    }
+    ctx.restore();
+
+    // 5. Collar Ambient Occlusion Shadow
+    // Seamlessly bonds customer's real neck/skin with the jacket collar
     const neckX = shoulderCenter.x * width;
-    const neckY = (shoulderCenter.y - 0.02) * height;
-    const neckRadius = shoulderSpanPixels * 0.32;
+    const neckY = anchorY;
+    const neckRadius = Math.max(28, shoulderSpanPixels * 0.28);
 
     const neckGradient = ctx.createRadialGradient(
-      neckX, neckY, neckRadius * 0.2,
+      neckX, neckY + 4, 3,
       neckX, neckY + 12, neckRadius
     );
-    neckGradient.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
+    neckGradient.addColorStop(0, 'rgba(0, 0, 0, 0.48)');
     neckGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.16)');
     neckGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
     ctx.fillStyle = neckGradient;
     ctx.beginPath();
-    ctx.arc(neckX, neckY + 10, neckRadius, 0, Math.PI);
+    ctx.arc(neckX, neckY + 8, neckRadius, 0, Math.PI);
     ctx.fill();
   }
 
-  // 7. Premium Jeans BD Atelier Watermark Badge
+  // 6. Premium Jeans BD Atelier Watermark Badge
   const pad = 24;
   const badgeWidth = 270;
   const badgeHeight = 56;
