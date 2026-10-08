@@ -8,12 +8,23 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
     return (
       process.env.FASHN_API_KEY ||
       (process.env.VIRTUAL_TRYON_API_KEY?.startsWith('fa_') ? process.env.VIRTUAL_TRYON_API_KEY : '') ||
+      (process.env.VIRTUAL_TRYON_PROVIDER === 'fashn' ? process.env.VIRTUAL_TRYON_API_KEY : '') ||
+      process.env.VIRTUAL_TRYON_API_KEY ||
       ''
     ).trim();
   }
 
   public isConfigured(): boolean {
     return !!this.getApiKey();
+  }
+
+  private toAbsoluteUrl(urlOrData: string): string {
+    if (!urlOrData) return '';
+    if (urlOrData.startsWith('data:') || urlOrData.startsWith('http://') || urlOrData.startsWith('https://')) {
+      return urlOrData;
+    }
+    const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://just-jeans-bd-4ik7.vercel.app';
+    return `${host.replace(/\/$/, '')}/${urlOrData.replace(/^\//, '')}`;
   }
 
   public async createTryOnJob(request: TryOnJobRequest): Promise<{
@@ -23,7 +34,9 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
   }> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      throw new Error('Fashn.ai API Key is not configured. Set FASHN_API_KEY or VIRTUAL_TRYON_API_KEY in environment variables.');
+      throw new Error(
+        'Fashn.ai API Key is not configured. Please add FASHN_API_KEY in your Vercel or local environment variables.'
+      );
     }
 
     const apiUrl = process.env.FASHN_API_URL || 'https://api.fashn.ai/v1/run';
@@ -34,9 +47,12 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
         ? 'one-pieces'
         : 'tops';
 
+    const cleanHumanImg = this.toAbsoluteUrl(request.humanImage);
+    const cleanGarmentImg = this.toAbsoluteUrl(request.garmentImage);
+
     const payload = {
-      model_image: request.humanImage,
-      garment_image: request.garmentImage,
+      model_image: cleanHumanImg,
+      garment_image: cleanGarmentImg,
       category,
       mode: 'balanced',
       num_samples: 1,
@@ -54,7 +70,12 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Fashn.ai API request failed (${res.status}): ${errText}`);
+      let parsedErr = errText;
+      try {
+        const jsonErr = JSON.parse(errText);
+        parsedErr = jsonErr.error?.message || jsonErr.message || errText;
+      } catch (_) {}
+      throw new Error(`Fashn.ai API error (${res.status}): ${parsedErr}`);
     }
 
     const data = await res.json();
@@ -77,7 +98,7 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
   public async getTryOnJobStatus(providerJobId: string): Promise<VTOStatusResult> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      throw new Error('Fashn.ai API Key missing.');
+      throw new Error('Fashn.ai API Key is missing.');
     }
 
     const statusUrl = `https://api.fashn.ai/v1/status/${providerJobId}`;
@@ -102,7 +123,7 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
       return {
         status: 'completed',
         progressPercent: 100,
-        stepDescription: 'Fitting finalized realistically',
+        stepDescription: 'Garment replacement completed with natural lighting & drape',
         resultImageUrl: outputImg,
       };
     }
@@ -118,8 +139,8 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
 
     return {
       status: 'processing',
-      progressPercent: 65,
-      stepDescription: 'Synthesizing garment folds & lighting...',
+      progressPercent: data.status === 'starting' ? 30 : 70,
+      stepDescription: 'Draping garment according to human pose & lighting...',
     };
   }
 

@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { Product, GarmentType } from '@/types';
-import VirtualFittingRoomModal from '@/components/tryon/VirtualFittingRoomModal';
 import VirtualTryOnModal from '@/components/VirtualTryOnModal';
 
 interface ServerVTOStats {
@@ -54,7 +53,6 @@ export default function AdminTryOnManagementPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
-  const [testingProduct, setTestingProduct] = useState<Product | null>(null);
   const [aiTestingProduct, setAiTestingProduct] = useState<Product | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -169,23 +167,13 @@ export default function AdminTryOnManagementPage() {
           </button>
 
           {products[0] && (
-            <>
-              <button
-                onClick={() => setAiTestingProduct(products[0])}
-                className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20 transition active:scale-95 cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>Test Real AI Try-On</span>
-              </button>
-
-              <button
-                onClick={() => setTestingProduct(products[0])}
-                className="bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow transition active:scale-95 cursor-pointer"
-              >
-                <Camera className="w-4 h-4 text-purple-400" />
-                <span>Live AR Cam</span>
-              </button>
-            </>
+            <button
+              onClick={() => setAiTestingProduct(products[0])}
+              className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20 transition active:scale-95 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Test Real AI Try-On (FASHN API)</span>
+            </button>
           )}
 
           <Link
@@ -457,21 +445,12 @@ export default function AdminTryOnManagementPage() {
         </div>
       </div>
 
-      {/* Modal: AI Virtual Try-On */}
+      {/* Modal: Real AI Virtual Try-On (FASHN API Pipeline) */}
       {aiTestingProduct && (
         <VirtualTryOnModal
           product={aiTestingProduct}
           isOpen={!!aiTestingProduct}
           onClose={() => setAiTestingProduct(null)}
-        />
-      )}
-
-      {/* Modal: Virtual Fitting Room Preview / Tester (AR MediaPipe) */}
-      {testingProduct && (
-        <VirtualFittingRoomModal
-          product={testingProduct}
-          isOpen={!!testingProduct}
-          onClose={() => setTestingProduct(null)}
         />
       )}
     </div>

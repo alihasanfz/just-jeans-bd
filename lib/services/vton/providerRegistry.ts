@@ -57,7 +57,7 @@ export class VirtualTryOnRegistry {
       }
     }
 
-    // 3. Fallback to Replicate provider by default
-    return this.providers.get('replicate')!;
+    // 3. Fallback to Fashn.ai provider by default
+    return this.providers.get('fashn')!;
   }
 }
