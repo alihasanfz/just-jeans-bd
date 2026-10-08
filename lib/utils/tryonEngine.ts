@@ -345,7 +345,7 @@ export class VirtualFittingPoseTracker {
     const aspect = width / (height || 1);
     const shoulderSpan = Math.min(0.42, 0.35 * aspect);
     const midX = 0.5;
-    const shoulderY = 0.35;
+    const shoulderY = 0.32;
     const hipY = 0.65;
     const kneeY = 0.85;
 
@@ -356,12 +356,13 @@ export class VirtualFittingPoseTracker {
       visibility: 0.8,
     }));
 
-    pseudoLandmarks[POSE_INDEXES.LEFT_SHOULDER] = { x: midX - shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.RIGHT_SHOULDER] = { x: midX + shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.LEFT_HIP] = { x: midX - shoulderSpan * 0.4, y: hipY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.RIGHT_HIP] = { x: midX + shoulderSpan * 0.4, y: hipY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.LEFT_KNEE] = { x: midX - shoulderSpan * 0.35, y: kneeY, z: 0, visibility: 0.9 };
-    pseudoLandmarks[POSE_INDEXES.RIGHT_KNEE] = { x: midX + shoulderSpan * 0.35, y: kneeY, z: 0, visibility: 0.9 };
+    // In image coordinate space: Right Shoulder is to user's right (image left: midX - span/2), Left Shoulder is to user's left (image right: midX + span/2)
+    pseudoLandmarks[POSE_INDEXES.RIGHT_SHOULDER] = { x: midX - shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.9 };
+    pseudoLandmarks[POSE_INDEXES.LEFT_SHOULDER] = { x: midX + shoulderSpan / 2, y: shoulderY, z: 0, visibility: 0.9 };
+    pseudoLandmarks[POSE_INDEXES.RIGHT_HIP] = { x: midX - shoulderSpan * 0.38, y: hipY, z: 0, visibility: 0.9 };
+    pseudoLandmarks[POSE_INDEXES.LEFT_HIP] = { x: midX + shoulderSpan * 0.38, y: hipY, z: 0, visibility: 0.9 };
+    pseudoLandmarks[POSE_INDEXES.RIGHT_KNEE] = { x: midX - shoulderSpan * 0.35, y: kneeY, z: 0, visibility: 0.9 };
+    pseudoLandmarks[POSE_INDEXES.LEFT_KNEE] = { x: midX + shoulderSpan * 0.35, y: kneeY, z: 0, visibility: 0.9 };
 
     return this.processLandmarks(pseudoLandmarks);
   }
@@ -369,10 +370,11 @@ export class VirtualFittingPoseTracker {
   private processLandmarks(rawLandmarks: PoseLandmark[]): PoseResults {
     const smoothed = this.smoother.smooth(rawLandmarks);
 
-    const ls = smoothed[POSE_INDEXES.LEFT_SHOULDER] || { x: 0.35, y: 0.35, z: 0 };
-    const rs = smoothed[POSE_INDEXES.RIGHT_SHOULDER] || { x: 0.65, y: 0.35, z: 0 };
-    const lh = smoothed[POSE_INDEXES.LEFT_HIP] || { x: 0.4, y: 0.65, z: 0 };
-    const rh = smoothed[POSE_INDEXES.RIGHT_HIP] || { x: 0.6, y: 0.65, z: 0 };
+    // Anatomical points
+    const ls = smoothed[POSE_INDEXES.LEFT_SHOULDER] || { x: 0.65, y: 0.35, z: 0 };
+    const rs = smoothed[POSE_INDEXES.RIGHT_SHOULDER] || { x: 0.35, y: 0.35, z: 0 };
+    const lh = smoothed[POSE_INDEXES.LEFT_HIP] || { x: 0.6, y: 0.65, z: 0 };
+    const rh = smoothed[POSE_INDEXES.RIGHT_HIP] || { x: 0.4, y: 0.65, z: 0 };
 
     const shoulderCenter = {
       x: (ls.x + rs.x) / 2,
@@ -386,19 +388,25 @@ export class VirtualFittingPoseTracker {
 
     const shoulderWidth = Math.hypot(rs.x - ls.x, rs.y - ls.y);
     const torsoHeight = Math.hypot(hipCenter.x - shoulderCenter.x, hipCenter.y - shoulderCenter.y);
-    const tiltAngle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
+
+    // Calculate natural shoulder tilt in image space: from right shoulder to left shoulder
+    const dx = ls.x - rs.x;
+    const dy = ls.y - rs.y;
+    const rawAngle = Math.atan2(dy, Math.abs(dx) || 0.001);
+    // Strict clamp to ±25 degrees (±0.44 radians) so garments NEVER flip upside down
+    const tiltAngle = Math.max(-0.44, Math.min(0.44, rawAngle));
 
     // Guidance evaluation
     let guidance = 'Body detected ✓';
     let guidanceBn = 'দেহ শনাক্ত করা হয়েছে ✓';
 
-    if (shoulderWidth > 0.65) {
+    if (shoulderWidth > 0.68) {
       guidance = 'Please step back slightly';
       guidanceBn = 'অনুগ্রহ করে একটু পিছিয়ে দাঁড়ান';
-    } else if (shoulderWidth < 0.18) {
+    } else if (shoulderWidth < 0.16) {
       guidance = 'Move closer to the camera';
       guidanceBn = 'ক্যামেরার আরেকটু কাছে আসুন';
-    } else if (shoulderCenter.y < 0.1) {
+    } else if (shoulderCenter.y < 0.08) {
       guidance = 'Keep your head and shoulders inside frame';
       guidanceBn = 'কাঁধ ফ্রেমের ভেতরে রাখুন';
     }
@@ -427,6 +435,66 @@ export class VirtualFittingPoseTracker {
     this.isModelReady = false;
     this.lastResults = null;
   }
+}
+
+// Memory cache for transparent cutouts of e-commerce product photos
+const cutoutCache = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
+
+/**
+ * Automatically remove solid white/grey studio background boxes from product photos
+ */
+export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
+  if (cutoutCache.has(img)) {
+    return cutoutCache.get(img)!;
+  }
+
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width || 600;
+  c.height = img.naturalHeight || img.height || 600;
+  const ctx = c.getContext('2d');
+  if (!ctx) return img;
+
+  try {
+    ctx.drawImage(img, 0, 0);
+    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const data = imgData.data;
+
+    // Sample average background color from 4 corner points
+    const corners = [0, (c.width - 1) * 4, (c.height - 1) * c.width * 4, ((c.height - 1) * c.width + (c.width - 1)) * 4];
+    let avgR = 0, avgG = 0, avgB = 0;
+    for (const offset of corners) {
+      avgR += data[offset];
+      avgG += data[offset + 1];
+      avgB += data[offset + 2];
+    }
+    avgR = Math.round(avgR / 4);
+    avgG = Math.round(avgG / 4);
+    avgB = Math.round(avgB / 4);
+
+    // If background is light studio tone (luminance > 140)
+    if (avgR > 140 && avgG > 140 && avgB > 140) {
+      const tol = 38;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
+        if (diff < tol) {
+          data[i + 3] = 0; // Completely transparent
+        } else if (diff < tol + 16) {
+          data[i + 3] = Math.round(((diff - tol) / 16) * 255); // Smooth anti-aliased edge
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      cutoutCache.set(img, c);
+      return c;
+    }
+  } catch (_) {
+    // If CORS prevents read, fallback to original image cleanly
+  }
+
+  cutoutCache.set(img, c);
+  return c;
 }
 
 /**
@@ -465,15 +533,16 @@ export function renderGarmentOverlay(
   const userScale = (options.scaleAdjust || 1.0) * sizeFactor;
   const userYOffset = options.verticalOffsetAdjust || 0;
 
-  ctx.save();
-
   const isBottom = garmentType === 'jeans' || garmentType === 'pants';
+  // Use processed transparent cutout to eliminate white/gray background box
+  const renderSource = getCutoutImage(garmentImage);
 
   let anchorX = 0;
   let anchorY = 0;
   let targetWidth = 0;
   let targetHeight = 0;
-  let rotation = pose.tiltAngle;
+  // Natural tilt clamped between -25deg and +25deg
+  const rotation = Math.max(-0.44, Math.min(0.44, pose.tiltAngle * (isMirrored ? -1 : 1)));
 
   if (isBottom) {
     // Bottoms (Jeans/Pants): anchored at hips down to lower legs
@@ -486,36 +555,34 @@ export function renderGarmentOverlay(
     anchorY = (pose.hipCenter.y + userYOffset) * height;
 
     // Pants width proportional to hip span
-    targetWidth = Math.max(width * 0.28, hipSpan * width * 1.95) * userScale;
+    targetWidth = Math.max(width * 0.28, hipSpan * width * 1.8) * userScale;
     const aspect = garmentImage.naturalHeight / (garmentImage.naturalWidth || 1);
     targetHeight = targetWidth * (aspect || 1.8);
-    rotation = -rotation; // Invert tilt for mirrored projection
   } else {
-    // Tops (Jackets, Shirts, Hoodies, T-shirts): anchored between shoulders & neck
+    // Tops (Jackets, Shirts, Hoodies, T-shirts): anchored on shoulders
     anchorX = (isMirrored ? (1 - pose.shoulderCenter.x) : pose.shoulderCenter.x) * width;
     // Lower anchor slightly below neck
-    const offsetYNorm = (pose.torsoHeight * 0.12) + userYOffset;
+    const offsetYNorm = (pose.torsoHeight * 0.06) + userYOffset;
     anchorY = (pose.shoulderCenter.y + offsetYNorm) * height;
 
     // Width proportional to shoulder span
-    targetWidth = Math.max(width * 0.35, pose.shoulderWidth * width * 1.85) * userScale;
+    targetWidth = Math.max(width * 0.32, pose.shoulderWidth * width * 1.55) * userScale;
     const aspect = garmentImage.naturalHeight / (garmentImage.naturalWidth || 1);
-    targetHeight = targetWidth * (aspect || 1.25);
-    rotation = -rotation;
+    targetHeight = targetWidth * (aspect || 1.15);
   }
 
-  // Draw natural ambient drop-shadow behind clothing for depth
+  // Draw natural ambient drop-shadow behind clothing for realistic depth
   ctx.save();
   ctx.translate(anchorX, anchorY);
   ctx.rotate(rotation);
 
   ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 8;
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
   ctx.drawImage(
-    garmentImage,
+    renderSource,
     -targetWidth / 2,
-    -targetHeight * (isBottom ? 0.08 : 0.18),
+    -targetHeight * (isBottom ? 0.08 : 0.16),
     targetWidth,
     targetHeight
   );
