@@ -325,6 +325,8 @@ export type GarmentCategory = 'tops' | 'bottoms' | 'outerwear' | 'fullbody';
 export type GarmentType =
   | 'jacket'
   | 'jeans'
+  | 'shorts'
+  | 'skirt'
   | 'tshirt'
   | 't-shirt'
   | 'shirt'

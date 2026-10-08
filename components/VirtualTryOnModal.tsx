@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X,
@@ -47,29 +47,25 @@ interface VirtualTryOnModalProps {
 const PRESET_MODELS = [
   {
     id: 'male-casual',
-    name: 'Male Casual Pose',
-    nameBn: 'মডেল ১ (পুরুষ - ক্যাজুয়াল)',
+    name: 'Male (Casual)',
     gender: 'men',
     url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'female-casual',
-    name: 'Female Studio Pose',
-    nameBn: 'মডেল ২ (নারী - স্টুডিও)',
+    name: 'Female (Studio)',
     gender: 'women',
     url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'male-urban',
-    name: 'Male Urban Fit',
-    nameBn: 'মডেল ৩ (পুরুষ - আরবান)',
+    name: 'Male (Urban)',
     gender: 'men',
     url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'female-fashion',
-    name: 'Female Chic Fit',
-    nameBn: 'মডেল ৪ (নারী - ফ্যাশন)',
+    name: 'Female (Chic)',
     gender: 'women',
     url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
   },
@@ -139,7 +135,7 @@ export default function VirtualTryOnModal({
   const [viewMode, setViewMode] = useState<'split' | 'after' | 'before'>('split');
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [isDraggingSlider, setIsDraggingSlider] = useState<boolean>(false);
-  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
+  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('cover');
   const sliderContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Helper to ensure result image is never blocked by ISP or CORS
@@ -156,7 +152,7 @@ export default function VirtualTryOnModal({
   const [addedToCartSuccess, setAddedToCartSuccess] = useState<boolean>(false);
   const [copiedShareLink, setCopiedShareLink] = useState<boolean>(false);
 
-  // Garment Category & Type Resolver
+  // Garment Category & Type Resolver (Handles tops, jackets, shorts, jeans, and dresses accurately)
   const resolveGarmentMetadata = useCallback((prod: Product) => {
     const nameLower = (prod.name || '').toLowerCase();
     const catLower = (prod.category || '').toLowerCase();
@@ -164,7 +160,10 @@ export default function VirtualTryOnModal({
     let garmentType: any = prod.garmentType || 'jacket';
     let category: 'tops' | 'bottoms' | 'one-pieces' = 'tops';
 
-    if (nameLower.includes('t-shirt') || nameLower.includes('tshirt') || nameLower.includes('tee')) {
+    if (nameLower.includes('shorts') || catLower.includes('shorts')) {
+      garmentType = 'shorts';
+      category = 'bottoms';
+    } else if (nameLower.includes('t-shirt') || nameLower.includes('tshirt') || nameLower.includes('tee')) {
       garmentType = 'tshirt';
       category = 'tops';
     } else if (nameLower.includes('polo')) {
@@ -185,10 +184,19 @@ export default function VirtualTryOnModal({
     } else if (nameLower.includes('jacket') || prod.fit === 'Denim Jacket') {
       garmentType = 'jacket';
       category = 'tops';
-    } else if (nameLower.includes('dress')) {
+    } else if (nameLower.includes('dress') || catLower.includes('dress')) {
       garmentType = 'dress';
       category = 'one-pieces';
-    } else if (nameLower.includes('jeans') || nameLower.includes('pants') || catLower.includes('jeans')) {
+    } else if (nameLower.includes('skirt') || catLower.includes('skirt')) {
+      garmentType = 'skirt';
+      category = 'bottoms';
+    } else if (
+      nameLower.includes('jeans') ||
+      nameLower.includes('pants') ||
+      nameLower.includes('trouser') ||
+      catLower.includes('jeans') ||
+      catLower.includes('bottoms')
+    ) {
       garmentType = 'jeans';
       category = 'bottoms';
     }
@@ -196,6 +204,35 @@ export default function VirtualTryOnModal({
     const garmentImage = prod.tryOnAssetUrl || prod.thumbnail || prod.images[0] || '';
     return { garmentType, category, garmentImage };
   }, []);
+
+  // Quick 4 selectable products for instant switching
+  const selectableProducts = useMemo(() => {
+    const list: Product[] = [activeProduct];
+    for (const p of products) {
+      if (list.length >= 4) break;
+      if (p.id !== activeProduct.id && p.virtualTryOnEnabled !== false) {
+        list.push(p);
+      }
+    }
+    for (const p of products) {
+      if (list.length >= 4) break;
+      if (!list.some((item) => item.id === p.id)) {
+        list.push(p);
+      }
+    }
+    return list.slice(0, 4);
+  }, [products, activeProduct]);
+
+  const handleSelectProduct = (prod: Product) => {
+    setActiveProduct(prod);
+    setAfterImageUrl(null);
+    setIsAfterImageLoaded(false);
+    setAfterImageError(false);
+    if (prod.variants && prod.variants.length > 0) {
+      setSelectedSize(prod.variants[0].size || '32');
+      setSelectedColor(prod.variants[0].color || 'Deep Indigo');
+    }
+  };
 
   const { garmentType, category, garmentImage } = resolveGarmentMetadata(activeProduct);
   const effectivePrice =
@@ -318,7 +355,7 @@ export default function VirtualTryOnModal({
         cameraInputRef.current.click();
         return;
       }
-      setCameraError('এই ব্রাউজারে ক্যামেরা সাপোর্টেড নয়। অনুগ্রহ করে ছবি আপলোড করুন।');
+      setCameraError('Camera is not supported on this browser. Please upload a photo instead.');
       return;
     }
 
@@ -358,10 +395,10 @@ export default function VirtualTryOnModal({
       const isDeviceBusy = err.name === 'NotReadableError' || err.name === 'TrackStartError';
       setCameraError(
         isDenied
-          ? 'ব্রাউজারে ওয়েবক্যাম পারমিশন দেওয়া নেই। নিচের বাটন দিয়ে সরাসরি ক্যামেরা অথবা গ্যালারি থেকে ছবি নিন।'
+          ? 'Browser camera permission denied. Please allow camera or upload a photo directly.'
           : isDeviceBusy
-          ? 'ক্যামেরাটি অন্য মেনুতে চালু রয়েছে। অনুগ্রহ করে ছবি আপলোড করুন।'
-          : 'ক্যামেরা চালু করা সম্ভব হয়নি: ' + (err.message || 'অনুগ্রহ করে ছবি আপলোড করুন')
+          ? 'Camera is being used by another application. Please upload a photo instead.'
+          : 'Unable to access camera: ' + (err.message || 'Please upload a photo instead.')
       );
       setIsCameraActive(false);
     }
@@ -413,13 +450,13 @@ export default function VirtualTryOnModal({
       file.type === '';
 
     if (!isImage) {
-      alert('অনুগ্রহ করে একটি ছবির ফাইল নির্বাচন করুন (JPG, PNG, WebP বা Selfie)।');
+      alert('Please select a valid image file (JPG, PNG, WebP or selfie photo).');
       return;
     }
 
     // Validation: Size (Max 25MB)
     if (file.size > 25 * 1024 * 1024) {
-      alert('ছবির আকার সর্বোচ্চ ২৫MB হতে পারবে।');
+      alert('Image file size must be under 25MB.');
       return;
     }
 
@@ -466,7 +503,7 @@ export default function VirtualTryOnModal({
     setIsGenerating(true);
     setGenerationError(null);
     setProgressPercent(15);
-    setStepDescription('📸 বডি পোজ ও মাপজোখ স্ক্যান করা হচ্ছে... (Body Pose Scan)');
+    setStepDescription('📸 Scanning body pose and posture...');
     setAfterImageUrl(null);
     setIsAfterImageLoaded(false);
     setAfterImageError(false);
@@ -475,16 +512,16 @@ export default function VirtualTryOnModal({
     const ticker = setInterval(() => {
       setProgressPercent((prev) => {
         if (prev < 35) {
-          setStepDescription('📸 বডি পোজ ও স্কিনটোন অ্যানালাইসিস... (Body Pose Analysis)');
+          setStepDescription('📸 Analyzing body contours & proportions...');
           return prev + 4;
         } else if (prev < 60) {
-          setStepDescription('✂️ অরিজিনাল পোশাক সেগমেন্টেশন ও ৩ডি ম্যাপিং... (Garment Segmentation)');
+          setStepDescription('✂️ Segmenting original garment & 3D body mapping...');
           return prev + 3;
         } else if (prev < 80) {
-          setStepDescription(`👗 ${activeProduct.name} ফেব্রিক নিউরাল ড্র্যাপিং... (Neural Fabric Draping)`);
+          setStepDescription(`👗 Fitting ${activeProduct.name} onto body contours...`);
           return prev + 2;
         } else if (prev < 93) {
-          setStepDescription('✨ ন্যাচারাল লাইটিং, শ্যাডো ও ফিটিং এডজাস্টমেন্ট... (Lighting Synthesis)');
+          setStepDescription('✨ Synthesizing lighting, realistic wrinkles & shadows...');
           return prev + 1;
         }
         return prev;
@@ -712,7 +749,7 @@ export default function VirtualTryOnModal({
           <div className="bg-slate-100 dark:bg-slate-950 px-4 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-2">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-black uppercase text-slate-700 dark:text-slate-300">
-                একই ছবি দিয়ে অন্য পোশাক ট্রাই করুন (Select Product):
+                Try on other products with your photo:
               </span>
               <button
                 onClick={() => setIsChangingProduct(false)}
@@ -729,9 +766,8 @@ export default function VirtualTryOnModal({
                   <button
                     key={p.id}
                     onClick={() => {
-                      setActiveProduct(p);
+                      handleSelectProduct(p);
                       setIsChangingProduct(false);
-                      setAfterImageUrl(null);
                     }}
                     className={`flex items-center gap-2 p-1.5 pr-3 rounded-xl border text-left shrink-0 transition ${
                       activeProduct.id === p.id
@@ -748,7 +784,7 @@ export default function VirtualTryOnModal({
                       <p className="font-bold truncate max-w-[110px] text-slate-800 dark:text-slate-200">
                         {p.name}
                       </p>
-                      <p className="text-slate-500 font-semibold">৳{p.discountPrice || p.price}</p>
+                      <p className="text-slate-500 font-semibold">৳{(p.discountPrice || p.price).toLocaleString()}</p>
                     </div>
                   </button>
                 ))}
@@ -759,8 +795,8 @@ export default function VirtualTryOnModal({
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT COLUMN: Visual Preview Viewport */}
-          <div className="lg:col-span-7 flex flex-col items-center">
-            {/* Viewport Card */}
+          <div className="lg:col-span-6 flex flex-col items-center">
+            {/* Viewport Card: Standard 2:3 vertical fashion portrait frame with zero horizontal sidebars */}
             <div
               ref={sliderContainerRef}
               onMouseMove={handleMouseMove}
@@ -768,7 +804,7 @@ export default function VirtualTryOnModal({
               onMouseLeave={() => setIsDraggingSlider(false)}
               onTouchMove={handleTouchMove}
               onTouchEnd={() => setIsDraggingSlider(false)}
-              className="relative w-full aspect-[3/4] max-h-[500px] bg-slate-950 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center select-none"
+              className="relative w-full max-w-[360px] aspect-[2/3] max-h-[530px] bg-slate-950 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center select-none mx-auto border border-slate-800"
             >
               {/* STATE 1: Camera Active */}
               {isCameraActive ? (
@@ -793,7 +829,7 @@ export default function VirtualTryOnModal({
                       className="px-6 py-2.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl hover:scale-105 active:scale-95 transition"
                     >
                       <Camera className="w-4 h-4" />
-                      ছবি তুলুন (Capture)
+                      Take Photo
                     </button>
                     <button
                       onClick={stopCamera}
@@ -860,7 +896,7 @@ export default function VirtualTryOnModal({
 
                     <div className="mt-5 flex items-center gap-2 text-[11px] text-slate-300 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>চেহারা ও শরীরের গঠন ১০০% ন্যাচারাল থাকবে</span>
+                      <span>Body anatomy & face contours 100% preserved</span>
                     </div>
                   </div>
                 </div>
@@ -876,8 +912,8 @@ export default function VirtualTryOnModal({
                           <Sparkles className="w-6 h-6 animate-pulse text-cyan-200" />
                         </div>
                       </div>
-                      <p className="text-sm font-bold text-white mb-1">এইচডি রেন্ডার ইমেজ লোড হচ্ছে...</p>
-                      <p className="text-xs text-cyan-300/80">কিছুক্ষণের মধ্যেই ফলাফল দেখতে পাবেন</p>
+                      <p className="text-sm font-bold text-white mb-1">Rendering HD Fitting Result...</p>
+                      <p className="text-xs text-cyan-300/80">Your realistic try-on will display in moments</p>
                     </div>
                   )}
 
@@ -885,9 +921,9 @@ export default function VirtualTryOnModal({
                   {afterImageError && (
                     <div className="absolute inset-0 z-20 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white">
                       <AlertCircle className="w-12 h-12 text-rose-500 mb-3" />
-                      <h4 className="text-base font-bold text-white mb-1">ছবি লোড হতে সাময়িক সমস্যা হয়েছে</h4>
+                      <h4 className="text-base font-bold text-white mb-1">Image Preview Issue</h4>
                       <p className="text-xs text-slate-300 mb-4 max-w-xs">
-                        মোবাইল নেটওয়ার্কের কারণে ছবিটি লোড হয়নি। নিচের বাটনে চাপ দিয়ে পুনরায় ট্রাই করুন।
+                        Unable to load the rendered preview image over the connection. Please click retry.
                       </p>
                       <button
                         onClick={() => {
@@ -898,7 +934,7 @@ export default function VirtualTryOnModal({
                         className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
-                        <span>পুনরায় চেষ্টা করুন</span>
+                        <span>Retry Fitting</span>
                       </button>
                     </div>
                   )}
@@ -945,12 +981,12 @@ export default function VirtualTryOnModal({
                           }`}
                         />
                         <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider border border-white/20">
-                          BEFORE (আগে)
+                          BEFORE (ORIGINAL)
                         </span>
                       </div>
 
                       <span className="absolute top-3 right-3 bg-gradient-to-r from-cyan-600 to-blue-600 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg shadow-cyan-600/30 border border-cyan-400/30 pointer-events-none">
-                        AFTER (AI ফিটেড)
+                        AFTER (AI FITTED)
                       </span>
 
                       {/* Draggable Divider Line & Glowing Handle */}
@@ -989,7 +1025,7 @@ export default function VirtualTryOnModal({
                         } ${isAfterImageLoaded ? 'opacity-100' : 'opacity-0'}`}
                       />
                       <span className="absolute top-3 right-3 z-20 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg">
-                        AFTER (AI ফিটেড)
+                        AFTER (AI FITTED)
                       </span>
                     </div>
                   ) : (
@@ -1008,7 +1044,7 @@ export default function VirtualTryOnModal({
                         }`}
                       />
                       <span className="absolute top-3 left-3 z-20 bg-black/80 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow border border-white/10">
-                        BEFORE (অরিজিনাল)
+                        BEFORE (ORIGINAL)
                       </span>
                     </div>
                   )}
@@ -1022,7 +1058,7 @@ export default function VirtualTryOnModal({
                     alt="Ambient background"
                     className="absolute inset-0 w-full h-full object-cover opacity-20 filter blur-xl scale-110 pointer-events-none"
                   />
-                  {/* Main customer photo - object-contain ensures full face and body is 100% visible! */}
+                  {/* Main customer photo - object-cover with object-top prevents cut-off head & removes dark sidebars */}
                   <img
                     src={activePhotoUrl}
                     alt="Customer photo"
@@ -1033,22 +1069,22 @@ export default function VirtualTryOnModal({
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none z-10" />
 
                   {/* Corner Garment Pill Preview */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white z-20">
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-white z-20">
                     <div className="flex items-center gap-2">
                       <img
                         src={garmentImage}
                         alt="Garment Preview"
-                        className="w-10 h-10 rounded-lg object-cover bg-white"
+                        className="w-10 h-10 rounded-lg object-cover bg-white shrink-0"
                       />
-                      <div className="text-left text-xs">
-                        <p className="font-bold truncate max-w-[160px]">{activeProduct.name}</p>
-                        <p className="text-amber-300 font-semibold text-[11px]">
-                          {selectedSize} • {selectedColor}
+                      <div className="text-left text-xs min-w-0">
+                        <p className="font-bold truncate max-w-[150px]">{activeProduct.name}</p>
+                        <p className="text-cyan-300 font-semibold text-[11px]">
+                          Size {selectedSize} • {selectedColor}
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-300 uppercase px-2 py-1 rounded bg-white/10">
-                      {garmentType}
+                    <span className="text-[10px] font-bold text-slate-300 uppercase px-2 py-1 rounded bg-white/10 shrink-0">
+                      {category}
                     </span>
                   </div>
 
@@ -1060,17 +1096,17 @@ export default function VirtualTryOnModal({
                       setImageFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
                     }}
                     className="absolute top-3 right-3 z-30 px-2.5 py-1 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md transition active:scale-95"
-                    title={imageFitMode === 'contain' ? 'ফুল স্ক্রিন (Fill)' : 'সম্পূর্ণ ছবি ফিট (Fit)'}
+                    title={imageFitMode === 'contain' ? 'Switch to Full Cover' : 'Switch to Fit Image'}
                   >
                     {imageFitMode === 'contain' ? (
                       <>
                         <Maximize2 className="w-3 h-3 text-cyan-300" />
-                        <span>ফিট (Fit)</span>
+                        <span>Fit View</span>
                       </>
                     ) : (
                       <>
                         <Minimize2 className="w-3 h-3 text-amber-300" />
-                        <span>ফুল ফ্রেম (Fill)</span>
+                        <span>Cover View</span>
                       </>
                     )}
                   </button>
@@ -1079,41 +1115,41 @@ export default function VirtualTryOnModal({
             </div>
 
             {/* Controls Below Viewport: View Mode Switcher + Fit Mode Toggle */}
-            <div className="flex flex-wrap items-center justify-between w-full mt-3 gap-2">
+            <div className="flex flex-wrap items-center justify-between w-full max-w-[360px] mt-3 gap-2">
               {afterImageUrl && (
                 <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
                   <button
                     onClick={() => setViewMode('split')}
-                    className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
+                    className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
                       viewMode === 'split'
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <Split className="w-3.5 h-3.5" />
-                    <span>🔀 স্প্লিট স্লাইডার</span>
+                    <span>Split View</span>
                   </button>
                   <button
                     onClick={() => setViewMode('after')}
-                    className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
+                    className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
                       viewMode === 'after'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>✨ নতুন লুক (After)</span>
+                    <span>After</span>
                   </button>
                   <button
                     onClick={() => setViewMode('before')}
-                    className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
+                    className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
                       viewMode === 'before'
                         ? 'bg-slate-800 text-white shadow-md'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <User className="w-3.5 h-3.5" />
-                    <span>👤 আগের ছবি (Before)</span>
+                    <span>Before</span>
                   </button>
                 </div>
               )}
@@ -1126,29 +1162,85 @@ export default function VirtualTryOnModal({
                 {imageFitMode === 'contain' ? (
                   <>
                     <Maximize2 className="w-3.5 h-3.5 text-cyan-500" />
-                    <span>সম্পূর্ণ ছবি (Fit)</span>
+                    <span>Fit</span>
                   </>
                 ) : (
                   <>
                     <Minimize2 className="w-3.5 h-3.5 text-amber-500" />
-                    <span>ফুল ফ্রেম (Fill)</span>
+                    <span>Fill Frame</span>
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Controls, Upload/Camera, Options & Actions */}
-          <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
-            {/* Top Section: Photo Selection / Upload Tabs */}
+          {/* RIGHT COLUMN: Controls, Garment Selection, Photo Source & Actions */}
+          <div className="lg:col-span-6 flex flex-col justify-between space-y-4">
             <div className="space-y-4">
+              {/* SECTION 1: 4 Selectable Garments Grid */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
+                    1. Select Garment to Try On ({selectableProducts.length} Styles):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsChangingProduct(!isChangingProduct)}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition"
+                  >
+                    {isChangingProduct ? 'Hide All' : 'Browse All'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {selectableProducts.map((p) => {
+                    const isSelected = activeProduct.id === p.id;
+                    const price = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleSelectProduct(p)}
+                        className={`relative p-2 rounded-xl border text-left flex flex-col items-center gap-1.5 transition-all group ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/50 ring-2 ring-blue-500/40 shadow-sm'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+                          <img
+                            src={p.thumbnail || p.images[0]}
+                            alt={p.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          {isSelected && (
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shadow">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="w-full text-center">
+                          <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {p.name}
+                          </p>
+                          <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                            ৳{price.toLocaleString()}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* SECTION 2: Customer Photo Selection (Live Camera or Gallery Upload) */}
               <div>
                 <span className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider flex items-center gap-1.5 mb-2">
                   <User className="w-3.5 h-3.5 text-blue-600" />
-                  ১. আপনার ছবি দিন (Customer Photo):
+                  2. Provide Customer Photo:
                 </span>
 
-                {/* Option 1: Live Camera + Option 2: Upload Photo */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
@@ -1158,8 +1250,8 @@ export default function VirtualTryOnModal({
                     <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-110 transition-transform">
                       <Camera className="w-5 h-5" />
                     </div>
-                    <span className="font-bold">ক্যামেরা দিয়ে তুলুন</span>
-                    <span className="text-[10px] text-blue-500 dark:text-blue-400 font-medium">সেলফি বা ফুল বডি</span>
+                    <span className="font-bold">Take Live Photo</span>
+                    <span className="text-[10px] text-blue-500 dark:text-blue-400 font-medium">Selfie or Full Body</span>
                   </button>
 
                   <button
@@ -1170,8 +1262,8 @@ export default function VirtualTryOnModal({
                     <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                       <Upload className="w-5 h-5" />
                     </div>
-                    <span className="font-bold">গ্যালারি আপলোড</span>
-                    <span className="text-[10px] text-slate-500 font-medium">যেকোনো ছবি বেছে নিন</span>
+                    <span className="font-bold">Upload Photo</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Select from Device</span>
                   </button>
 
                   <input
@@ -1204,7 +1296,7 @@ export default function VirtualTryOnModal({
                           className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"
                         >
                           <Camera className="w-3.5 h-3.5" />
-                          <span>📸 সরাসরি ক্যামেরা খুলুন</span>
+                          <span>📸 Open Camera Directly</span>
                         </button>
                         <button
                           type="button"
@@ -1212,7 +1304,7 @@ export default function VirtualTryOnModal({
                           className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-sm hover:bg-blue-700 transition flex items-center gap-1.5"
                         >
                           <Upload className="w-3.5 h-3.5" />
-                          <span>🖼️ গ্যালারি থেকে ছবি নিন</span>
+                          <span>🖼️ Select from Gallery</span>
                         </button>
                       </div>
                     </div>
@@ -1220,10 +1312,10 @@ export default function VirtualTryOnModal({
                 )}
               </div>
 
-              {/* Quick Model Selector for Instant Testing */}
+              {/* SECTION 3: Quick Preset Model Selector */}
               <div>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  অথবা দ্রুত টেস্ট করতে ডেমো মডেল বেছে নিন:
+                  3. Or Test Instantly with Preset Models:
                 </span>
                 <div className="grid grid-cols-4 gap-2">
                   {PRESET_MODELS.map((model) => (
@@ -1244,18 +1336,18 @@ export default function VirtualTryOnModal({
                     >
                       <img src={model.url} alt={model.name} className="w-full h-full object-cover" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent text-[9px] font-bold text-white text-center pt-2 pb-1 truncate px-1">
-                        {model.gender === 'men' ? 'পুরুষ' : 'নারী'}
+                        {model.gender === 'men' ? 'Male' : 'Female'}
                       </div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Garment Variant Selection (Size & Color) */}
+              {/* SECTION 4: Size Selection */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
-                    সাইজ নির্বাচন করুন:
+                    4. Select Size:
                   </span>
                   <span className="text-xs font-mono font-bold text-blue-600">{selectedSize}</span>
                 </div>
@@ -1276,15 +1368,15 @@ export default function VirtualTryOnModal({
                 </div>
               </div>
 
-              {/* Photo Guidelines Checklist */}
+              {/* SECTION 5: Photo Guidelines */}
               <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-blue-50/50 dark:bg-blue-950/20 p-3 rounded-xl border border-blue-100 dark:border-blue-900/30 space-y-1">
                 <div className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <CheckCheck className="w-3.5 h-3.5 text-blue-600" />
-                  <span>ফটোর শর্তাবলী (Photo Guidelines):</span>
+                  <span>Photo Guidelines:</span>
                 </div>
-                <p>✓ এক ব্যক্তি • পর্যাপ্ত আলো • স্পষ্ট শরীর ও মুখমণ্ডল • স্বাভাবিক পোজ</p>
+                <p>✓ Single person • Good lighting • Clear body & face • Natural posture</p>
                 <p className="text-[10px] text-slate-400">
-                  Note: AI আপনার পুরনো পোশাকটিকে বাদ দিয়ে নিখুঁতভাবে এই পোশাকটি শরীরে বসাবে।
+                  Note: AI accurately removes the previous clothing and fits this garment naturally onto your body contours.
                 </p>
               </div>
 
@@ -1320,7 +1412,7 @@ export default function VirtualTryOnModal({
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform text-amber-300" />
-                      <span>✨ পোশাকটি পরে দেখুন (Fit Garment Now)</span>
+                      <span>✨ Try On Garment Now</span>
                     </>
                   )}
                 </button>

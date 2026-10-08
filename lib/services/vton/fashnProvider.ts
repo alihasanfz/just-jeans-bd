@@ -35,15 +35,19 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
     const apiKey = this.getApiKey();
     if (!apiKey) {
       throw new Error(
-        'Fashn.ai API Key কনফিগার করা হয়নি। অনুগ্রহ করে Vercel Settings > Environment Variables-এ FASHN_API_KEY যোগ করুন।'
+        'Fashn.ai API Key is not configured. Please add FASHN_API_KEY in your environment variables.'
       );
     }
 
     const apiUrl = process.env.FASHN_API_URL || 'https://api.fashn.ai/v1/run';
     const category =
-      request.garmentType === 'jeans' || request.garmentType === 'pants'
+      request.category === 'bottoms' ||
+      request.garmentType === 'jeans' ||
+      request.garmentType === 'pants' ||
+      (request.garmentType as string) === 'shorts' ||
+      (request.garmentType as string) === 'skirt'
         ? 'bottoms'
-        : request.garmentType === 'dress'
+        : request.category === 'one-pieces' || request.garmentType === 'dress'
         ? 'one-pieces'
         : 'tops';
 
@@ -78,7 +82,7 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
 
       if (res.status === 401) {
         throw new Error(
-          'Fashn.ai API Key অননুমোদিত (401 Unauthorized: Invalid token)। অনুগ্রহ করে Vercel Environment Variables-এ আপনার সঠিক FASHN_API_KEY দিন।'
+          'Fashn.ai API Key unauthorized (401: Invalid token). Please check your FASHN_API_KEY environment variable.'
         );
       }
 

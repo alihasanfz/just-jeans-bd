@@ -16,8 +16,11 @@ export interface TryOnJobRequest {
     | 'hoodie'
     | 'blazer'
     | 'dress'
+    | 'shorts'
+    | 'skirt'
     | 'jeans'
-    | 'pants';
+    | 'pants'
+    | (string & {});
   category: 'tops' | 'bottoms' | 'one-pieces';
   productName?: string;
   size?: string;
