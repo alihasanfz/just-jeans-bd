@@ -229,32 +229,67 @@ export default function VirtualTryOnModal({
   // Image compressor: Scales down large mobile photos to ~1024px JPEG under 1.5MB
   const compressImage = async (dataUrl: string): Promise<string> => {
     return new Promise((resolve) => {
+      if (!dataUrl || dataUrl.startsWith('http')) {
+        return resolve(dataUrl);
+      }
+
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      // Only set crossOrigin on remote HTTP images, NEVER on data: URIs
+      if (!dataUrl.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
+
       img.onload = () => {
-        const maxDim = 1024;
-        let w = img.naturalWidth || img.width;
-        let h = img.naturalHeight || img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
+        try {
+          const maxDim = 1024;
+          let w = img.naturalWidth || img.width || 800;
+          let h = img.naturalHeight || img.height || 1000;
+
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
           }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(dataUrl);
+
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } catch (e) {
+          console.warn('Canvas compress error:', e);
+          resolve(dataUrl);
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return resolve(dataUrl);
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.88));
       };
-      img.onerror = () => resolve(dataUrl);
+
+      img.onerror = () => {
+        console.warn('Image load error during compression');
+        resolve(dataUrl);
+      };
+
       img.src = dataUrl;
     });
+  };
+
+  // Smart camera launcher: Opens native camera on smartphones, WebRTC on desktops
+  const handleCameraClick = () => {
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile && cameraInputRef.current) {
+      cameraInputRef.current.click();
+      return;
+    }
+
+    startCamera('user');
   };
 
   // Launch Camera with permission handling & fallback
@@ -344,20 +379,28 @@ export default function VirtualTryOnModal({
     setAfterImageUrl(null);
   };
 
-  // Handle Gallery Photo Upload
+  // Handle Photo Upload (from Camera or Gallery)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validation: Type
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type.toLowerCase())) {
-      alert('অনুগ্রহ করে JPG, PNG বা WebP ফরম্যাটের ছবি আপলোড করুন।');
+    // Reset input value so same file can be selected again
+    e.target.value = '';
+
+    // Universal image validation (supports mobile camera captures, HEIC, JPEG, PNG, WebP)
+    const isImage =
+      file.type.startsWith('image/') ||
+      /\.(jpe?g|png|webp|heic|heif|jfif|bmp|gif)$/i.test(file.name) ||
+      file.type === '';
+
+    if (!isImage) {
+      alert('অনুগ্রহ করে একটি ছবির ফাইল নির্বাচন করুন (JPG, PNG, WebP বা Selfie)।');
       return;
     }
 
-    // Validation: Size (Max 12MB)
-    if (file.size > 12 * 1024 * 1024) {
-      alert('ছবির আকার সর্বোচ্চ ১২MB হতে পারবে।');
+    // Validation: Size (Max 25MB)
+    if (file.size > 25 * 1024 * 1024) {
+      alert('ছবির আকার সর্বোচ্চ ২৫MB হতে পারবে।');
       return;
     }
 
@@ -371,6 +414,7 @@ export default function VirtualTryOnModal({
         setBeforeImageUrl(compressed);
         setAfterImageUrl(null);
         setPhotoSourceType('upload');
+        setCameraError(null);
       }
     };
     reader.readAsDataURL(file);
@@ -899,7 +943,7 @@ export default function VirtualTryOnModal({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => startCamera('user')}
+                    onClick={handleCameraClick}
                     className="p-3 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition active:scale-95"
                   >
                     <Camera className="w-5 h-5 text-blue-600" />
@@ -918,7 +962,7 @@ export default function VirtualTryOnModal({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/*"
                     onChange={handlePhotoUpload}
                     className="hidden"
                   />
