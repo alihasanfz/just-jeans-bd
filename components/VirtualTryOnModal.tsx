@@ -27,6 +27,8 @@ import {
   Share2,
   Image as ImageIcon,
   CheckCheck,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { Product } from '@/types';
 import { useCart } from '@/lib/store/cartContext';
@@ -137,6 +139,7 @@ export default function VirtualTryOnModal({
   const [viewMode, setViewMode] = useState<'split' | 'after' | 'before'>('split');
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [isDraggingSlider, setIsDraggingSlider] = useState<boolean>(false);
+  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
   const sliderContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Helper to ensure result image is never blocked by ISP or CORS
@@ -905,6 +908,13 @@ export default function VirtualTryOnModal({
                       className="relative w-full h-full overflow-hidden"
                       onClick={(e) => handleSliderMove(e.clientX)}
                     >
+                      {/* Background Ambient Glow */}
+                      <img
+                        src={afterImageUrl || beforeImageUrl}
+                        alt="Background glow"
+                        className="absolute inset-0 w-full h-full object-cover opacity-25 filter blur-xl scale-110 pointer-events-none"
+                      />
+
                       {/* After Image (Full background) */}
                       <img
                         src={afterImageUrl}
@@ -917,9 +927,9 @@ export default function VirtualTryOnModal({
                             setAfterImageError(true);
                           }
                         }}
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                          isAfterImageLoaded ? 'opacity-100' : 'opacity-0'
-                        }`}
+                        className={`absolute inset-0 w-full h-full transition-all duration-300 ${
+                          imageFitMode === 'contain' ? 'object-contain' : 'object-cover object-top'
+                        } ${isAfterImageLoaded ? 'opacity-100' : 'opacity-0'}`}
                       />
 
                       {/* Before Image (Clipped with CSS clipPath - never stretches or breaks!) */}
@@ -930,7 +940,9 @@ export default function VirtualTryOnModal({
                         <img
                           src={beforeImageUrl}
                           alt="Before"
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full transition-all duration-300 ${
+                            imageFitMode === 'contain' ? 'object-contain' : 'object-cover object-top'
+                          }`}
                         />
                         <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider border border-white/20">
                           BEFORE (আগে)
@@ -960,45 +972,68 @@ export default function VirtualTryOnModal({
                       </div>
                     </div>
                   ) : viewMode === 'after' ? (
-                    <div className="relative w-full h-full">
+                    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                      {/* Background Ambient Glow */}
+                      <img
+                        src={afterImageUrl}
+                        alt="Background glow"
+                        className="absolute inset-0 w-full h-full object-cover opacity-25 filter blur-xl scale-110 pointer-events-none"
+                      />
                       <img
                         src={afterImageUrl}
                         alt="Virtual Try-On Result"
                         onLoad={() => setIsAfterImageLoaded(true)}
                         onError={() => setAfterImageError(true)}
-                        className={`w-full h-full object-cover transition-opacity duration-300 ${
-                          isAfterImageLoaded ? 'opacity-100' : 'opacity-0'
-                        }`}
+                        className={`relative z-10 w-full h-full transition-all duration-300 ${
+                          imageFitMode === 'contain' ? 'object-contain' : 'object-cover object-top'
+                        } ${isAfterImageLoaded ? 'opacity-100' : 'opacity-0'}`}
                       />
-                      <span className="absolute top-3 right-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg">
+                      <span className="absolute top-3 right-3 z-20 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg">
                         AFTER (AI ফিটেড)
                       </span>
                     </div>
                   ) : (
-                    <div className="relative w-full h-full">
+                    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                      {/* Background Ambient Glow */}
+                      <img
+                        src={beforeImageUrl}
+                        alt="Background glow"
+                        className="absolute inset-0 w-full h-full object-cover opacity-25 filter blur-xl scale-110 pointer-events-none"
+                      />
                       <img
                         src={beforeImageUrl}
                         alt="Original"
-                        className="w-full h-full object-cover"
+                        className={`relative z-10 w-full h-full transition-all duration-300 ${
+                          imageFitMode === 'contain' ? 'object-contain' : 'object-cover object-top'
+                        }`}
                       />
-                      <span className="absolute top-3 left-3 bg-black/80 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow border border-white/10">
+                      <span className="absolute top-3 left-3 z-20 bg-black/80 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow border border-white/10">
                         BEFORE (অরিজিনাল)
                       </span>
                     </div>
                   )}
                 </div>
               ) : (
-                /* STATE 4: Ready to Try On (Before Image View) */
-                <div className="relative w-full h-full flex items-center justify-center bg-slate-900">
+                /* STATE 4: Ready to Try On (Before Image View) - No Zoom/Full Visibility */
+                <div className="relative w-full h-full flex items-center justify-center bg-slate-950 overflow-hidden">
+                  {/* Ambient background glow to fill borders gracefully */}
+                  <img
+                    src={activePhotoUrl}
+                    alt="Ambient background"
+                    className="absolute inset-0 w-full h-full object-cover opacity-20 filter blur-xl scale-110 pointer-events-none"
+                  />
+                  {/* Main customer photo - object-contain ensures full face and body is 100% visible! */}
                   <img
                     src={activePhotoUrl}
                     alt="Customer photo"
-                    className="w-full h-full object-cover"
+                    className={`relative z-10 w-full h-full transition-all duration-300 ${
+                      imageFitMode === 'contain' ? 'object-contain' : 'object-cover object-top'
+                    }`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none z-10" />
 
                   {/* Corner Garment Pill Preview */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white">
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white z-20">
                     <div className="flex items-center gap-2">
                       <img
                         src={garmentImage}
@@ -1016,48 +1051,91 @@ export default function VirtualTryOnModal({
                       {garmentType}
                     </span>
                   </div>
+
+                  {/* Quick Fit/Fill Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setImageFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
+                    }}
+                    className="absolute top-3 right-3 z-30 px-2.5 py-1 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md transition active:scale-95"
+                    title={imageFitMode === 'contain' ? 'ফুল স্ক্রিন (Fill)' : 'সম্পূর্ণ ছবি ফিট (Fit)'}
+                  >
+                    {imageFitMode === 'contain' ? (
+                      <>
+                        <Maximize2 className="w-3 h-3 text-cyan-300" />
+                        <span>ফিট (Fit)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Minimize2 className="w-3 h-3 text-amber-300" />
+                        <span>ফুল ফ্রেম (Fill)</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* View Mode Switcher (When Result is available) */}
-            {afterImageUrl && (
-              <div className="flex items-center gap-1.5 mt-3 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-                <button
-                  onClick={() => setViewMode('split')}
-                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
-                    viewMode === 'split'
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Split className="w-3.5 h-3.5" />
-                  <span>🔀 স্প্লিট স্লাইডার</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('after')}
-                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
-                    viewMode === 'after'
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>✨ নতুন লুক (After)</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('before')}
-                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
-                    viewMode === 'before'
-                      ? 'bg-slate-800 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>👤 আগের ছবি (Before)</span>
-                </button>
-              </div>
-            )}
+            {/* Controls Below Viewport: View Mode Switcher + Fit Mode Toggle */}
+            <div className="flex flex-wrap items-center justify-between w-full mt-3 gap-2">
+              {afterImageUrl && (
+                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <button
+                    onClick={() => setViewMode('split')}
+                    className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
+                      viewMode === 'split'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Split className="w-3.5 h-3.5" />
+                    <span>🔀 স্প্লিট স্লাইডার</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('after')}
+                    className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
+                      viewMode === 'after'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>✨ নতুন লুক (After)</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('before')}
+                    className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
+                      viewMode === 'before'
+                        ? 'bg-slate-800 text-white shadow-md'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>👤 আগের ছবি (Before)</span>
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setImageFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'))}
+                className="ml-auto text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition shadow-sm"
+              >
+                {imageFitMode === 'contain' ? (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5 text-cyan-500" />
+                    <span>সম্পূর্ণ ছবি (Fit)</span>
+                  </>
+                ) : (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>ফুল ফ্রেম (Fill)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* RIGHT COLUMN: Controls, Upload/Camera, Options & Actions */}
