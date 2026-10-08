@@ -383,6 +383,16 @@ export default function VirtualTryOnModal({
       const jobId = submitData.jobId;
       setActiveJobId(jobId);
       setProviderName(submitData.provider || 'AI Diffusion');
+
+      // Fast synchronous completion: If HF Diffusion finished within the submit request
+      if (submitData.status === 'completed' && submitData.resultImageUrl) {
+        setAfterImageUrl(submitData.resultImageUrl);
+        setJobStatus('completed');
+        setProgressPercent(100);
+        setViewMode('split');
+        return;
+      }
+
       setJobStatus('processing');
 
       // 2. Poll /api/virtual-try-on/jobs/[jobId] until completion
@@ -395,38 +405,44 @@ export default function VirtualTryOnModal({
         await new Promise((r) => setTimeout(r, pollIntervalMs));
         attempts++;
 
-        const statusRes = await fetch(`/api/virtual-try-on/jobs/${jobId}`);
-        if (!statusRes.ok) continue;
+        try {
+          const statusRes = await fetch(`/api/virtual-try-on/jobs/${jobId}`);
+          if (!statusRes.ok) continue;
 
-        const statusData = await statusRes.json();
+          const statusData = await statusRes.json();
 
-        if (statusData.stepDescription) {
-          setStepDescription(statusData.stepDescription);
-        }
-        if (statusData.progressPercent) {
-          setProgressPercent(statusData.progressPercent);
-        }
+          if (statusData.stepDescription) {
+            setStepDescription(statusData.stepDescription);
+          }
+          if (statusData.progressPercent) {
+            setProgressPercent(statusData.progressPercent);
+          }
 
-        if (statusData.status === 'completed' && statusData.resultImageUrl) {
-          setAfterImageUrl(statusData.resultImageUrl);
-          setJobStatus('completed');
-          setProgressPercent(100);
-          setViewMode('split');
-          completed = true;
-          break;
-        }
+          if (statusData.status === 'completed' && statusData.resultImageUrl) {
+            setAfterImageUrl(statusData.resultImageUrl);
+            setJobStatus('completed');
+            setProgressPercent(100);
+            setViewMode('split');
+            completed = true;
+            break;
+          }
 
-        if (statusData.status === 'failed') {
-          throw new Error(statusData.error || 'AI generation was unsuccessful.');
-        }
+          if (statusData.status === 'failed') {
+            throw new Error(statusData.error || 'AI generation was unsuccessful.');
+          }
 
-        if (statusData.status === 'expired') {
-          throw new Error('This try-on job session has expired.');
+          if (statusData.status === 'expired') {
+            throw new Error('This try-on job session has expired.');
+          }
+        } catch (pollErr: any) {
+          if (pollErr.message && !pollErr.message.includes('fetch')) {
+            throw pollErr;
+          }
         }
       }
 
       if (!completed) {
-        throw new Error('Try-on is taking longer than expected. Please retry.');
+        throw new Error('AI fitting is taking slightly longer. Please click again to check or retry.');
       }
     } catch (err: any) {
       console.error('Virtual Try-On error:', err);

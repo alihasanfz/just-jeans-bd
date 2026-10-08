@@ -140,78 +140,107 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
     const data = await res.json();
     const eventId = data.event_id || `hf-${Date.now()}`;
 
+    // Await fast GPU diffusion completion (averages 12-25 seconds)
+    const resultImageUrl = await this.waitForCompletion(spaceUrl, eventId, token, 38000);
+    if (resultImageUrl) {
+      return {
+        providerJobId: eventId,
+        status: 'completed',
+        resultImageUrl,
+      };
+    }
+
     return {
       providerJobId: eventId,
       status: 'processing',
     };
   }
 
+  private async waitForCompletion(
+    spaceUrl: string,
+    eventId: string,
+    token?: string,
+    timeoutMs = 38000
+  ): Promise<string | null> {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(`${spaceUrl}/call/tryon/${eventId}`, {
+        headers,
+        signal: controller.signal,
+      });
+
+      if (!res.ok || !res.body) return null;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        if (buffer.includes('event: complete')) {
+          const lines = buffer.split('\n');
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith('event: complete') && lines[i + 1]?.startsWith('data:')) {
+              const dataStr = lines[i + 1].replace(/^data:\s*/, '');
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (Array.isArray(parsed) && parsed[0]) {
+                  const out = parsed[0];
+                  let outUrl = out.url || out.path || '';
+                  if (outUrl && !outUrl.startsWith('http')) {
+                    outUrl = `${spaceUrl}/file=${outUrl}`;
+                  }
+                  if (outUrl) {
+                    clearTimeout(timer);
+                    return outUrl;
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        }
+
+        if (buffer.includes('event: error')) {
+          clearTimeout(timer);
+          return null;
+        }
+      }
+    } catch (_) {
+      // Aborted or timeout
+    } finally {
+      clearTimeout(timer);
+    }
+    return null;
+  }
+
   public async getTryOnJobStatus(providerJobId: string): Promise<VTOStatusResult> {
     const spaceUrl = process.env.HF_IDM_VTON_URL || 'https://yisol-idm-vton.hf.space';
     const token = this.getHfToken();
 
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
-      const res = await fetch(`${spaceUrl}/call/tryon/${providerJobId}`, {
-        headers,
-      });
-
-      if (!res.ok) {
+      // Check stream with 12s bounded wait
+      const resultImageUrl = await this.waitForCompletion(spaceUrl, providerJobId, token, 12000);
+      if (resultImageUrl) {
         return {
-          status: 'failed',
-          progressPercent: 0,
-          stepDescription: 'HF Space connection failed',
-          errorMessage: `HTTP ${res.status}`,
-        };
-      }
-
-      const streamText = await res.text();
-
-      // Check if complete in SSE stream
-      // Format: "event: complete\ndata: [ { "url": "https://..." } ]"
-      if (streamText.includes('event: complete')) {
-        const lines = streamText.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].startsWith('event: complete') && lines[i + 1]?.startsWith('data:')) {
-            const dataStr = lines[i + 1].replace(/^data:\s*/, '');
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (Array.isArray(parsed) && parsed[0]) {
-                const outputObj = parsed[0];
-                let outUrl = outputObj.url || outputObj.path || '';
-                if (outUrl && !outUrl.startsWith('http')) {
-                  outUrl = `${spaceUrl}/file=${outUrl}`;
-                }
-                if (outUrl) {
-                  return {
-                    status: 'completed',
-                    progressPercent: 100,
-                    stepDescription: 'IDM-VTON clothing replacement complete',
-                    resultImageUrl: outUrl,
-                  };
-                }
-              }
-            } catch (_) {}
-          }
-        }
-      }
-
-      if (streamText.includes('event: error')) {
-        return {
-          status: 'failed',
-          progressPercent: 0,
-          stepDescription: 'AI generation error',
-          errorMessage: 'IDM-VTON execution failed in space queue',
+          status: 'completed',
+          progressPercent: 100,
+          stepDescription: 'IDM-VTON clothing replacement complete',
+          resultImageUrl,
         };
       }
 
       return {
         status: 'processing',
-        progressPercent: 60,
+        progressPercent: 65,
         stepDescription: 'IDM-VTON diffusion model is fitting garment to body...',
       };
     } catch (err: any) {

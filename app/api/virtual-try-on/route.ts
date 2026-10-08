@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       jobId: result.jobId,
       status: result.status,
       provider: result.provider,
+      resultImageUrl: result.resultImageUrl,
       pollIntervalMs: 2000,
     });
   } catch (err: any) {

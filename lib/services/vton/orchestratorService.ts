@@ -27,7 +27,7 @@ export class VirtualTryOnOrchestrator {
     color?: string;
     userId?: string;
     productId?: string;
-  }): Promise<{ jobId: string; status: string; provider: string }> {
+  }): Promise<{ jobId: string; status: string; provider: string; resultImageUrl?: string }> {
     if (!params.humanImage || typeof params.humanImage !== 'string') {
       throw new Error('A valid customer photograph is required for Virtual Try-On.');
     }
@@ -135,10 +135,13 @@ export class VirtualTryOnOrchestrator {
       throw err;
     }
 
+    const finalJob = await this.repository.getJob(jobId);
+
     return {
       jobId,
-      status: 'queued',
+      status: finalJob?.status || 'queued',
       provider: activeProvider.name,
+      resultImageUrl: finalJob?.resultImageUrl,
     };
   }
 
