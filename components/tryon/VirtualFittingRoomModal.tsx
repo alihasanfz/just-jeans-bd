@@ -146,22 +146,31 @@ export default function VirtualFittingRoomModal({
     if (!isOpen) return;
 
     setCameraError(null);
-    setIsLoadingModel(true);
+    setIsLoadingModel(false);
     setTrackingStatus('initializing');
 
     try {
-      if (!trackerRef.current) {
-        trackerRef.current = new VirtualFittingPoseTracker();
-      }
-      await trackerRef.current.init();
-      setIsLoadingModel(false);
-
+      // 1. Immediately request camera stream FIRST so user gets live video without waiting
       if (videoRef.current) {
         const stream = await startCameraStream(videoRef.current, facingMode);
         streamRef.current = stream;
         setIsCameraActive(true);
         setTrackingStatus('searching');
       }
+
+      // 2. Initialize tracker in parallel (non-blocking)
+      if (!trackerRef.current) {
+        trackerRef.current = new VirtualFittingPoseTracker();
+      }
+      trackerRef.current
+        .init()
+        .then(() => {
+          setIsLoadingModel(false);
+        })
+        .catch((e) => {
+          console.warn('Tracker init notice:', e);
+          setIsLoadingModel(false);
+        });
     } catch (err: any) {
       console.error('Camera/Tracker init error:', err);
       setIsLoadingModel(false);
@@ -508,14 +517,28 @@ export default function VirtualFittingRoomModal({
                   💡 ভার্চুয়াল ফিটিং রুম ব্যবহারের জন্য ব্রাউজারের অ্যাড্রেস বার থেকে ক্যামেরার পারমিশন অ্যালাউ করুন।
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={initSession}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg transition active:scale-95"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Try Again (পুনরায় চেষ্টা করুন)</span>
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={initSession}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg transition active:scale-95"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Try Again (পুনরায় চেষ্টা করুন)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraError(null);
+                    setActiveMode('ai');
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 border border-slate-700 transition active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <span>Use Photo Instead (ছবি আপলোড করুন)</span>
+                </button>
+              </div>
             </div>
           )}
 

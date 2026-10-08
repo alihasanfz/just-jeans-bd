@@ -69,54 +69,114 @@ export const SIZE_FIT_FACTORS: Record<string, number> = {
 };
 
 /**
- * Request webcam stream with mobile-first options
+ * Request webcam stream with multi-level resilient fallbacks (mobile & desktop)
  */
 export async function startCameraStream(
   videoElement: HTMLVideoElement,
   facingMode: 'user' | 'environment' = 'user'
 ): Promise<MediaStream> {
-  if (!navigator?.mediaDevices?.getUserMedia) {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
     throw new Error('Your browser does not support camera access (WebRTC unavailable)');
   }
 
   // Ensure any existing streams on the video element are stopped first
   stopCameraStream(videoElement.srcObject as MediaStream);
 
-  const constraints: MediaStreamConstraints = {
-    audio: false,
-    video: {
-      facingMode: { ideal: facingMode },
-      width: { ideal: 1280, min: 640 },
-      height: { ideal: 720, min: 480 },
-      frameRate: { ideal: 30, min: 15 },
-    },
-  };
+  let stream: MediaStream | null = null;
+  let lastError: any = null;
 
+  // Level 1: Preferred resolution with ideal facing mode
   try {
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    videoElement.srcObject = stream;
-    videoElement.setAttribute('playsinline', 'true');
-    videoElement.setAttribute('muted', 'true');
-    videoElement.muted = true;
-
-    await new Promise<void>((resolve, reject) => {
-      videoElement.onloadedmetadata = () => {
-        videoElement.play().then(() => resolve()).catch(reject);
-      };
-      videoElement.onerror = () => reject(new Error('Failed to play video stream'));
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: facingMode },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
     });
+  } catch (err1: any) {
+    lastError = err1;
+    console.warn('Level 1 camera constraints failed, attempting Level 2:', err1);
 
-    return stream;
-  } catch (err: any) {
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      throw new Error('Camera access was denied. Please allow camera permissions in your browser address bar.');
-    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      throw new Error('No camera found on this device.');
-    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-      throw new Error('Camera is currently in use by another application.');
+    // Level 2: Simple facingMode string constraint (broad compatibility on Android & iOS)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode },
+      });
+    } catch (err2: any) {
+      lastError = err2;
+      console.warn('Level 2 camera constraints failed, attempting Level 3 bare minimum:', err2);
+
+      // Level 3: Bare minimum video: true (universal fallback for all webcams)
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      } catch (err3: any) {
+        lastError = err3;
+        console.error('All getUserMedia attempts failed:', err3);
+      }
     }
-    throw err;
   }
+
+  if (!stream) {
+    const errName = lastError?.name || '';
+    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+      throw new Error('Camera access was denied. Please allow camera permissions in your browser address bar.');
+    } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+      throw new Error('No camera hardware found on this device.');
+    } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+      throw new Error('Camera is currently in use by another app or tab.');
+    } else if (errName === 'OverconstrainedError') {
+      throw new Error('Camera hardware does not support requested parameters.');
+    }
+    throw new Error(lastError?.message || 'Unable to access camera on this device.');
+  }
+
+  // Configure video element attributes for immediate browser autoplay
+  videoElement.muted = true;
+  videoElement.defaultMuted = true;
+  videoElement.autoplay = true;
+  videoElement.playsInline = true;
+  videoElement.setAttribute('playsinline', 'true');
+  videoElement.setAttribute('webkit-playsinline', 'true');
+  videoElement.setAttribute('muted', 'true');
+
+  videoElement.srcObject = stream;
+
+  // Resilient video play promise: resolves immediately or upon loadeddata
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+
+    if (videoElement.readyState >= 2) {
+      videoElement.play().catch(() => {}).finally(done);
+      return;
+    }
+
+    videoElement.onloadeddata = () => {
+      videoElement.play().catch(() => {}).finally(done);
+    };
+
+    videoElement.onloadedmetadata = () => {
+      videoElement.play().catch(() => {}).finally(done);
+    };
+
+    // Safety timeout: resolve after 600ms so camera flow is never stuck
+    setTimeout(() => {
+      videoElement.play().catch(() => {}).finally(done);
+    }, 600);
+  });
+
+  return stream;
 }
 
 /**
@@ -224,11 +284,13 @@ export class VirtualFittingPoseTracker {
     if (typeof window === 'undefined') return Promise.resolve();
     if ((window as any).Pose) return Promise.resolve();
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const existing = document.getElementById('mediapipe-pose-script');
       if (existing) {
+        if ((window as any).Pose) return resolve();
         existing.addEventListener('load', () => resolve());
-        existing.addEventListener('error', () => reject(new Error('Failed to load MediaPipe Pose')));
+        existing.addEventListener('error', () => resolve());
+        setTimeout(resolve, 2500);
         return;
       }
 
@@ -237,8 +299,14 @@ export class VirtualFittingPoseTracker {
       script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js';
       script.crossOrigin = 'anonymous';
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error('MediaPipe script network error'));
+      script.onerror = () => {
+        console.warn('MediaPipe Pose script network error; using responsive optical estimator');
+        resolve();
+      };
       document.head.appendChild(script);
+
+      // 2500ms timeout: if CDN is slow or blocked, continue immediately with optical estimator
+      setTimeout(resolve, 2500);
     });
   }
 
