@@ -894,6 +894,63 @@ export async function generatePhotorealisticClothingReplacement(
   const shoulderSpanPixels = Math.hypot((ls.x - rs.x) * width, (ls.y - rs.y) * height);
   const torsoHeightPixels = Math.hypot((hipCenter.x - shoulderCenter.x) * width, (hipCenter.y - shoulderCenter.y) * height);
 
+  // Analyze original photo lighting (left vs right illumination)
+  let leftLuminance = 0.5;
+  let rightLuminance = 0.5;
+  try {
+    const leftSample = ctx.getImageData(Math.max(0, Math.floor(rs.x * width - 20)), Math.floor(rs.y * height), 10, 10).data;
+    const rightSample = ctx.getImageData(Math.min(width - 11, Math.floor(ls.x * width + 10)), Math.floor(ls.y * height), 10, 10).data;
+    let lSum = 0, rSum = 0;
+    for (let i = 0; i < leftSample.length; i += 4) {
+      lSum += (leftSample[i] * 0.299 + leftSample[i + 1] * 0.587 + leftSample[i + 2] * 0.114);
+      rSum += (rightSample[i] * 0.299 + rightSample[i + 1] * 0.587 + rightSample[i + 2] * 0.114);
+    }
+    leftLuminance = (lSum / (leftSample.length / 4)) / 255;
+    rightLuminance = (rSum / (rightSample.length / 4)) / 255;
+  } catch (e) {
+    // Canvas security/CORS fallback
+  }
+
+  // 5. Hand / Arm Occlusion Snapshot: capture any hands/arms located in front of the torso
+  const armOcclusionCanvas = document.createElement('canvas');
+  armOcclusionCanvas.width = width;
+  armOcclusionCanvas.height = height;
+  const armCtx = armOcclusionCanvas.getContext('2d');
+
+  const lw = landmarks[POSE_INDEXES.LEFT_WRIST];
+  const rw = landmarks[POSE_INDEXES.RIGHT_WRIST];
+  const le = landmarks[POSE_INDEXES.LEFT_ELBOW];
+  const re = landmarks[POSE_INDEXES.RIGHT_ELBOW];
+
+  const hasHandsInFront =
+    (rw.y > rs.y && rw.y < rh.y + 0.1 && rw.x > rs.x - 0.1 && rw.x < ls.x + 0.1) ||
+    (lw.y > ls.y && lw.y < lh.y + 0.1 && lw.x > rs.x - 0.1 && lw.x < ls.x + 0.1);
+
+  if (armCtx && hasHandsInFront) {
+    // Clip and preserve hand & forearm regions
+    armCtx.save();
+    armCtx.beginPath();
+    if (rw.y > rs.y && rw.y < rh.y + 0.1) {
+      const radius = Math.max(22, shoulderSpanPixels * 0.15);
+      armCtx.arc(rw.x * width, rw.y * height, radius, 0, Math.PI * 2);
+      if (re) {
+        armCtx.moveTo(re.x * width, re.y * height);
+        armCtx.arc(re.x * width, re.y * height, radius * 0.8, 0, Math.PI * 2);
+      }
+    }
+    if (lw.y > ls.y && lw.y < lh.y + 0.1) {
+      const radius = Math.max(22, shoulderSpanPixels * 0.15);
+      armCtx.arc(lw.x * width, lw.y * height, radius, 0, Math.PI * 2);
+      if (le) {
+        armCtx.moveTo(le.x * width, le.y * height);
+        armCtx.arc(le.x * width, le.y * height, radius * 0.8, 0, Math.PI * 2);
+      }
+    }
+    armCtx.clip();
+    armCtx.drawImage(userImage, 0, 0, width, height);
+    armCtx.restore();
+  }
+
   let anchorX = 0;
   let anchorY = 0;
   let targetWidth = 0;
@@ -911,6 +968,15 @@ export async function generatePhotorealisticClothingReplacement(
     targetHeight = mt?.heightPercent !== undefined
       ? mt.heightPercent * height * userScale
       : Math.max((height - anchorY) * 0.92, targetWidth * (aspect || 1.85));
+
+    // Existing Clothing Neutralization (Erases old pants/shorts before rendering new denim)
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.40)';
+    ctx.filter = 'blur(12px)';
+    ctx.beginPath();
+    ctx.ellipse(anchorX, anchorY + targetHeight * 0.4, targetWidth * 0.44, targetHeight * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     ctx.save();
     ctx.translate(anchorX, anchorY);
@@ -930,15 +996,18 @@ export async function generatePhotorealisticClothingReplacement(
       targetHeight
     );
 
-    // Natural Leg Crease & Perspective Shading
+    // Natural Leg Crease & Perspective Shading matched to environment lighting
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     const legShade = ctx.createLinearGradient(-targetWidth / 2, 0, targetWidth / 2, 0);
-    legShade.addColorStop(0, 'rgba(0,0,0,0.18)');
+    const leftShadowAlpha = rightLuminance > leftLuminance ? '0.24' : '0.14';
+    const rightShadowAlpha = leftLuminance > rightLuminance ? '0.24' : '0.14';
+
+    legShade.addColorStop(0, `rgba(0,0,0,${leftShadowAlpha})`);
     legShade.addColorStop(0.2, 'rgba(255,255,255,0.06)');
     legShade.addColorStop(0.5, 'rgba(0,0,0,0.12)');
     legShade.addColorStop(0.8, 'rgba(255,255,255,0.06)');
-    legShade.addColorStop(1, 'rgba(0,0,0,0.18)');
+    legShade.addColorStop(1, `rgba(0,0,0,${rightShadowAlpha})`);
     ctx.globalCompositeOperation = 'multiply';
     ctx.fillStyle = legShade;
     ctx.fillRect(-targetWidth / 2, 0, targetWidth, targetHeight);
@@ -966,16 +1035,26 @@ export async function generatePhotorealisticClothingReplacement(
       ? mt.heightPercent * height * userScale
       : Math.max(torsoHeightPixels * 1.32, targetWidth * (aspect || 0.95));
 
+    // 1. Existing Clothing Neutralization Mask:
+    // Blurs and neutralizes previous shirt collar, prints, and colors so no old t-shirt bleeds through
+    ctx.save();
+    ctx.fillStyle = 'rgba(20, 25, 35, 0.45)';
+    ctx.filter = 'blur(16px)';
+    ctx.beginPath();
+    ctx.ellipse(anchorX, anchorY + targetHeight * 0.45, targetWidth * 0.45, targetHeight * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     ctx.save();
     ctx.translate(anchorX, anchorY);
     ctx.rotate(tiltAngle);
 
-    // 1. Natural ambient drop-shadow onto background & body
+    // 2. Natural ambient drop-shadow onto background & body
     ctx.shadowColor = 'rgba(0, 0, 0, 0.38)';
     ctx.shadowBlur = 20;
     ctx.shadowOffsetY = 8;
 
-    // 2. Draw authentic denim outerwear starting at the collar line downwards
+    // 3. Draw authentic denim outerwear starting at the collar line downwards
     ctx.drawImage(
       garmentSource,
       -targetWidth / 2,
@@ -984,17 +1063,20 @@ export async function generatePhotorealisticClothingReplacement(
       targetHeight
     );
 
-    // 3. Anatomical Torso Drapery & Natural Fold Shading (Mimics real worn clothing)
+    // 4. Anatomical Torso Drapery & Natural Fold Shading (Mimics real worn clothing)
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // A. Bilateral torso lighting & flank shadow (creates 3D chest volume)
+    // A. Bilateral torso lighting & flank shadow matched to detected image lighting
     const torsoLighting = ctx.createLinearGradient(-targetWidth / 2, 0, targetWidth / 2, 0);
-    torsoLighting.addColorStop(0, 'rgba(0, 0, 0, 0.22)');
-    torsoLighting.addColorStop(0.18, 'rgba(255, 255, 255, 0.08)');
+    const leftEdgeAlpha = rightLuminance > leftLuminance ? '0.28' : '0.16';
+    const rightEdgeAlpha = leftLuminance > rightLuminance ? '0.28' : '0.16';
+
+    torsoLighting.addColorStop(0, `rgba(0, 0, 0, ${leftEdgeAlpha})`);
+    torsoLighting.addColorStop(0.18, 'rgba(255, 255, 255, 0.09)');
     torsoLighting.addColorStop(0.5, 'rgba(0, 0, 0, 0.04)');
-    torsoLighting.addColorStop(0.82, 'rgba(255, 255, 255, 0.08)');
-    torsoLighting.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
+    torsoLighting.addColorStop(0.82, 'rgba(255, 255, 255, 0.09)');
+    torsoLighting.addColorStop(1, `rgba(0, 0, 0, ${rightEdgeAlpha})`);
 
     ctx.globalCompositeOperation = 'multiply';
     ctx.fillStyle = torsoLighting;
@@ -1020,7 +1102,7 @@ export async function generatePhotorealisticClothingReplacement(
     }
     ctx.restore();
 
-    // 4. Collar Ambient Contact Shadow: seamlessly bonds customer's real neck/skin with the jacket collar
+    // 5. Collar Ambient Contact Shadow: seamlessly bonds customer's real neck/skin with the jacket collar
     const neckX = anchorX;
     const neckY = anchorY;
     const neckRadius = Math.max(26, shoulderSpanPixels * 0.26);
@@ -1037,6 +1119,11 @@ export async function generatePhotorealisticClothingReplacement(
     ctx.beginPath();
     ctx.arc(neckX, neckY + 8, neckRadius, 0, Math.PI);
     ctx.fill();
+  }
+
+  // 6. Forearm / Hand Re-layering: Ensure hands in front of torso remain naturally in front
+  if (hasHandsInFront && armCtx) {
+    ctx.drawImage(armOcclusionCanvas, 0, 0, width, height);
   }
 
   // 6. Premium Jeans BD Atelier Watermark Badge
