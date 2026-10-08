@@ -29,6 +29,7 @@ import {
   TryOnAggregatedMetrics,
 } from '@/lib/utils/tryonAnalytics';
 import VirtualFittingRoomModal from '@/components/tryon/VirtualFittingRoomModal';
+import VirtualTryOnModal from '@/components/VirtualTryOnModal';
 
 export default function AdminTryOnManagementPage() {
   const { products, updateProduct } = useProducts();
@@ -37,6 +38,7 @@ export default function AdminTryOnManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [testingProduct, setTestingProduct] = useState<Product | null>(null);
+  const [aiTestingProduct, setAiTestingProduct] = useState<Product | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,23 +116,33 @@ export default function AdminTryOnManagementPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {products[0] && (
-            <button
-              onClick={() => setTestingProduct(products[0])}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition active:scale-95 cursor-pointer"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Launch AR Studio Test</span>
-            </button>
+            <>
+              <button
+                onClick={() => setAiTestingProduct(products[0])}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Test AI Try-On (VTON)</span>
+              </button>
+
+              <button
+                onClick={() => setTestingProduct(products[0])}
+                className="bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow transition active:scale-95 cursor-pointer"
+              >
+                <Camera className="w-4 h-4 text-purple-400" />
+                <span>Live AR Camera</span>
+              </button>
+            </>
           )}
 
           <Link
             href="/admin/products?action=add"
-            className="bg-[#f59e0b] hover:bg-[#d97706] text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition active:scale-95"
+            className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 border border-slate-700"
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Add Garment</span>
+            <Plus className="w-4 h-4" />
+            <span>Add Product</span>
           </Link>
         </div>
       </div>
@@ -360,12 +372,22 @@ export default function AdminTryOnManagementPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
+                          onClick={() => setAiTestingProduct(p)}
+                          className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition active:scale-95 shadow"
+                          title="Test AI Photorealistic Try-On (VTON)"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>AI Try-On</span>
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => setTestingProduct(p)}
-                          className="bg-purple-600/90 hover:bg-purple-600 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition active:scale-95 shadow"
-                          title="Test Virtual Try-On for this product"
+                          className="bg-purple-600/90 hover:bg-purple-600 text-white font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 transition active:scale-95 shadow"
+                          title="Test AR Camera Fitting Room"
                         >
                           <Camera className="w-3.5 h-3.5" />
-                          <span>Test Fit</span>
+                          <span>AR Camera</span>
                         </button>
 
                         <Link
@@ -394,7 +416,16 @@ export default function AdminTryOnManagementPage() {
         </div>
       </div>
 
-      {/* Modal: Virtual Fitting Room Preview / Tester */}
+      {/* Modal: AI Virtual Try-On (IDM-VTON) */}
+      {aiTestingProduct && (
+        <VirtualTryOnModal
+          product={aiTestingProduct}
+          isOpen={!!aiTestingProduct}
+          onClose={() => setAiTestingProduct(null)}
+        />
+      )}
+
+      {/* Modal: Virtual Fitting Room Preview / Tester (AR MediaPipe) */}
       {testingProduct && (
         <VirtualFittingRoomModal
           product={testingProduct}
