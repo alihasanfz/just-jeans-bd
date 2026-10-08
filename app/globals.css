@@ -148,3 +148,24 @@ body {
     radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.12) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(147, 51, 234, 0.08) 0px, transparent 50%);
 }
+
+/* High-Tech AI Virtual Try-On Scanning Laser */
+@keyframes vtonScan {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 98%;
+    opacity: 1;
+  }
+  100% {
+    top: 0%;
+    opacity: 0.8;
+  }
+}
+
+.animate-vton-scan {
+  animation: vtonScan 3s ease-in-out infinite;
+}
+

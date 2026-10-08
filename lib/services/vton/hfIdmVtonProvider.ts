@@ -121,7 +121,7 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
         `${request.productName || request.garmentType} in size ${request.size || 'M'} ${request.color || ''}`,
         true, // is_checked: auto crop
         false, // is_checked_crop
-        30, // denoise_steps
+        20, // denoise_steps (optimized for fast, high-quality diffusion ~12-18s)
         42, // seed
       ],
     };
@@ -201,7 +201,19 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
                   }
                   if (outUrl) {
                     clearTimeout(timer);
-                    return outUrl;
+                    // Convert to base64 data URI so mobile browsers never get broken image or CORS errors
+                    try {
+                      const imgRes = await fetch(outUrl);
+                      if (imgRes.ok) {
+                        const imgBuf = await imgRes.arrayBuffer();
+                        const mime = imgRes.headers.get('content-type') || 'image/png';
+                        const base64Str = Buffer.from(imgBuf).toString('base64');
+                        return `data:${mime};base64,${base64Str}`;
+                      }
+                    } catch (imgErr) {
+                      console.warn('Base64 image conversion fallback to direct URL:', imgErr);
+                    }
+                    return `/api/virtual-try-on/proxy?url=${encodeURIComponent(outUrl)}`;
                   }
                 }
               } catch (_) {}

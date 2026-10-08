@@ -132,10 +132,22 @@ export default function VirtualTryOnModal({
   // Result States
   const [beforeImageUrl, setBeforeImageUrl] = useState<string>(PRESET_MODELS[0].url);
   const [afterImageUrl, setAfterImageUrl] = useState<string | null>(null);
+  const [isAfterImageLoaded, setIsAfterImageLoaded] = useState<boolean>(false);
+  const [afterImageError, setAfterImageError] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'split' | 'after' | 'before'>('split');
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [isDraggingSlider, setIsDraggingSlider] = useState<boolean>(false);
   const sliderContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Helper to ensure result image is never blocked by ISP or CORS
+  const sanitizeImageUrl = useCallback((url: string | null | undefined): string => {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('/api/')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return `/api/virtual-try-on/proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  }, []);
 
   // Cart action states
   const [addedToCartSuccess, setAddedToCartSuccess] = useState<boolean>(false);
@@ -428,13 +440,14 @@ export default function VirtualTryOnModal({
   const handleSliderMove = useCallback((clientX: number) => {
     if (!sliderContainerRef.current) return;
     const rect = sliderContainerRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
     const x = clientX - rect.left;
-    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    const percentage = Math.max(2, Math.min(98, (x / rect.width) * 100));
     setSliderPosition(percentage);
   }, []);
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length > 0) {
+    if (isDraggingSlider && e.touches.length > 0) {
       handleSliderMove(e.touches[0].clientX);
     }
   };
@@ -450,7 +463,30 @@ export default function VirtualTryOnModal({
     setIsGenerating(true);
     setGenerationError(null);
     setProgressPercent(15);
-    setStepDescription('Preparing customer photo & apparel model...');
+    setStepDescription('📸 বডি পোজ ও মাপজোখ স্ক্যান করা হচ্ছে... (Body Pose Scan)');
+    setAfterImageUrl(null);
+    setIsAfterImageLoaded(false);
+    setAfterImageError(false);
+
+    // Realistic animated progress ticker to prevent user frustration
+    const ticker = setInterval(() => {
+      setProgressPercent((prev) => {
+        if (prev < 35) {
+          setStepDescription('📸 বডি পোজ ও স্কিনটোন অ্যানালাইসিস... (Body Pose Analysis)');
+          return prev + 4;
+        } else if (prev < 60) {
+          setStepDescription('✂️ অরিজিনাল পোশাক সেগমেন্টেশন ও ৩ডি ম্যাপিং... (Garment Segmentation)');
+          return prev + 3;
+        } else if (prev < 80) {
+          setStepDescription(`👗 ${activeProduct.name} ফেব্রিক নিউরাল ড্র্যাপিং... (Neural Fabric Draping)`);
+          return prev + 2;
+        } else if (prev < 93) {
+          setStepDescription('✨ ন্যাচারাল লাইটিং, শ্যাডো ও ফিটিং এডজাস্টমেন্ট... (Lighting Synthesis)');
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 1100);
 
     try {
       const optimizedCustomerImage = await compressImage(activePhotoUrl);
@@ -483,7 +519,12 @@ export default function VirtualTryOnModal({
 
       // Fast synchronous completion: If HF Diffusion finished within the submit request
       if (submitData.status === 'completed' && submitData.resultImageUrl) {
-        setAfterImageUrl(submitData.resultImageUrl);
+        clearInterval(ticker);
+        const safeUrl = sanitizeImageUrl(submitData.resultImageUrl);
+        setAfterImageUrl(safeUrl);
+        setIsAfterImageLoaded(false);
+        setAfterImageError(false);
+        setSliderPosition(50);
         setJobStatus('completed');
         setProgressPercent(100);
         setViewMode('split');
@@ -512,11 +553,16 @@ export default function VirtualTryOnModal({
             setStepDescription(statusData.stepDescription);
           }
           if (statusData.progressPercent) {
-            setProgressPercent(statusData.progressPercent);
+            setProgressPercent((prev) => Math.max(prev, statusData.progressPercent));
           }
 
           if (statusData.status === 'completed' && statusData.resultImageUrl) {
-            setAfterImageUrl(statusData.resultImageUrl);
+            clearInterval(ticker);
+            const safeUrl = sanitizeImageUrl(statusData.resultImageUrl);
+            setAfterImageUrl(safeUrl);
+            setIsAfterImageLoaded(false);
+            setAfterImageError(false);
+            setSliderPosition(50);
             setJobStatus('completed');
             setProgressPercent(100);
             setViewMode('split');
@@ -546,6 +592,7 @@ export default function VirtualTryOnModal({
       setGenerationError(err?.message || 'Sorry, we could not generate your virtual try-on right now.');
       setJobStatus('failed');
     } finally {
+      clearInterval(ticker);
       setIsGenerating(false);
     }
   };
@@ -755,84 +802,160 @@ export default function VirtualTryOnModal({
                   </div>
                 </div>
               ) : isGenerating ? (
-                /* STATE 2: AI Processing with real progress & steps */
-                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-900 to-slate-950 text-white">
+                /* STATE 2: AI Processing with real progress & holographic laser scanning */
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
                   {/* Background blurred customer photo */}
                   <img
                     src={activePhotoUrl}
                     alt="Source"
-                    className="absolute inset-0 w-full h-full object-cover opacity-20 filter blur-sm"
+                    className="absolute inset-0 w-full h-full object-cover opacity-25 filter blur-[2px] transition-all"
                   />
-                  <div className="relative z-10 flex flex-col items-center max-w-sm">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/30 mb-4 animate-bounce">
-                      <Sparkles className="w-8 h-8" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/80 pointer-events-none" />
+
+                  {/* High-Tech Holographic Laser Scan Beam */}
+                  <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_rgba(34,211,238,0.95)] animate-vton-scan z-10 pointer-events-none" />
+
+                  {/* HUD Corner Tech Accents */}
+                  <div className="absolute top-4 left-4 w-5 h-5 border-t-2 border-l-2 border-cyan-400/70 pointer-events-none" />
+                  <div className="absolute top-4 right-4 w-5 h-5 border-t-2 border-r-2 border-cyan-400/70 pointer-events-none" />
+                  <div className="absolute bottom-4 left-4 w-5 h-5 border-b-2 border-l-2 border-cyan-400/70 pointer-events-none" />
+                  <div className="absolute bottom-4 right-4 w-5 h-5 border-b-2 border-r-2 border-cyan-400/70 pointer-events-none" />
+
+                  <div className="relative z-10 flex flex-col items-center max-w-sm px-2">
+                    {/* Glowing AI Studio Emblem */}
+                    <div className="relative mb-4">
+                      <div className="absolute -inset-2 bg-gradient-to-r from-cyan-500 via-indigo-500 to-fuchsia-500 rounded-2xl blur-md opacity-70 animate-pulse" />
+                      <div className="relative w-16 h-16 rounded-2xl bg-slate-950 border border-white/20 flex items-center justify-center text-cyan-300 shadow-2xl">
+                        <Sparkles className="w-8 h-8 text-cyan-300 animate-spin" style={{ animationDuration: '6s' }} />
+                      </div>
                     </div>
 
-                    <h4 className="text-lg font-black text-white mb-1">
-                      পোশাকটি আপনার শরীরে ফিট করা হচ্ছে...
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] font-black uppercase text-cyan-300 tracking-wider mb-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                      AI Virtual Fitting Studio
+                    </div>
+
+                    <h4 className="text-base sm:text-lg font-black text-white mb-1 tracking-tight">
+                      {activeProduct.name}
                     </h4>
-                    <p className="text-xs text-blue-200/90 font-medium mb-5 min-h-[32px] transition-all">
-                      {stepDescription}
+                    <p className="text-xs text-cyan-200/90 font-medium mb-5 min-h-[34px] transition-all flex items-center justify-center gap-1.5 px-3">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400 shrink-0" />
+                      <span>{stepDescription}</span>
                     </p>
 
-                    {/* Progress Bar */}
-                    <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden mb-2">
+                    {/* Progress Bar with Glowing Shimmer */}
+                    <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden p-0.5 border border-white/10 mb-2">
                       <div
-                        className="bg-gradient-to-r from-blue-500 via-indigo-500 to-amber-400 h-full rounded-full transition-all duration-300"
+                        className="bg-gradient-to-r from-cyan-400 via-indigo-500 to-fuchsia-500 h-full rounded-full transition-all duration-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]"
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
-                    <span className="text-[11px] font-mono text-slate-400">{progressPercent}% Completed</span>
+                    <div className="w-full flex items-center justify-between text-[11px] font-mono text-cyan-300/80 px-1">
+                      <span>Neural Diffusion Engine</span>
+                      <span className="font-bold text-white">{progressPercent}%</span>
+                    </div>
 
-                    <div className="mt-6 flex items-center gap-2 text-[11px] text-slate-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Face & identity preserved naturally</span>
+                    <div className="mt-5 flex items-center gap-2 text-[11px] text-slate-300 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>চেহারা ও শরীরের গঠন ১০০% ন্যাচারাল থাকবে</span>
                     </div>
                   </div>
                 </div>
               ) : afterImageUrl ? (
                 /* STATE 3: Try-On Completed Result with Split Comparison */
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full select-none bg-slate-950">
+                  {/* Image loading / skeleton overlay */}
+                  {!isAfterImageLoaded && !afterImageError && (
+                    <div className="absolute inset-0 z-20 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white">
+                      <div className="relative w-14 h-14 mb-4 flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-2xl bg-indigo-600/30 animate-ping" />
+                        <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-cyan-500/20">
+                          <Sparkles className="w-6 h-6 animate-pulse text-cyan-200" />
+                        </div>
+                      </div>
+                      <p className="text-sm font-bold text-white mb-1">এইচডি রেন্ডার ইমেজ লোড হচ্ছে...</p>
+                      <p className="text-xs text-cyan-300/80">কিছুক্ষণের মধ্যেই ফলাফল দেখতে পাবেন</p>
+                    </div>
+                  )}
+
+                  {/* Fallback if image failed to load */}
+                  {afterImageError && (
+                    <div className="absolute inset-0 z-20 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white">
+                      <AlertCircle className="w-12 h-12 text-rose-500 mb-3" />
+                      <h4 className="text-base font-bold text-white mb-1">ছবি লোড হতে সাময়িক সমস্যা হয়েছে</h4>
+                      <p className="text-xs text-slate-300 mb-4 max-w-xs">
+                        মোবাইল নেটওয়ার্কের কারণে ছবিটি লোড হয়নি। নিচের বাটনে চাপ দিয়ে পুনরায় ট্রাই করুন।
+                      </p>
+                      <button
+                        onClick={() => {
+                          setAfterImageError(false);
+                          setIsAfterImageLoaded(false);
+                          runVirtualTryOn();
+                        }}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>পুনরায় চেষ্টা করুন</span>
+                      </button>
+                    </div>
+                  )}
+
                   {viewMode === 'split' ? (
-                    <div className="relative w-full h-full overflow-hidden">
-                      {/* After Image (Background) */}
+                    <div
+                      className="relative w-full h-full overflow-hidden"
+                      onClick={(e) => handleSliderMove(e.clientX)}
+                    >
+                      {/* After Image (Full background) */}
                       <img
                         src={afterImageUrl}
                         alt="After Virtual Try-On"
-                        className="absolute inset-0 w-full h-full object-cover"
+                        onLoad={() => setIsAfterImageLoaded(true)}
+                        onError={() => {
+                          if (afterImageUrl && !afterImageUrl.startsWith('/api/') && !afterImageUrl.startsWith('data:')) {
+                            setAfterImageUrl(`/api/virtual-try-on/proxy?url=${encodeURIComponent(afterImageUrl)}`);
+                          } else {
+                            setAfterImageError(true);
+                          }
+                        }}
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                          isAfterImageLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
                       />
-                      {/* Before Image (Clipped overlay) */}
+
+                      {/* Before Image (Clipped with CSS clipPath - never stretches or breaks!) */}
                       <div
-                        className="absolute inset-y-0 left-0 overflow-hidden"
-                        style={{ width: `${sliderPosition}%` }}
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
                       >
                         <img
                           src={beforeImageUrl}
                           alt="Before"
-                          className="absolute inset-0 w-full h-full object-cover max-w-none"
-                          style={{
-                            width: sliderContainerRef.current?.clientWidth || '100%',
-                            height: '100%',
-                          }}
+                          className="w-full h-full object-cover"
                         />
-                        <span className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
-                          BEFORE
+                        <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider border border-white/20">
+                          BEFORE (আগে)
                         </span>
                       </div>
 
-                      <span className="absolute top-3 right-3 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
-                        AFTER (VTON)
+                      <span className="absolute top-3 right-3 bg-gradient-to-r from-cyan-600 to-blue-600 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg shadow-cyan-600/30 border border-cyan-400/30 pointer-events-none">
+                        AFTER (AI ফিটেড)
                       </span>
 
-                      {/* Draggable Divider Line */}
+                      {/* Draggable Divider Line & Glowing Handle */}
                       <div
-                        className="absolute inset-y-0 w-1 bg-white cursor-ew-resize z-20 flex items-center justify-center shadow-2xl"
+                        className="absolute inset-y-0 w-1 bg-gradient-to-b from-cyan-400 via-white to-indigo-500 cursor-ew-resize z-20 flex items-center justify-center -ml-0.5 shadow-[0_0_15px_rgba(34,211,238,0.9)]"
                         style={{ left: `${sliderPosition}%` }}
-                        onMouseDown={() => setIsDraggingSlider(true)}
-                        onTouchStart={() => setIsDraggingSlider(true)}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setIsDraggingSlider(true);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          setIsDraggingSlider(true);
+                        }}
                       >
-                        <div className="w-8 h-8 rounded-full bg-white text-slate-900 shadow-xl flex items-center justify-center border-2 border-blue-600">
-                          <Split className="w-4 h-4 rotate-90" />
+                        <div className="w-10 h-10 rounded-full bg-slate-950/95 text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.8)] border-2 border-cyan-400 flex items-center justify-center active:scale-110 hover:scale-105 transition">
+                          <Split className="w-4 h-4 rotate-90 text-cyan-300" />
                         </div>
                       </div>
                     </div>
@@ -841,10 +964,14 @@ export default function VirtualTryOnModal({
                       <img
                         src={afterImageUrl}
                         alt="Virtual Try-On Result"
-                        className="w-full h-full object-cover"
+                        onLoad={() => setIsAfterImageLoaded(true)}
+                        onError={() => setAfterImageError(true)}
+                        className={`w-full h-full object-cover transition-opacity duration-300 ${
+                          isAfterImageLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
                       />
-                      <span className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow">
-                        AFTER (AI FITTED)
+                      <span className="absolute top-3 right-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg">
+                        AFTER (AI ফিটেড)
                       </span>
                     </div>
                   ) : (
@@ -854,8 +981,8 @@ export default function VirtualTryOnModal({
                         alt="Original"
                         className="w-full h-full object-cover"
                       />
-                      <span className="absolute top-3 left-3 bg-black/70 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow">
-                        BEFORE (ORIGINAL)
+                      <span className="absolute top-3 left-3 bg-black/80 text-white text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider shadow border border-white/10">
+                        BEFORE (অরিজিনাল)
                       </span>
                     </div>
                   )}
@@ -895,39 +1022,39 @@ export default function VirtualTryOnModal({
 
             {/* View Mode Switcher (When Result is available) */}
             {afterImageUrl && (
-              <div className="flex items-center gap-1.5 mt-3 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 mt-3 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
                 <button
                   onClick={() => setViewMode('split')}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
+                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
                     viewMode === 'split'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Split className="w-3.5 h-3.5" />
-                  <span>Split Slider</span>
+                  <span>🔀 স্প্লিট স্লাইডার</span>
                 </button>
                 <button
                   onClick={() => setViewMode('after')}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
+                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
                     viewMode === 'after'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>After</span>
+                  <span>✨ নতুন লুক (After)</span>
                 </button>
                 <button
                   onClick={() => setViewMode('before')}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
+                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition ${
                     viewMode === 'before'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      ? 'bg-slate-800 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span>Before</span>
+                  <span>👤 আগের ছবি (Before)</span>
                 </button>
               </div>
             )}
@@ -944,23 +1071,29 @@ export default function VirtualTryOnModal({
                 </span>
 
                 {/* Option 1: Live Camera + Option 2: Upload Photo */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={handleCameraClick}
-                    className="p-3 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition active:scale-95"
+                    className="p-3.5 rounded-2xl border-2 border-blue-500/40 bg-gradient-to-b from-blue-50 to-indigo-50/60 dark:from-blue-950/40 dark:to-indigo-950/30 hover:border-blue-500 text-blue-700 dark:text-blue-300 font-bold text-xs flex flex-col items-center justify-center gap-1.5 shadow-sm transition active:scale-95 group"
                   >
-                    <Camera className="w-5 h-5 text-blue-600" />
-                    <span>📷 ক্যামেরা দিয়ে তুলুন</span>
+                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                      <Camera className="w-5 h-5" />
+                    </div>
+                    <span className="font-bold">ক্যামেরা দিয়ে তুলুন</span>
+                    <span className="text-[10px] text-blue-500 dark:text-blue-400 font-medium">সেলফি বা ফুল বডি</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition active:scale-95"
+                    className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-600 text-slate-800 dark:text-slate-200 font-bold text-xs flex flex-col items-center justify-center gap-1.5 shadow-sm transition active:scale-95 group"
                   >
-                    <Upload className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                    <span>🖼️ গ্যালারি থেকে আপলোড</span>
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <span className="font-bold">গ্যালারি আপলোড</span>
+                    <span className="text-[10px] text-slate-500 font-medium">যেকোনো ছবি বেছে নিন</span>
                   </button>
 
                   <input
@@ -1025,15 +1158,15 @@ export default function VirtualTryOnModal({
                         setAfterImageUrl(null);
                         setPhotoSourceType('preset');
                       }}
-                      className={`relative aspect-[3/4] rounded-xl overflow-hidden border-2 transition ${
+                      className={`relative aspect-[3/4] rounded-2xl overflow-hidden border-2 transition-all ${
                         activePhotoUrl === model.url && !uploadedPhotoUrl
-                          ? 'border-blue-600 ring-2 ring-blue-500/30 scale-105'
-                          : 'border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100'
+                          ? 'border-cyan-400 ring-2 ring-cyan-400/40 scale-105 shadow-md shadow-cyan-500/20'
+                          : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100 hover:scale-102'
                       }`}
                     >
                       <img src={model.url} alt={model.name} className="w-full h-full object-cover" />
-                      <div className="absolute inset-x-0 bottom-0 bg-black/60 text-[9px] font-bold text-white text-center py-0.5 truncate px-0.5">
-                        {model.name.split(' ')[0]}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent text-[9px] font-bold text-white text-center pt-2 pb-1 truncate px-1">
+                        {model.gender === 'men' ? 'পুরুষ' : 'নারী'}
                       </div>
                     </button>
                   ))}
@@ -1092,44 +1225,44 @@ export default function VirtualTryOnModal({
             </div>
 
             {/* Bottom Section: Primary Action Buttons */}
-            <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
               {!afterImageUrl ? (
                 /* Primary Trigger Button: RUN TRY-ON */
                 <button
                   type="button"
                   onClick={runVirtualTryOn}
                   disabled={isGenerating}
-                  className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 active:scale-[0.98] text-white py-3.5 px-5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all disabled:opacity-60 disabled:cursor-not-allowed group cursor-pointer"
+                  className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 active:scale-[0.98] text-white py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_25px_rgba(99,102,241,0.35)] hover:shadow-[0_0_35px_rgba(99,102,241,0.5)] transition-all disabled:opacity-60 disabled:cursor-not-allowed group cursor-pointer"
                 >
                   {isGenerating ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin text-cyan-300" />
                       <span>{stepDescription}</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                      <span>পোশাকটি পরে দেখুন (Fit Garment Now)</span>
+                      <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform text-amber-300" />
+                      <span>✨ পোশাকটি পরে দেখুন (Fit Garment Now)</span>
                     </>
                   )}
                 </button>
               ) : (
                 /* RESULT SCREEN ACTIONS: Add to Cart, Buy Now, Download, Share, Retry */
                 <div className="space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      className="bg-[#1e293b] hover:bg-slate-900 active:scale-[0.98] text-white py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all"
+                      className="bg-slate-900 hover:bg-black active:scale-[0.98] text-white py-3.5 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg border border-slate-800 transition-all"
                     >
                       {addedToCartSuccess ? (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span>Added!</span>
+                          <span>Added to Cart!</span>
                         </>
                       ) : (
                         <>
-                          <ShoppingBag className="w-4 h-4 text-blue-400" />
+                          <ShoppingBag className="w-4 h-4 text-cyan-400" />
                           <span>Add to Cart</span>
                         </>
                       )}
@@ -1138,7 +1271,7 @@ export default function VirtualTryOnModal({
                     <button
                       type="button"
                       onClick={handleBuyNow}
-                      className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 active:scale-[0.98] text-white py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-red-500/20 transition-all"
+                      className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-rose-500 active:scale-[0.98] text-white py-3.5 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 transition-all"
                     >
                       <Zap className="w-4 h-4 text-amber-300 fill-current" />
                       <span>Buy Now</span>
@@ -1151,7 +1284,7 @@ export default function VirtualTryOnModal({
                       onClick={runVirtualTryOn}
                       className="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
                       <span>Try Again</span>
                     </button>
 
@@ -1160,7 +1293,7 @@ export default function VirtualTryOnModal({
                       onClick={handleDownload}
                       className="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5"
                     >
-                      <Download className="w-3.5 h-3.5" />
+                      <Download className="w-3.5 h-3.5 text-emerald-500" />
                       <span>Download</span>
                     </button>
 
@@ -1169,7 +1302,7 @@ export default function VirtualTryOnModal({
                       onClick={handleShare}
                       className="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5"
                     >
-                      <Share2 className="w-3.5 h-3.5" />
+                      <Share2 className="w-3.5 h-3.5 text-indigo-500" />
                       <span>{copiedShareLink ? 'Copied!' : 'Share'}</span>
                     </button>
                   </div>
