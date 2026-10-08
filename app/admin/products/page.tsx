@@ -150,6 +150,7 @@ function AdminProductsContent() {
   const [formDescription, setFormDescription] = useState(
     'Crafted with durable selvedge yarns, signature back pocket details, and premium comfort stretch.'
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   // 6 Image Slots
   const [formImages, setFormImages] = useState<string[]>([
@@ -369,94 +370,133 @@ function AdminProductsContent() {
     }
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const slug = formName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const hasDiscount = formDiscountPrice > 0 && formDiscountPrice < formPrice;
-    const finalDiscountPrice = hasDiscount ? formDiscountPrice : undefined;
-    const discountPct = hasDiscount
-      ? Math.round(((formPrice - formDiscountPrice) / formPrice) * 100)
-      : 0;
-
-    // Filter non-empty images from slots
-    const validImages = formImages.filter((img) => img && img.trim() !== '');
-    const mainThumbnail = formThumbnail.trim() || validImages[0] || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80';
-    const validVideoUrl = formVideoUrl.trim() || (formVideos[0] ? formVideos[0].trim() : undefined);
-    const validVideos = formVideos.filter((v) => v && v.trim() !== '');
-
-    const variants = [
-      { id: `v-${Date.now()}-1`, size: '28', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${slug.slice(0, 4).toUpperCase()}-28`, stock: Math.floor(formStock / 4) },
-      { id: `v-${Date.now()}-2`, size: '30', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${slug.slice(0, 4).toUpperCase()}-30`, stock: Math.floor(formStock / 3) },
-      { id: `v-${Date.now()}-3`, size: '32', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${slug.slice(0, 4).toUpperCase()}-32`, stock: Math.floor(formStock / 3) },
-      { id: `v-${Date.now()}-4`, size: '34', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${slug.slice(0, 4).toUpperCase()}-34`, stock: Math.floor(formStock / 4) },
-    ];
-
-    if (editingProduct) {
-      updateProduct(editingProduct.id, {
-        name: formName,
-        subtitle: formSubtitle,
-        gender: formGender,
-        category: formCategory,
-        fit: formFit,
-        washColor: formWash,
-        fabricComposition: formFabric,
-        price: formPrice,
-        discountPrice: finalDiscountPrice,
-        discountPercentage: discountPct,
-        isOnSale: hasDiscount,
-        totalStock: formStock,
-        thumbnail: mainThumbnail,
-        images: validImages.length > 0 ? validImages : [mainThumbnail],
-        videoUrl: validVideoUrl,
-        videos: validVideos,
-        description: formDescription,
-      });
-    } else {
-      addProduct({
-        slug: `${slug}-${Date.now().toString().slice(-4)}`,
-        name: formName,
-        subtitle: formSubtitle,
-        gender: formGender,
-        category: formCategory,
-        fit: formFit,
-        washColor: formWash,
-        fabricComposition: formFabric,
-        description: formDescription,
-        details: [
-          formFabric || '100% Ring-Spun Cotton',
-          `Wash: ${formWash || 'Raw Deep Indigo'}`,
-          `Fit silhouette: ${formFit}`,
-          'Reinforced copper rivet points & heavy-duty bar tacks',
-        ],
-        fabricCare: ['Machine wash cold inside out', 'Hang dry in shade to preserve indigo tone'],
-        price: formPrice,
-        discountPrice: finalDiscountPrice,
-        discountPercentage: discountPct,
-        thumbnail: mainThumbnail,
-        images: validImages.length > 0 ? validImages : [mainThumbnail],
-        videoUrl: validVideoUrl,
-        videos: validVideos,
-        rating: 5.0,
-        reviewCount: 1,
-        isNewArrival: true,
-        isBestSeller: false,
-        isFeatured: true,
-        isOnSale: hasDiscount,
-        totalStock: formStock,
-        tags: [formFit.toLowerCase().replace(/\s+/g, '-'), formGender, 'denim-atelier'],
-        variants,
-      });
+    if (!formName.trim()) {
+      alert('অনুগ্রহ করে প্রোডাক্টের নাম লিখুন (Please enter product name)');
+      return;
     }
 
-    setIsModalOpen(false);
+    if (!formPrice || formPrice <= 0) {
+      alert('অনুগ্রহ করে সঠিক মূল্য দিন (Please enter valid price)');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const baseSlug = formName
+        .toLowerCase()
+        .replace(/[^a-z0-9\u0980-\u09FF]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'denim-product';
+      const slug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
+
+      const hasDiscount = formDiscountPrice > 0 && formDiscountPrice < formPrice;
+      const finalDiscountPrice = hasDiscount ? formDiscountPrice : undefined;
+      const discountPct = hasDiscount
+        ? Math.round(((formPrice - formDiscountPrice) / formPrice) * 100)
+        : 0;
+
+      // Filter non-empty images from slots
+      const validImages = formImages.filter((img) => img && img.trim() !== '');
+      const mainThumbnail = formThumbnail.trim() || validImages[0] || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80';
+      const validVideoUrl = formVideoUrl.trim() || (formVideos[0] ? formVideos[0].trim() : undefined);
+      const validVideos = formVideos.filter((v) => v && v.trim() !== '');
+
+      const skuCode = (formName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4) || 'JBD').toUpperCase();
+
+      const variants = [
+        { id: `v-${Date.now()}-1`, size: '28', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${skuCode}-28`, stock: Math.floor(formStock / 4) },
+        { id: `v-${Date.now()}-2`, size: '30', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${skuCode}-30`, stock: Math.floor(formStock / 3) },
+        { id: `v-${Date.now()}-3`, size: '32', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${skuCode}-32`, stock: Math.floor(formStock / 3) },
+        { id: `v-${Date.now()}-4`, size: '34', color: formWash || 'Raw Deep Indigo', colorHex: '#1e3a8a', sku: `JBD-${skuCode}-34`, stock: Math.floor(formStock / 4) },
+      ];
+
+      if (editingProduct) {
+        const res = await updateProduct(editingProduct.id, {
+          name: formName,
+          subtitle: formSubtitle,
+          gender: formGender,
+          category: formCategory,
+          fit: formFit,
+          washColor: formWash,
+          fabricComposition: formFabric,
+          price: formPrice,
+          discountPrice: finalDiscountPrice,
+          discountPercentage: discountPct,
+          isOnSale: hasDiscount,
+          totalStock: formStock,
+          thumbnail: mainThumbnail,
+          images: validImages.length > 0 ? validImages : [mainThumbnail],
+          videoUrl: validVideoUrl,
+          videos: validVideos,
+          description: formDescription,
+          variants,
+        });
+
+        if (res && res.error) {
+          alert(`⚠️ লোকালি সেভ হয়েছে (ক্লাউড সিংক নোট: ${res.error})`);
+        } else {
+          alert('✅ প্রোডাক্ট সফলভাবে আপডেট করা হয়েছে!');
+        }
+      } else {
+        const res = await addProduct({
+          slug,
+          name: formName,
+          subtitle: formSubtitle,
+          gender: formGender,
+          category: formCategory,
+          fit: formFit,
+          washColor: formWash,
+          fabricComposition: formFabric,
+          description: formDescription,
+          details: [
+            formFabric || '100% Ring-Spun Cotton',
+            `Wash: ${formWash || 'Raw Deep Indigo'}`,
+            `Fit silhouette: ${formFit}`,
+            'Reinforced copper rivet points & heavy-duty bar tacks',
+          ],
+          fabricCare: ['Machine wash cold inside out', 'Hang dry in shade to preserve indigo tone'],
+          price: formPrice,
+          discountPrice: finalDiscountPrice,
+          discountPercentage: discountPct,
+          thumbnail: mainThumbnail,
+          images: validImages.length > 0 ? validImages : [mainThumbnail],
+          videoUrl: validVideoUrl,
+          videos: validVideos,
+          rating: 5.0,
+          reviewCount: 0,
+          isNewArrival: true,
+          isBestSeller: false,
+          isFeatured: true,
+          isOnSale: hasDiscount,
+          totalStock: formStock,
+          tags: [formFit.toLowerCase().replace(/\s+/g, '-'), formGender, 'denim-atelier'],
+          variants,
+        });
+
+        if (res && res.error) {
+          alert(`⚠️ লোকালি সেভ হয়েছে (ক্লাউড সিংক নোট: ${res.error})`);
+        } else {
+          alert('✅ নতুন ডেনিম প্রোডাক্ট সফলভাবে যুক্ত করা হয়েছে!');
+        }
+      }
+
+      setIsModalOpen(false);
+    } catch (err: any) {
+      console.error('Error saving product:', err);
+      alert(`প্রোডাক্ট সেভ করতে সমস্যা হয়েছে: ${err?.message || 'অনুগ্রহ করে আবার চেষ্টা করুন'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.fit.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
+      (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.fit || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.category || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesGender = selectedGenderFilter === 'all' || p.gender === selectedGenderFilter;
     return matchesSearch && matchesGender;
   });
@@ -747,8 +787,8 @@ function AdminProductsContent() {
                     />
                   </div>
 
-                  {/* Fit Silhouette & Gender Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Fit Silhouette, Gender Category & Catalog Category */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1.5">
                         FIT SILHOUETTE
@@ -756,7 +796,7 @@ function AdminProductsContent() {
                       <select
                         value={formFit}
                         onChange={(e) => setFormFit(e.target.value as ProductFit)}
-                        className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
+                        className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-3 py-2.5 text-white focus:outline-none"
                       >
                         <option value="Straight Fit">Straight Fit</option>
                         <option value="Slim Fit">Slim Fit</option>
@@ -778,11 +818,28 @@ function AdminProductsContent() {
                       <select
                         value={formGender}
                         onChange={(e) => setFormGender(e.target.value as GenderCategory)}
-                        className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
+                        className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-3 py-2.5 text-white focus:outline-none"
                       >
                         <option value="men">Men</option>
                         <option value="women">Women</option>
                         <option value="unisex">Unisex</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1.5">
+                        CATEGORY
+                      </label>
+                      <select
+                        value={formCategory}
+                        onChange={(e) => setFormCategory(e.target.value)}
+                        className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl px-3 py-2.5 text-white focus:outline-none truncate"
+                      >
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1202,10 +1259,20 @@ function AdminProductsContent() {
 
                 <button
                   type="submit"
-                  className="bg-[#f59e0b] hover:bg-[#d97706] text-slate-950 font-black px-7 py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center gap-2 uppercase tracking-wide"
+                  disabled={isSaving}
+                  className="bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-50 text-slate-950 font-black px-7 py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center gap-2 uppercase tracking-wide cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>PUBLISH DENIM PRODUCT</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>সংরক্ষণ করা হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                      <span>{editingProduct ? 'UPDATE DENIM PRODUCT' : 'PUBLISH DENIM PRODUCT'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

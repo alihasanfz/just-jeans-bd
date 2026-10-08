@@ -18,6 +18,11 @@ function generateProductId(): string {
 }
 
 function mapDbProduct(row: any): Product {
+  const detailsArray = Array.isArray(row.details) ? row.details : [];
+  const videoFromDetails = detailsArray.find((d: any) => typeof d === 'string' && d.startsWith('__VIDEO__:'))?.replace('__VIDEO__:', '') || '';
+  const cleanDetails = detailsArray.filter((d: any) => typeof d !== 'string' || !d.startsWith('__VIDEO__:'));
+  const foundVideo = (row.video_url || row.videoUrl || videoFromDetails || (Array.isArray(row.videos) && row.videos[0]) || '') as string;
+
   return {
     id: row.id,
     slug: row.slug || `prod-${row.id}`,
@@ -30,15 +35,15 @@ function mapDbProduct(row: any): Product {
     washColor: row.wash_color || 'Vintage Wash',
     fabricComposition: row.fabric_composition || '100% Cotton Denim',
     description: row.description || '',
-    details: Array.isArray(row.details) ? row.details : [],
+    details: cleanDetails,
     fabricCare: Array.isArray(row.fabric_care) ? row.fabric_care : [],
     price: Number(row.price) || 0,
     discountPrice: row.discount_price ? Number(row.discount_price) : undefined,
     discountPercentage: Number(row.discount_percentage) || 0,
-    thumbnail: row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
+    thumbnail: row.thumbnail || (Array.isArray(row.images) && row.images[0]) || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
     images: Array.isArray(row.images) ? row.images : [],
-    videoUrl: row.video_url || row.videoUrl || (Array.isArray(row.videos) && row.videos[0]) || '',
-    videos: Array.isArray(row.videos) ? row.videos : (row.video_url || row.videoUrl ? [row.video_url || row.videoUrl] : []),
+    videoUrl: foundVideo,
+    videos: foundVideo ? [foundVideo] : [],
     rating: Number(row.rating) || 5.0,
     reviewCount: Number(row.review_count) || 0,
     isNewArrival: !!row.is_new_arrival,
@@ -73,9 +78,9 @@ interface ProductsContextType {
   updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
   getProductBySlug: (slug: string) => Product | undefined;
   getProductById: (id: string) => Product | undefined;
-  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
-  updateProduct: (id: string, updates: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Promise<{ success: boolean; product?: Product; error?: string }>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<{ success: boolean; error?: string }>;
+  deleteProduct: (id: string) => Promise<{ success: boolean; error?: string }>;
   addReview: (productId: string, review: Omit<ProductReview, 'id' | 'createdAt'>) => void;
   addCategory: (category: Category) => void;
   updateCategory: (id: string, updates: Partial<Category>) => void;
@@ -437,7 +442,9 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     return products.find((p) => p.id === id);
   };
 
-  const addProduct = async (prodData: Omit<Product, 'id' | 'createdAt'>) => {
+  const addProduct = async (
+    prodData: Omit<Product, 'id' | 'createdAt'>
+  ): Promise<{ success: boolean; product?: Product; error?: string }> => {
     const newProduct: Product = {
       ...prodData,
       id: generateProductId(),
@@ -445,15 +452,26 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     };
     setProducts((prev) => [newProduct, ...prev]);
 
+    // Save to IndexedDB immediately as cache
+    try {
+      const current = (await idbGet<Product[]>('jeansbd_products')) || [];
+      await idbSet('jeansbd_products', [newProduct, ...current]);
+    } catch (_) {}
+
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('products').insert({
+        const detailsPayload = [
+          ...(newProduct.details || []),
+          ...(newProduct.videoUrl ? [`__VIDEO__:${newProduct.videoUrl}`] : []),
+        ];
+
+        const { error } = await supabase.from('products').insert({
           id: newProduct.id,
           name: newProduct.name,
           name_bn: newProduct.titleBn || '',
           subtitle: newProduct.subtitle || '',
           slug: newProduct.slug,
-          category: newProduct.category || '',
+          category: newProduct.category || "Men's Straight Leg Jeans",
           gender: newProduct.gender,
           fit: newProduct.fit,
           wash_color: newProduct.washColor || '',
@@ -461,12 +479,10 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           price: newProduct.price,
           discount_price: newProduct.discountPrice || null,
           discount_percentage: newProduct.discountPercentage || 0,
-          thumbnail: newProduct.thumbnail,
+          thumbnail: newProduct.thumbnail || (newProduct.images && newProduct.images[0]) || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
           images: newProduct.images || [],
-          video_url: (newProduct.videoUrl && !newProduct.videoUrl.startsWith('data:video/')) ? newProduct.videoUrl : '',
-          videos: (newProduct.videos || []).filter((v) => !v.startsWith('data:video/')),
           description: newProduct.description || '',
-          details: newProduct.details || [],
+          details: detailsPayload,
           fabric_care: newProduct.fabricCare || [],
           is_active: true,
           is_featured: !!newProduct.isFeatured,
@@ -477,13 +493,24 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           tags: newProduct.tags || [],
           variants: newProduct.variants || [],
         });
-      } catch (e) {
+
+        if (error) {
+          console.error('Supabase addProduct insert error:', error);
+          return { success: false, error: error.message };
+        }
+      } catch (e: any) {
         console.error('Supabase addProduct error:', e);
+        return { success: false, error: e?.message || 'Database error' };
       }
     }
+
+    return { success: true, product: newProduct };
   };
 
-  const updateProduct = async (id: string, updates: Partial<Product>) => {
+  const updateProduct = async (
+    id: string,
+    updates: Partial<Product>
+  ): Promise<{ success: boolean; error?: string }> => {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
     );
@@ -491,43 +518,69 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured) {
       try {
         const payload: any = {};
-        if (updates.name) payload.name = updates.name;
+        if (updates.name !== undefined) payload.name = updates.name;
         if (updates.subtitle !== undefined) payload.subtitle = updates.subtitle;
         if (updates.category !== undefined) payload.category = updates.category;
+        if (updates.gender !== undefined) payload.gender = updates.gender;
+        if (updates.fit !== undefined) payload.fit = updates.fit;
+        if (updates.washColor !== undefined) payload.wash_color = updates.washColor;
+        if (updates.fabricComposition !== undefined) payload.fabric_composition = updates.fabricComposition;
         if (updates.price !== undefined) payload.price = updates.price;
         if (updates.discountPrice !== undefined) payload.discount_price = updates.discountPrice;
         if (updates.discountPercentage !== undefined) payload.discount_percentage = updates.discountPercentage;
-        if (updates.thumbnail) payload.thumbnail = updates.thumbnail;
-        if (updates.images) payload.images = updates.images;
-        if (updates.videoUrl !== undefined) {
-          payload.video_url = updates.videoUrl.startsWith('data:video/') ? '' : updates.videoUrl;
-        }
-        if (updates.videos !== undefined) {
-          payload.videos = (updates.videos || []).filter((v) => !v.startsWith('data:video/'));
-        }
-        if (updates.description) payload.description = updates.description;
+        if (updates.thumbnail !== undefined) payload.thumbnail = updates.thumbnail;
+        if (updates.images !== undefined) payload.images = updates.images;
+        if (updates.description !== undefined) payload.description = updates.description;
         if (updates.totalStock !== undefined) payload.total_stock = updates.totalStock;
-        if (updates.variants) payload.variants = updates.variants;
+        if (updates.variants !== undefined) payload.variants = updates.variants;
+        if (updates.isOnSale !== undefined) payload.is_on_sale = updates.isOnSale;
+
+        if (updates.details !== undefined || updates.videoUrl !== undefined) {
+          const baseDetails = updates.details || [];
+          const videoToStore = updates.videoUrl;
+          payload.details = [
+            ...baseDetails.filter((d: any) => typeof d !== 'string' || !d.startsWith('__VIDEO__:')),
+            ...(videoToStore ? [`__VIDEO__:${videoToStore}`] : []),
+          ];
+        }
 
         if (Object.keys(payload).length > 0) {
-          await supabase.from('products').update(payload).eq('id', id);
+          const { error } = await supabase.from('products').update(payload).eq('id', id);
+          if (error) {
+            console.error('Supabase updateProduct error:', error);
+            return { success: false, error: error.message };
+          }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('Supabase updateProduct error:', e);
+        return { success: false, error: e?.message || 'Database error' };
       }
     }
+
+    return { success: true };
   };
 
-  const deleteProduct = async (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  const deleteProduct = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    setProducts((prev) => {
+      const filtered = prev.filter((p) => p.id !== id);
+      idbSet('jeansbd_products', filtered);
+      return filtered;
+    });
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('products').delete().eq('id', id);
-      } catch (e) {
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) {
+          console.error('Supabase deleteProduct error:', error);
+          return { success: false, error: error.message };
+        }
+      } catch (e: any) {
         console.error('Supabase deleteProduct error:', e);
+        return { success: false, error: e?.message || 'Database error' };
       }
     }
+
+    return { success: true };
   };
 
   const syncLocalProductsToSupabase = useCallback(async () => {
@@ -542,6 +595,10 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       let count = 0;
       for (const p of products) {
         const validId = p.id || generateProductId();
+        const detailsPayload = [
+          ...(p.details || []),
+          ...(p.videoUrl ? [`__VIDEO__:${p.videoUrl}`] : []),
+        ];
 
         const { error } = await supabase.from('products').upsert({
           id: validId,
@@ -557,12 +614,10 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           price: p.price,
           discount_price: p.discountPrice || null,
           discount_percentage: p.discountPercentage || 0,
-          thumbnail: p.thumbnail,
+          thumbnail: p.thumbnail || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
           images: p.images || [],
-          video_url: p.videoUrl || (p.videos && p.videos[0]) || '',
-          videos: p.videos || (p.videoUrl ? [p.videoUrl] : []),
           description: p.description || '',
-          details: p.details || [],
+          details: detailsPayload,
           fabric_care: p.fabricCare || [],
           is_active: true,
           is_featured: !!p.isFeatured,
