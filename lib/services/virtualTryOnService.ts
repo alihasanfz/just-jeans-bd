@@ -59,58 +59,16 @@ export class VirtualTryOnService {
     this.validateInput(input);
 
     const provider = (process.env.VIRTUAL_TRYON_PROVIDER || 'auto').toLowerCase();
-    const apiKey = process.env.VIRTUAL_TRYON_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const repKey = process.env.REPLICATE_API_TOKEN || (process.env.VIRTUAL_TRYON_API_KEY?.startsWith('r8_') ? process.env.VIRTUAL_TRYON_API_KEY : '');
+    const fashnKey = process.env.FASHN_API_KEY || (process.env.VIRTUAL_TRYON_API_KEY?.startsWith('fa_') ? process.env.VIRTUAL_TRYON_API_KEY : '');
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || (process.env.VIRTUAL_TRYON_API_KEY?.startsWith('AIza') || process.env.VIRTUAL_TRYON_API_KEY?.startsWith('AQ.') ? process.env.VIRTUAL_TRYON_API_KEY : '');
+    const genericKey = process.env.VIRTUAL_TRYON_API_KEY || '';
 
-    // 0. Google Gemini / Imagen Multimodal Try-On (gemini.google.com API)
-    if (apiKey && (provider === 'gemini' || provider === 'google' || apiKey.startsWith('AQ.') || apiKey.startsWith('AIza') || (provider === 'auto' && (apiKey.startsWith('AIza') || apiKey.startsWith('AQ.'))))) {
+    // 1. Prioritize Replicate IDM-VTON (State of the Art Try-On)
+    const activeReplicateKey = repKey || (provider === 'replicate' ? genericKey : '');
+    if (activeReplicateKey) {
       try {
-        const result = await this.callGeminiVirtualTryOn(input, apiKey);
-        if (result) {
-          return {
-            success: true,
-            resultImageUrl: result,
-            beforeImageUrl: input.customerImage,
-            provider: 'google-gemini-vision-tryon',
-            status: 'completed',
-            details: {
-              garmentType: input.garmentType,
-              processingTimeMs: Date.now() - startTime,
-              replacedGarment: true,
-            },
-          };
-        }
-      } catch (err: any) {
-        console.warn('Google Gemini provider call failed:', err?.message || err);
-      }
-    }
-
-    // 1. If Fashn.ai API is configured
-    if (apiKey && (provider === 'fashn' || provider === 'auto' && apiKey.startsWith('fa_'))) {
-      try {
-        const result = await this.callFashnAI(input, apiKey);
-        if (result) {
-          return {
-            success: true,
-            resultImageUrl: result,
-            beforeImageUrl: input.customerImage,
-            provider: 'fashn-ai',
-            status: 'completed',
-            details: {
-              garmentType: input.garmentType,
-              processingTimeMs: Date.now() - startTime,
-              replacedGarment: true,
-            },
-          };
-        }
-      } catch (err: any) {
-        console.warn('Fashn.ai provider call failed:', err?.message || err);
-      }
-    }
-
-    // 2. If Replicate IDM-VTON API is configured
-    if (apiKey && (provider === 'replicate' || provider === 'auto' && apiKey.startsWith('r8_'))) {
-      try {
-        const result = await this.callReplicateIDMVTON(input, apiKey);
+        const result = await this.callReplicateIDMVTON(input, activeReplicateKey);
         if (result) {
           return {
             success: true,
@@ -126,20 +84,21 @@ export class VirtualTryOnService {
           };
         }
       } catch (err: any) {
-        console.warn('Replicate provider call failed:', err?.message || err);
+        console.warn('Replicate provider call note:', err?.message || err);
       }
     }
 
-    // 3. If Fal.ai is configured
-    if (apiKey && (provider === 'fal' || provider === 'auto' && apiKey.includes('fal'))) {
+    // 2. Fashn.ai Dedicated Try-On API
+    const activeFashnKey = fashnKey || (provider === 'fashn' ? genericKey : '');
+    if (activeFashnKey) {
       try {
-        const result = await this.callFalAI(input, apiKey);
+        const result = await this.callFashnAI(input, activeFashnKey);
         if (result) {
           return {
             success: true,
             resultImageUrl: result,
             beforeImageUrl: input.customerImage,
-            provider: 'fal-ai-idm-vton',
+            provider: 'fashn-ai',
             status: 'completed',
             details: {
               garmentType: input.garmentType,
@@ -149,7 +108,31 @@ export class VirtualTryOnService {
           };
         }
       } catch (err: any) {
-        console.warn('Fal.ai provider call failed:', err?.message || err);
+        console.warn('Fashn.ai provider call note:', err?.message || err);
+      }
+    }
+
+    // 3. Google Gemini / Imagen Vision API
+    const activeGeminiKey = geminiKey || (provider === 'gemini' ? genericKey : '');
+    if (activeGeminiKey) {
+      try {
+        const result = await this.callGeminiVirtualTryOn(input, activeGeminiKey);
+        if (result) {
+          return {
+            success: true,
+            resultImageUrl: result,
+            beforeImageUrl: input.customerImage,
+            provider: 'google-gemini-vision-tryon',
+            status: 'completed',
+            details: {
+              garmentType: input.garmentType,
+              processingTimeMs: Date.now() - startTime,
+              replacedGarment: true,
+            },
+          };
+        }
+      } catch (err: any) {
+        console.warn('Google Gemini provider call note:', err?.message || err);
       }
     }
 
