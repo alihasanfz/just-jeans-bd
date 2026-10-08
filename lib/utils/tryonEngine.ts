@@ -498,42 +498,94 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
     const imgData = ctx.getImageData(0, 0, w, h);
     const data = imgData.data;
 
-    // Sample average background color from 4 corner points
-    const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + (w - 1)) * 4];
+    // Sample average background color from all 4 borders
+    const bgSamples: Array<[number, number, number]> = [];
+    const stepX = Math.max(1, Math.floor(w / 16));
+    const stepY = Math.max(1, Math.floor(h / 16));
+
+    for (let x = 0; x < w; x += stepX) {
+      const topIdx = x * 4;
+      bgSamples.push([data[topIdx], data[topIdx + 1], data[topIdx + 2]]);
+      const btmIdx = ((h - 1) * w + x) * 4;
+      bgSamples.push([data[btmIdx], data[btmIdx + 1], data[btmIdx + 2]]);
+    }
+    for (let y = 0; y < h; y += stepY) {
+      const leftIdx = y * w * 4;
+      bgSamples.push([data[leftIdx], data[leftIdx + 1], data[leftIdx + 2]]);
+      const rightIdx = (y * w + (w - 1)) * 4;
+      bgSamples.push([data[rightIdx], data[rightIdx + 1], data[rightIdx + 2]]);
+    }
+
     let avgR = 0, avgG = 0, avgB = 0;
-    for (const offset of corners) {
-      avgR += data[offset];
-      avgG += data[offset + 1];
-      avgB += data[offset + 2];
+    for (const [r, g, b] of bgSamples) {
+      avgR += r;
+      avgG += g;
+      avgB += b;
     }
-    avgR = Math.round(avgR / 4);
-    avgG = Math.round(avgG / 4);
-    avgB = Math.round(avgB / 4);
+    avgR = Math.round(avgR / (bgSamples.length || 1));
+    avgG = Math.round(avgG / (bgSamples.length || 1));
+    avgB = Math.round(avgB / (bgSamples.length || 1));
 
-    let hasAlpha = false;
-    for (let i = 3; i < data.length; i += 40) {
-      if (data[i] < 220) {
-        hasAlpha = true;
-        break;
+    // Flood-fill BFS background transparency from borders
+    const visited = new Uint8Array(w * h);
+    const queue: number[] = [];
+
+    const isBg = (x: number, y: number): boolean => {
+      const idx = (y * w + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
+      return diff < 52;
+    };
+
+    for (let x = 0; x < w; x++) {
+      if (isBg(x, 0)) { queue.push(x, 0); visited[x] = 1; }
+      if (isBg(x, h - 1)) { queue.push(x, h - 1); visited[(h - 1) * w + x] = 1; }
+    }
+    for (let y = 0; y < h; y++) {
+      if (isBg(0, y) && !visited[y * w]) { queue.push(0, y); visited[y * w] = 1; }
+      if (isBg(w - 1, y) && !visited[y * w + (w - 1)]) { queue.push(w - 1, y); visited[y * w + (w - 1)] = 1; }
+    }
+
+    let head = 0;
+    while (head < queue.length) {
+      const qx = queue[head++];
+      const qy = queue[head++];
+      const pIdx = (qy * w + qx) * 4;
+
+      const r = data[pIdx];
+      const g = data[pIdx + 1];
+      const b = data[pIdx + 2];
+      const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
+
+      if (diff < 40) {
+        data[pIdx + 3] = 0; // Transparent
+      } else if (diff < 58) {
+        data[pIdx + 3] = Math.round(((diff - 40) / 18) * 255); // Smooth anti-aliased edge
       }
-    }
 
-    // If light studio background (luminance > 130)
-    if (!hasAlpha && avgR > 130 && avgG > 130 && avgB > 130) {
-      const tol = 42;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const diff = Math.max(Math.abs(r - avgR), Math.abs(g - avgG), Math.abs(b - avgB));
-        if (diff < tol) {
-          data[i + 3] = 0; // Completely transparent
-        } else if (diff < tol + 18) {
-          data[i + 3] = Math.round(((diff - tol) / 18) * 255); // Smooth anti-aliased edge
+      const neighbors = [
+        [qx + 1, qy],
+        [qx - 1, qy],
+        [qx, qy + 1],
+        [qx, qy - 1],
+      ];
+
+      for (const [nx, ny] of neighbors) {
+        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+          const nIdx = ny * w + nx;
+          if (!visited[nIdx]) {
+            visited[nIdx] = 1;
+            if (isBg(nx, ny)) {
+              queue.push(nx, ny);
+            }
+          }
         }
       }
-      ctx.putImageData(imgData, 0, 0);
     }
+
+    ctx.putImageData(imgData, 0, 0);
 
     // Find tight bounding box of garment pixels (alpha > 30)
     let minX = w;
@@ -575,7 +627,6 @@ export function getCutoutImage(img: HTMLImageElement): CanvasImageSource {
     cutoutCache.set(img, c);
     return c;
   } catch (_) {
-    // If CORS prevents canvas read, fallback cleanly
     cutoutCache.set(img, c);
     return c;
   }
