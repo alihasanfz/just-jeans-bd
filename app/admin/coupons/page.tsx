@@ -74,7 +74,16 @@ export default function AdminCouponsPage() {
     try {
       const saved = localStorage.getItem('jeansbd_coupons');
       if (saved) {
-        setCoupons(JSON.parse(saved));
+        const parsed: Coupon[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const cleanCoupons = parsed.filter(
+            (c) => c && c.id !== 'c-1' && c.id !== 'c-2' && c.id !== 'c-3' && c.code !== 'JEANS10' && c.code !== 'DENIM200' && c.code !== 'PREMIUM15'
+          );
+          setCoupons(cleanCoupons);
+          localStorage.setItem('jeansbd_coupons', JSON.stringify(cleanCoupons));
+        }
+      } else {
+        setCoupons([]);
       }
     } catch (e) {
       console.error('Failed to load coupons from storage', e);

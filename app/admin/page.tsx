@@ -80,15 +80,15 @@ function AdminDashboardContent() {
   const safeOrders = Array.isArray(orders) ? orders : [];
   const safeProducts = Array.isArray(products) ? products : [];
 
-  // Metrics Calculations (aligned with Image 2 values with dynamic fallbacks)
+  // Metrics Calculations (Live dynamic data)
   const completedOrders = safeOrders.filter(
     (o) => o && (o.paymentStatus === 'completed' || o.orderStatus === 'Delivered')
   );
   const totalRevenueCalc = completedOrders.reduce((sum, o) => sum + (Number(o?.totalAmount) || 0), 0);
   const totalSalesCalc = safeOrders.reduce((sum, o) => sum + (Number(o?.totalAmount) || 0), 0);
 
-  const totalSales = totalSalesCalc > 0 ? totalSalesCalc : 4010;
-  const totalOrdersCount = safeOrders.length > 0 ? safeOrders.length : 2;
+  const totalSales = totalSalesCalc;
+  const totalOrdersCount = safeOrders.length;
   const pendingOrdersCount = safeOrders.filter(
     (o) => o && (o.orderStatus === 'Pending' || o.orderStatus === 'Confirmed')
   ).length;
@@ -99,16 +99,16 @@ function AdminDashboardContent() {
         o.orderStatus === 'Ready to Ship' ||
         o.orderStatus === 'Shipped' ||
         o.orderStatus === 'Out for Delivery')
-  ).length || 2;
+  ).length;
   const deliveredOrdersCount = safeOrders.filter((o) => o && o.orderStatus === 'Delivered').length;
   const cancelledOrdersCount = safeOrders.filter(
     (o) => o && (o.orderStatus === 'Cancelled' || o.orderStatus === 'Returned')
   ).length;
   const totalCustomersCount = new Set(
     safeOrders.map((o) => o?.customer?.phone).filter(Boolean)
-  ).size || 1;
-  const totalProductsCount = safeProducts.length > 0 ? safeProducts.length : 9;
-  const realizedRevenue = totalRevenueCalc > 0 ? totalRevenueCalc : 1970;
+  ).size;
+  const totalProductsCount = safeProducts.length;
+  const realizedRevenue = totalRevenueCalc;
 
   // Chart values matching Image 2
   const weeklySalesData = {

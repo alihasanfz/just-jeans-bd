@@ -30,33 +30,6 @@ const DEFAULT_STAFF_CREDENTIALS = [
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
     permissions: ['All Permissions'],
   },
-  {
-    id: 'staff-2',
-    name: 'Anisur Rahman',
-    email: 'anis.stock@jeansbd.com',
-    role: 'Inventory Manager',
-    password: 'stock123',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
-    permissions: ['Manage Products', 'Discount Coupons', 'Logistics & Store Settings'],
-  },
-  {
-    id: 'staff-3',
-    name: 'Tanvir Ahmed',
-    email: 'tanvir.dispatch@jeansbd.com',
-    role: 'Dispatch Coordinator',
-    password: 'dispatch123',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80',
-    permissions: ['Manage Orders', 'Assign Courier (Steadfast/Pathao)'],
-  },
-  {
-    id: 'staff-4',
-    name: 'Shirin Akter',
-    email: 'shirin.care@jeansbd.com',
-    role: 'Support Specialist',
-    password: 'support123',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
-    permissions: ['Manage Orders', 'Customer Data Access'],
-  },
 ];
 
 export default function AdminLoginPage() {

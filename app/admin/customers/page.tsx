@@ -40,86 +40,7 @@ export interface Customer {
   joinDate: string;
 }
 
-const INITIAL_CUSTOMERS: Customer[] = [
-  {
-    id: 'cust-1',
-    name: 'Tamim Iqbal',
-    phone: '01712-345678',
-    email: 'tamim.iqbal@example.com',
-    city: 'Dhaka',
-    address: 'House 14, Road 7, Dhanmondi, Dhaka',
-    totalOrders: 6,
-    totalSpent: 14850,
-    tier: 'VIP',
-    lastOrderDate: '2026-09-27',
-    joinDate: '2026-01-15',
-  },
-  {
-    id: 'cust-2',
-    name: 'Nusrat Jahan',
-    phone: '01823-456789',
-    email: 'nusrat.jahan@example.com',
-    city: 'Chittagong',
-    address: 'GEC Circle, Nasirabad, Chattogram',
-    totalOrders: 4,
-    totalSpent: 8900,
-    tier: 'Regular',
-    lastOrderDate: '2026-09-25',
-    joinDate: '2026-03-20',
-  },
-  {
-    id: 'cust-3',
-    name: 'Mahmudul Hasan',
-    phone: '01775-743148',
-    email: 'hasansheikh9080@gmail.com',
-    city: 'Dhaka',
-    address: '13-14 Zoo Road, Mollik Tower, Mirpur-01, Dhaka',
-    totalOrders: 8,
-    totalSpent: 22400,
-    tier: 'VIP',
-    lastOrderDate: '2026-09-28',
-    joinDate: '2025-11-10',
-  },
-  {
-    id: 'cust-4',
-    name: 'Fariha Rahman',
-    phone: '01934-567890',
-    email: 'fariha.r@example.com',
-    city: 'Sylhet',
-    address: 'Kumarpara, Sylhet Sadar',
-    totalOrders: 2,
-    totalSpent: 4200,
-    tier: 'Regular',
-    lastOrderDate: '2026-09-20',
-    joinDate: '2026-06-12',
-  },
-  {
-    id: 'cust-5',
-    name: 'Rakibul Islam',
-    phone: '01645-678901',
-    email: 'rakibul.99@example.com',
-    city: 'Dhaka',
-    address: 'Sector 4, Uttara, Dhaka-1230',
-    totalOrders: 1,
-    totalSpent: 2150,
-    tier: 'New',
-    lastOrderDate: '2026-09-29',
-    joinDate: '2026-09-29',
-  },
-  {
-    id: 'cust-6',
-    name: 'Sadia Sultana',
-    phone: '01556-789012',
-    email: 'sadia.denim@example.com',
-    city: 'Rajshahi',
-    address: 'Shaheb Bazar, Rajshahi',
-    totalOrders: 5,
-    totalSpent: 11950,
-    tier: 'VIP',
-    lastOrderDate: '2026-09-18',
-    joinDate: '2026-02-05',
-  },
-];
+const INITIAL_CUSTOMERS: Customer[] = [];
 
 export default function AdminCustomersPage() {
   const { orders } = useOrder();
@@ -152,14 +73,17 @@ export default function AdminCustomersPage() {
     async function loadCustomers() {
       try {
         const idbCusts = await idbGet<Customer[]>('jeansbd_customers');
-        let baseList: Customer[] = INITIAL_CUSTOMERS;
+        let baseList: Customer[] = [];
 
         if (idbCusts && Array.isArray(idbCusts) && idbCusts.length > 0) {
-          baseList = idbCusts;
+          baseList = idbCusts.filter((c) => !c.id.startsWith('cust-') || c.id.startsWith('cust-order-'));
         } else {
           const saved = localStorage.getItem('jeansbd_customers');
           if (saved) {
-            baseList = JSON.parse(saved);
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) {
+              baseList = parsed.filter((c) => !c.id.startsWith('cust-') || c.id.startsWith('cust-order-'));
+            }
           }
         }
 

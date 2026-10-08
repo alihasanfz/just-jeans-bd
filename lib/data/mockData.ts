@@ -77,40 +77,7 @@ export const INITIAL_CATEGORIES: Category[] = [
 
 export const INITIAL_PRODUCTS: Product[] = [];
 
-export const INITIAL_COUPONS: Coupon[] = [
-  {
-    id: 'c-1',
-    code: 'JEANS10',
-    discountType: 'percentage',
-    discountValue: 10,
-    minPurchase: 1500,
-    maxDiscount: 500,
-    expiryDate: '2027-12-31',
-    isActive: true,
-    usageCount: 142,
-  },
-  {
-    id: 'c-2',
-    code: 'DENIM200',
-    discountType: 'fixed',
-    discountValue: 200,
-    minPurchase: 2500,
-    expiryDate: '2027-12-31',
-    isActive: true,
-    usageCount: 88,
-  },
-  {
-    id: 'c-3',
-    code: 'PREMIUM15',
-    discountType: 'percentage',
-    discountValue: 15,
-    minPurchase: 4000,
-    maxDiscount: 1000,
-    expiryDate: '2027-12-31',
-    isActive: true,
-    usageCount: 36,
-  },
-];
+export const INITIAL_COUPONS: Coupon[] = [];
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   siteName: 'Jeans BD',

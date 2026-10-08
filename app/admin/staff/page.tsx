@@ -79,42 +79,6 @@ const INITIAL_STAFF: StaffMember[] = [
     status: 'Active',
     lastActive: 'Active Now',
   },
-  {
-    id: 'staff-2',
-    name: 'Anisur Rahman',
-    email: 'anis.stock@jeansbd.com',
-    phone: '01720-112233',
-    role: 'Inventory Manager',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
-    password: 'stock123',
-    permissions: ['Manage Products', 'Logistics & Store Settings'],
-    status: 'Active',
-    lastActive: '12 mins ago',
-  },
-  {
-    id: 'staff-3',
-    name: 'Tanvir Ahmed',
-    email: 'tanvir.dispatch@jeansbd.com',
-    phone: '01830-445566',
-    role: 'Dispatch Coordinator',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80',
-    password: 'dispatch123',
-    permissions: ['Manage Orders', 'Assign Courier (Steadfast/Pathao)'],
-    status: 'Active',
-    lastActive: '45 mins ago',
-  },
-  {
-    id: 'staff-4',
-    name: 'Shirin Akter',
-    email: 'shirin.care@jeansbd.com',
-    phone: '01940-778899',
-    role: 'Support Specialist',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
-    password: 'support123',
-    permissions: ['Manage Orders', 'Customer Data Access'],
-    status: 'Active',
-    lastActive: '2 hours ago',
-  },
 ];
 
 const PERMISSION_GROUPS = [
@@ -185,9 +149,13 @@ export default function AdminStaffPage() {
     try {
       const saved = localStorage.getItem('jeansbd_staff');
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed: StaffMember[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setStaff(parsed);
+          const cleanStaff = parsed.filter(
+            (s) => s.id !== 'staff-2' && s.id !== 'staff-3' && s.id !== 'staff-4'
+          );
+          setStaff(cleanStaff.length > 0 ? cleanStaff : INITIAL_STAFF);
+          localStorage.setItem('jeansbd_staff', JSON.stringify(cleanStaff.length > 0 ? cleanStaff : INITIAL_STAFF));
         }
       }
     } catch (e) {
