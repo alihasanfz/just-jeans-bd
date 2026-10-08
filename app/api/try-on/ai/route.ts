@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       size = 'M',
       color = '',
       productName = '',
+      manualTransform,
     } = body;
 
     if (!customerImage || !garmentImage) {
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       size,
       color,
       productName,
+      manualTransform,
     });
 
     return NextResponse.json(output);

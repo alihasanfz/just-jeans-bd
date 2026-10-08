@@ -769,6 +769,14 @@ export async function generatePhotorealisticClothingReplacement(
     price?: number;
     scaleAdjust?: number;
     verticalOffsetAdjust?: number;
+    manualTransform?: {
+      xPercent: number;
+      yPercent: number;
+      scale: number;
+      rotation: number;
+      widthPercent?: number;
+      heightPercent?: number;
+    };
   }
 ): Promise<string> {
   const width = userImage.naturalWidth || userImage.width || 1080;
@@ -784,7 +792,7 @@ export async function generatePhotorealisticClothingReplacement(
   ctx.drawImage(userImage, 0, 0, width, height);
 
   // 2. Anatomical landmarks and sizing
-  const { landmarks, shoulderCenter, hipCenter, tiltAngle } = pose;
+  const { landmarks, shoulderCenter, hipCenter } = pose;
   const isBottom = options.garmentType === 'jeans' || options.garmentType === 'pants';
 
   const rs = landmarks[POSE_INDEXES.RIGHT_SHOULDER]; // image left
@@ -793,8 +801,10 @@ export async function generatePhotorealisticClothingReplacement(
   const rh = landmarks[POSE_INDEXES.RIGHT_HIP];
 
   const sizeFactor = SIZE_FIT_FACTORS[options.selectedSize] || 1.0;
-  const userScale = (options.scaleAdjust || 1.0) * sizeFactor;
+  const mt = options.manualTransform;
+  const userScale = (mt?.scale || options.scaleAdjust || 1.0) * sizeFactor;
   const userYOffset = (options.verticalOffsetAdjust || 0) * height;
+  const tiltAngle = mt?.rotation !== undefined ? mt.rotation : pose.tiltAngle;
 
   // 3. Clean, trimmed cutout of garment (0% empty margin, collar at top, sleeve ends at edges)
   const garmentSource = getCutoutImage(garmentImage);
@@ -814,11 +824,15 @@ export async function generatePhotorealisticClothingReplacement(
   if (isBottom) {
     // Bottoms (Jeans/Pants): anchored at hips down over legs
     const hipSpan = Math.hypot((lh.x - rh.x) * width, (lh.y - rh.y) * height);
-    anchorX = hipCenter.x * width;
-    anchorY = (hipCenter.y - 0.02) * height + userYOffset;
+    anchorX = mt?.xPercent !== undefined ? mt.xPercent * width : hipCenter.x * width;
+    anchorY = mt?.yPercent !== undefined ? mt.yPercent * height : (hipCenter.y - 0.02) * height + userYOffset;
 
-    targetWidth = Math.max(width * 0.42, hipSpan * 2.25) * userScale;
-    targetHeight = Math.max((height - anchorY) * 0.92, targetWidth * (aspect || 1.85));
+    targetWidth = mt?.widthPercent !== undefined
+      ? mt.widthPercent * width * userScale
+      : Math.max(width * 0.42, hipSpan * 2.25) * userScale;
+    targetHeight = mt?.heightPercent !== undefined
+      ? mt.heightPercent * height * userScale
+      : Math.max((height - anchorY) * 0.92, targetWidth * (aspect || 1.85));
 
     // A. Erase / occlude old pants/shorts
     ctx.save();
@@ -859,14 +873,17 @@ export async function generatePhotorealisticClothingReplacement(
     ctx.restore();
   } else {
     // Tops (Jackets, Shirts, Hoodies, T-shirts):
-    // Anchored directly at the collar / base of the neck
-    anchorX = shoulderCenter.x * width;
-    anchorY = (shoulderCenter.y - 0.02) * height + userYOffset;
+    // Anchored directly at collar / base of the neck
+    anchorX = mt?.xPercent !== undefined ? mt.xPercent * width : shoulderCenter.x * width;
+    anchorY = mt?.yPercent !== undefined ? mt.yPercent * height : (shoulderCenter.y - 0.02) * height + userYOffset;
 
     // Outerwear width encompasses chest + outer deltoids + sleeve drape
-    targetWidth = Math.max(width * 0.52, shoulderSpanPixels * 2.35) * userScale;
-    // Outerwear height reaches from neck base down over waistband/hips
-    targetHeight = Math.max(torsoHeightPixels * 1.34, targetWidth * (aspect || 0.95));
+    targetWidth = mt?.widthPercent !== undefined
+      ? mt.widthPercent * width * userScale
+      : Math.max(width * 0.52, shoulderSpanPixels * 2.35) * userScale;
+    targetHeight = mt?.heightPercent !== undefined
+      ? mt.heightPercent * height * userScale
+      : Math.max(torsoHeightPixels * 1.34, targetWidth * (aspect || 0.95));
 
     // A. OCCLUSION OF OLD SHIRT:
     // Erases previous t-shirt/shirt completely so no old clothing can be seen!

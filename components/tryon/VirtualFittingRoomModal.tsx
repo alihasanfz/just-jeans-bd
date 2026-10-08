@@ -22,6 +22,13 @@ import {
   Eye,
   ArrowRight,
   Sparkle,
+  Move,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  Plus,
+  Minus,
+  Edit3,
 } from 'lucide-react';
 import { Product } from '@/types';
 import { useCart } from '@/lib/store/cartContext';
@@ -49,6 +56,13 @@ interface VirtualFittingRoomModalProps {
   onClose: () => void;
 }
 
+interface GarmentTransform {
+  x: number; // percentage (0 - 100)
+  y: number; // percentage (0 - 100)
+  scale: number; // 0.5 to 2.5
+  rotation: number; // in degrees, -60 to +60
+}
+
 export default function VirtualFittingRoomModal({
   product,
   initialSize,
@@ -59,12 +73,13 @@ export default function VirtualFittingRoomModal({
   const router = useRouter();
   const { addToCart } = useCart();
 
-  // Mode: Primary is 'ai' (photorealistic clothing replacement), secondary is 'realtime' (Live AR Cam)
+  // Mode: Primary is 'ai' (Interactive manual positioning + AI Try-On), secondary is 'realtime' (Live AR Cam)
   const [activeMode, setActiveMode] = useState<'ai' | 'realtime'>('ai');
 
   // Camera & Video Elements
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const garmentImgRef = useRef<HTMLImageElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -84,13 +99,43 @@ export default function VirtualFittingRoomModal({
   const [guidanceMsgBn, setGuidanceMsgBn] = useState<string>('ক্যামেরার সামনে দাঁড়ান');
   const [poseDetected, setPoseDetected] = useState<boolean>(false);
 
-  // Selected Variant & Fit Tuning
+  // Selected Variant
   const defaultSize = initialSize || (product.variants[0]?.size ?? '32');
   const defaultColor = initialColor || (product.variants[0]?.color ?? 'Raw Deep Indigo');
   const [selectedSize, setSelectedSize] = useState<string>(defaultSize);
   const [selectedColor, setSelectedColor] = useState<string>(defaultColor);
-  const [scaleAdjust, setScaleAdjust] = useState<number>(1.0);
-  const [verticalOffsetAdjust, setVerticalOffsetAdjust] = useState<number>(0);
+
+  // Garment Category Detection (Tops vs Bottoms)
+  const isTopsProduct =
+    /jacket|shirt|tshirt|t-shirt|tee|hoodie|polo|panjabi|top|coat|blazer|sweater/i.test(product.name || '') ||
+    /jacket|shirt|tshirt|hoodie|polo|panjabi|top|coat|blazer/i.test(product.category || '') ||
+    product.fit === 'Denim Jacket';
+
+  const [garmentCategory, setGarmentCategory] = useState<'tops' | 'bottoms'>(
+    isTopsProduct ? 'tops' : 'bottoms'
+  );
+
+  // Interactive Manual Transform of the Reference Garment
+  const [transform, setTransform] = useState<GarmentTransform>({
+    x: 50,
+    y: isTopsProduct ? 38 : 62,
+    scale: 1.0,
+    rotation: 0,
+  });
+
+  const [isInteracting, setIsInteracting] = useState<boolean>(false);
+  const interactionStateRef = useRef<{
+    mode: 'drag' | 'rotate' | 'resize' | null;
+    startX: number;
+    startY: number;
+    startTransform: GarmentTransform;
+    corner?: string;
+  }>({
+    mode: null,
+    startX: 0,
+    startY: 0,
+    startTransform: { x: 50, y: isTopsProduct ? 38 : 62, scale: 1.0, rotation: 0 },
+  });
 
   // AI Photorealistic Try-On State (Before vs After)
   const [beforeImage, setBeforeImage] = useState<string | null>(null);
@@ -101,7 +146,7 @@ export default function VirtualFittingRoomModal({
   const [aiStep, setAiStep] = useState<number>(1);
   const [aiStepText, setAiStepText] = useState<string>('Analyzing person...');
 
-  // Cart feedback
+  // Cart feedback & telemetry
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
   const [sessionId] = useState<string>(() => `tryon-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
 
@@ -116,7 +161,7 @@ export default function VirtualFittingRoomModal({
 
   // Garment image source (cutout asset or primary image)
   const garmentAssetUrl = product.tryOnAssetUrl || product.thumbnail || product.images[0];
-  const garmentType = product.garmentType || (product.fit === 'Denim Jacket' ? 'jacket' : 'jeans');
+  const garmentType = garmentCategory === 'tops' ? 'jacket' : 'jeans';
 
   // Preload garment asset image
   useEffect(() => {
@@ -232,8 +277,8 @@ export default function VirtualFittingRoomModal({
             selectedSize,
             selectedColorHex,
             isMirrored: facingMode === 'user',
-            scaleAdjust,
-            verticalOffsetAdjust,
+            scaleAdjust: transform.scale,
+            verticalOffsetAdjust: (transform.y - (garmentCategory === 'tops' ? 38 : 62)) / 100,
           });
         } else {
           setPoseDetected(false);
@@ -266,23 +311,66 @@ export default function VirtualFittingRoomModal({
     garmentType,
     selectedSize,
     selectedColorHex,
-    scaleAdjust,
-    verticalOffsetAdjust,
+    transform.scale,
+    transform.y,
+    garmentCategory,
     sessionId,
     poseDetected,
   ]);
 
   /**
-   * Main Realistic AI Virtual Try-On Pipeline
-   * Takes a customer photograph (from camera capture or upload)
-   * 1. Detects person, pose & clothing region
-   * 2. Occludes / in-paints the existing shirt/jacket
-   * 3. Drapes the authentic selected product onto the person's real body
-   * 4. Produces photorealistic before/after results
+   * Auto Align Garment to detected anatomical landmarks
    */
-  const processRealisticTryOn = async (customerImageDataUrl: string) => {
-    setBeforeImage(customerImageDataUrl);
-    setAfterImage(null);
+  const autoAlignGarment = useCallback(async (catToUse?: 'tops' | 'bottoms') => {
+    const cat = catToUse || garmentCategory;
+    try {
+      if (userPhotoImgRef.current && trackerRef.current) {
+        const pose = await trackerRef.current.sendFrame(userPhotoImgRef.current);
+        if (pose && pose.detected) {
+          if (cat === 'tops') {
+            setTransform({
+              x: Math.round(pose.shoulderCenter.x * 100),
+              y: Math.round((pose.shoulderCenter.y + 0.12) * 100),
+              scale: 1.0,
+              rotation: Math.round(pose.tiltAngle * (180 / Math.PI)),
+            });
+          } else {
+            setTransform({
+              x: Math.round(pose.hipCenter.x * 100),
+              y: Math.round((pose.hipCenter.y + 0.22) * 100),
+              scale: 1.0,
+              rotation: Math.round(pose.tiltAngle * (180 / Math.PI)),
+            });
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback smart initial placement
+    if (cat === 'tops') {
+      setTransform({ x: 50, y: 38, scale: 1.0, rotation: 0 });
+    } else {
+      setTransform({ x: 50, y: 64, scale: 1.0, rotation: 0 });
+    }
+  }, [garmentCategory]);
+
+  /**
+   * Main Realistic AI Virtual Try-On Pipeline
+   * 1. Detects person, pose & clothing region
+   * 2. Incorporates customer's manual placement & alignment
+   * 3. Completely occludes & replaces existing clothing
+   * 4. Synthesizes photorealistic fabric drape and lighting
+   */
+  const processRealisticTryOn = async (
+    customerImageDataUrl: string,
+    manualConfig?: {
+      xPercent: number;
+      yPercent: number;
+      scale: number;
+      rotation: number;
+    }
+  ) => {
     setIsProcessingAI(true);
     setAiStep(1);
     setAiStepText('Analyzing person and body pose...');
@@ -308,7 +396,7 @@ export default function VirtualFittingRoomModal({
 
       await new Promise((r) => setTimeout(r, 450));
       setAiStep(3);
-      setAiStepText(`Replacing old clothing & fitting ${product.name}...`);
+      setAiStepText(`Aligning ${product.name} to body contours...`);
 
       const pose = await trackerRef.current.sendFrame(img);
 
@@ -322,9 +410,11 @@ export default function VirtualFittingRoomModal({
             customerImage: customerImageDataUrl,
             garmentImage: garmentAssetUrl,
             garmentType,
+            category: garmentCategory,
             size: selectedSize,
             color: selectedColor,
             productName: product.name,
+            manualTransform: manualConfig,
           }),
         });
         if (res.ok) {
@@ -339,9 +429,9 @@ export default function VirtualFittingRoomModal({
 
       await new Promise((r) => setTimeout(r, 450));
       setAiStep(4);
-      setAiStepText('Harmonizing lighting, textures, and fabric drape...');
+      setAiStepText('Removing previous clothing & applying realistic fabric drape...');
 
-      // If no external cloud API result, run local neural clothing replacement
+      // Run local photorealistic garment replacement & inpainting engine
       if (!generatedUrl && pose && garmentImgRef.current) {
         generatedUrl = await generatePhotorealisticClothingReplacement(img, garmentImgRef.current, pose, {
           garmentType,
@@ -349,8 +439,8 @@ export default function VirtualFittingRoomModal({
           selectedColorHex,
           productName: product.name,
           price: effectivePrice,
-          scaleAdjust,
-          verticalOffsetAdjust,
+          scaleAdjust: manualConfig?.scale ?? transform.scale,
+          manualTransform: manualConfig,
         });
       }
 
@@ -371,20 +461,25 @@ export default function VirtualFittingRoomModal({
     }
   };
 
-  // Re-run AI fit when size or color changes on an existing photo
-  const handleVariantReFit = (newSize?: string, newColor?: string) => {
-    if (newSize) setSelectedSize(newSize);
-    if (newColor) setSelectedColor(newColor);
+  /**
+   * Trigger AI generation with current manual alignment
+   */
+  const handleGenerateTryOn = () => {
+    if (!beforeImage) return;
 
-    if (beforeImage) {
-      setTimeout(() => {
-        processRealisticTryOn(beforeImage);
-      }, 50);
-    }
+    // Convert transform percentages into image-relative coordinates for the AI pipeline:
+    const manualConfig = {
+      xPercent: transform.x / 100,
+      yPercent: (transform.y - (garmentCategory === 'tops' ? 14 : 20)) / 100, // Anchor at collar line or waist
+      scale: transform.scale,
+      rotation: (transform.rotation * Math.PI) / 180, // radians
+    };
+
+    processRealisticTryOn(beforeImage, manualConfig);
   };
 
   // Capture live photo from camera
-  const handleCaptureLivePhoto = () => {
+  const handleCaptureLivePhoto = async () => {
     if (!videoRef.current) return;
     const captureCanvas = document.createElement('canvas');
     captureCanvas.width = videoRef.current.videoWidth || 1080;
@@ -400,13 +495,25 @@ export default function VirtualFittingRoomModal({
     ctx.drawImage(videoRef.current, 0, 0, captureCanvas.width, captureCanvas.height);
     const dataUrl = captureCanvas.toDataURL('image/jpeg', 0.95);
 
-    // Stop video and send to AI pipeline
+    // Stop video and transition to interactive placement workspace
     stopCameraStream(streamRef.current);
     streamRef.current = null;
     setIsCameraActive(false);
     setIsCameraOpenInAI(false);
 
-    processRealisticTryOn(dataUrl);
+    setBeforeImage(dataUrl);
+    setAfterImage(null);
+
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = async () => {
+      userPhotoImgRef.current = img;
+      if (!trackerRef.current) {
+        trackerRef.current = new VirtualFittingPoseTracker();
+        await trackerRef.current.init();
+      }
+      await autoAlignGarment();
+    };
   };
 
   // Handle uploaded customer photo
@@ -418,7 +525,19 @@ export default function VirtualFittingRoomModal({
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
-        processRealisticTryOn(dataUrl);
+        setBeforeImage(dataUrl);
+        setAfterImage(null);
+
+        const img = new Image();
+        img.src = dataUrl;
+        img.onload = async () => {
+          userPhotoImgRef.current = img;
+          if (!trackerRef.current) {
+            trackerRef.current = new VirtualFittingPoseTracker();
+            await trackerRef.current.init();
+          }
+          await autoAlignGarment();
+        };
       }
     };
     reader.readAsDataURL(file);
@@ -468,11 +587,136 @@ export default function VirtualFittingRoomModal({
     router.push('/checkout');
   };
 
+  // ========================================================
+  // INTERACTIVE POINTER / TOUCH GESTURE HANDLERS
+  // ========================================================
+  const handleStartDrag = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    interactionStateRef.current = {
+      mode: 'drag',
+      startX: e.clientX,
+      startY: e.clientY,
+      startTransform: { ...transform },
+    };
+    setIsInteracting(true);
+  };
+
+  const handleStartRotate = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    interactionStateRef.current = {
+      mode: 'rotate',
+      startX: e.clientX,
+      startY: e.clientY,
+      startTransform: { ...transform },
+    };
+    setIsInteracting(true);
+  };
+
+  const handleStartResize = (e: React.PointerEvent, corner: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    interactionStateRef.current = {
+      mode: 'resize',
+      startX: e.clientX,
+      startY: e.clientY,
+      startTransform: { ...transform },
+      corner,
+    };
+    setIsInteracting(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const state = interactionStateRef.current;
+    if (!state.mode || !viewportRef.current) return;
+
+    const rect = viewportRef.current.getBoundingClientRect();
+    const dx = e.clientX - state.startX;
+    const dy = e.clientY - state.startY;
+
+    if (state.mode === 'drag') {
+      const dxPercent = (dx / rect.width) * 100;
+      const dyPercent = (dy / rect.height) * 100;
+      setTransform({
+        ...state.startTransform,
+        x: Math.min(95, Math.max(5, state.startTransform.x + dxPercent)),
+        y: Math.min(95, Math.max(5, state.startTransform.y + dyPercent)),
+      });
+    } else if (state.mode === 'rotate') {
+      const boxCenterX = rect.left + (state.startTransform.x / 100) * rect.width;
+      const boxCenterY = rect.top + (state.startTransform.y / 100) * rect.height;
+      const angleRad = Math.atan2(e.clientY - boxCenterY, e.clientX - boxCenterX);
+      let angleDeg = (angleRad * (180 / Math.PI)) + 90;
+      while (angleDeg > 180) angleDeg -= 360;
+      while (angleDeg < -180) angleDeg += 360;
+      angleDeg = Math.max(-60, Math.min(60, Math.round(angleDeg)));
+      setTransform((prev) => ({ ...prev, rotation: angleDeg }));
+    } else if (state.mode === 'resize') {
+      const boxCenterX = rect.left + (state.startTransform.x / 100) * rect.width;
+      const boxCenterY = rect.top + (state.startTransform.y / 100) * rect.height;
+      const initialDist = Math.hypot(state.startX - boxCenterX, state.startY - boxCenterY) || 1;
+      const currentDist = Math.hypot(e.clientX - boxCenterX, e.clientY - boxCenterY);
+      const scaleMultiplier = currentDist / initialDist;
+      const newScale = Math.max(0.5, Math.min(2.5, +(state.startTransform.scale * scaleMultiplier).toFixed(2)));
+      setTransform((prev) => ({ ...prev, scale: newScale }));
+    }
+  };
+
+  const handlePointerUp = () => {
+    interactionStateRef.current = {
+      mode: null,
+      startX: 0,
+      startY: 0,
+      startTransform: { ...transform },
+    };
+    setIsInteracting(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    setTransform((prev) => ({
+      ...prev,
+      scale: Math.max(0.5, Math.min(2.5, +(prev.scale + delta).toFixed(2))),
+    }));
+  };
+
+  // Keyboard navigation for desktop fine adjustment
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!beforeImage || afterImage || isProcessingAI) return;
+      const step = e.shiftKey ? 3 : 1;
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setTransform((prev) => ({ ...prev, y: Math.max(5, prev.y - step) }));
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setTransform((prev) => ({ ...prev, y: Math.min(95, prev.y + step) }));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setTransform((prev) => ({ ...prev, x: Math.max(5, prev.x - step) }));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setTransform((prev) => ({ ...prev, x: Math.min(95, prev.x + step) }));
+      } else if (e.key === '+' || e.key === '=') {
+        setTransform((prev) => ({ ...prev, scale: Math.min(2.5, +(prev.scale + 0.05).toFixed(2)) }));
+      } else if (e.key === '-' || e.key === '_') {
+        setTransform((prev) => ({ ...prev, scale: Math.max(0.5, +(prev.scale - 0.05).toFixed(2)) }));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [beforeImage, afterImage, isProcessingAI]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 backdrop-blur-md animate-fade-in overflow-hidden select-none">
-      {/* Container: Studio Viewport */}
+      {/* Studio Viewport Modal */}
       <div className="relative w-full h-full max-w-6xl md:h-[92vh] md:rounded-3xl bg-[#080d1a] border border-slate-800 shadow-2xl flex flex-col md:flex-row overflow-hidden">
         
         {/* ======================================================== */}
@@ -511,7 +755,7 @@ export default function VirtualFittingRoomModal({
           {/* ---------------------------------------------------- */}
           {/* STATE A: INITIAL CHOICE (BEFORE PHOTO IS TAKEN/UPLOADED) */}
           {/* ---------------------------------------------------- */}
-          {!isCameraActive && !isProcessingAI && !afterImage && (
+          {!isCameraActive && !beforeImage && !isProcessingAI && !afterImage && (
             <div className="p-6 max-w-lg text-center space-y-6 animate-fade-in">
               <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-400 to-indigo-600 p-0.5 mx-auto shadow-xl shadow-indigo-500/20">
                 <div className="w-full h-full bg-[#080d1a] rounded-[22px] flex items-center justify-center text-amber-400">
@@ -521,13 +765,13 @@ export default function VirtualFittingRoomModal({
 
               <div className="space-y-2">
                 <span className="text-[11px] font-black tracking-widest text-amber-400 uppercase bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full inline-block">
-                  Photorealistic AI Fitting Room
+                  Interactive AI Fitting Room
                 </span>
                 <h2 className="text-2xl font-black text-white tracking-tight">
                   Try On {product.name}
                 </h2>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
-                  Take a photo or upload your picture. Our AI removes existing clothing and realistically fits this authentic denim piece onto your body.
+                  Take a photo or upload your picture. You can drag and position this authentic denim piece on your body, and our AI will realistically replace existing clothing.
                 </p>
               </div>
 
@@ -596,7 +840,7 @@ export default function VirtualFittingRoomModal({
                 <button
                   type="button"
                   onClick={handleCaptureLivePhoto}
-                  className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-95 text-slate-950 font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2.5 shadow-xl shadow-amber-500/30 uppercase tracking-wider"
+                  className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-95 text-slate-950 font-black px-8 py-3.5 rounded-2xl text-xs flex items-center gap-2.5 shadow-xl shadow-amber-500/30 uppercase tracking-wider cursor-pointer"
                 >
                   <Camera className="w-4 h-4 stroke-[3]" />
                   <span>Capture & Fit Product</span>
@@ -610,7 +854,7 @@ export default function VirtualFittingRoomModal({
                     setIsCameraActive(false);
                     setIsCameraOpenInAI(false);
                   }}
-                  className="bg-slate-900/80 hover:bg-slate-800 text-white p-3.5 rounded-2xl border border-slate-700"
+                  className="bg-slate-900/80 hover:bg-slate-800 text-white p-3.5 rounded-2xl border border-slate-700 cursor-pointer"
                   title="Cancel"
                 >
                   <X className="w-4 h-4" />
@@ -620,7 +864,124 @@ export default function VirtualFittingRoomModal({
           )}
 
           {/* ---------------------------------------------------- */}
-          {/* STATE C: 5-STEP AI GENERATION PROGRESS OVERLAY       */}
+          {/* STATE C: INTERACTIVE ALIGNMENT STUDIO (STEP 1)       */}
+          {/* ---------------------------------------------------- */}
+          {beforeImage && !afterImage && !isProcessingAI && (
+            <div
+              ref={viewportRef}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              className="relative w-full h-full flex items-center justify-center overflow-hidden touch-none select-none bg-black"
+            >
+              {/* Customer Photo */}
+              <img
+                src={beforeImage}
+                alt="Customer Photo"
+                className="max-w-full max-h-full object-contain pointer-events-none"
+              />
+
+              {/* Interactive Transformable Garment Reference Box */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${transform.x}%`,
+                  top: `${transform.y}%`,
+                  transform: `translate(-50%, -50%) rotate(${transform.rotation}deg) scale(${transform.scale})`,
+                  width: `${garmentCategory === 'tops' ? 240 : 200}px`,
+                  height: `${garmentCategory === 'tops' ? 260 : 340}px`,
+                  cursor: isInteracting ? 'grabbing' : 'grab',
+                }}
+                onPointerDown={handleStartDrag}
+                onWheel={handleWheel}
+                className={`group border-2 border-dashed ${
+                  isInteracting ? 'border-amber-400 bg-amber-400/15' : 'border-amber-400/85 bg-amber-400/10 hover:border-amber-300'
+                } rounded-2xl transition-all shadow-[0_0_30px_rgba(245,158,11,0.35)] select-none z-20`}
+              >
+                {/* Garment Cutout Image */}
+                <img
+                  src={garmentAssetUrl}
+                  alt="Garment Preview"
+                  className="w-full h-full object-contain pointer-events-none drop-shadow-2xl"
+                />
+
+                {/* Top Rotation Handle with Stalk */}
+                <div
+                  onPointerDown={handleStartRotate}
+                  className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center cursor-grab active:cursor-grabbing z-30"
+                  title="Drag to Rotate"
+                >
+                  <div className="w-8 h-8 rounded-full bg-slate-900 border-2 border-amber-400 flex items-center justify-center text-amber-400 shadow-xl hover:scale-110 active:scale-95 transition-transform">
+                    <RotateCcw className="w-4 h-4" />
+                  </div>
+                  <div className="w-0.5 h-3 bg-amber-400" />
+                </div>
+
+                {/* 4 Corner Resize Handles */}
+                <div
+                  onPointerDown={(e) => handleStartResize(e, 'nw')}
+                  className="absolute -top-2.5 -left-2.5 w-5 h-5 rounded-full bg-amber-400 border-2 border-slate-950 cursor-nwse-resize hover:scale-125 transition-transform z-30 shadow"
+                  title="Drag to Resize"
+                />
+                <div
+                  onPointerDown={(e) => handleStartResize(e, 'ne')}
+                  className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-amber-400 border-2 border-slate-950 cursor-nesw-resize hover:scale-125 transition-transform z-30 shadow"
+                  title="Drag to Resize"
+                />
+                <div
+                  onPointerDown={(e) => handleStartResize(e, 'se')}
+                  className="absolute -bottom-2.5 -right-2.5 w-5 h-5 rounded-full bg-amber-400 border-2 border-slate-950 cursor-nwse-resize hover:scale-125 transition-transform z-30 shadow"
+                  title="Drag to Resize"
+                />
+                <div
+                  onPointerDown={(e) => handleStartResize(e, 'sw')}
+                  className="absolute -bottom-2.5 -left-2.5 w-5 h-5 rounded-full bg-amber-400 border-2 border-slate-950 cursor-nesw-resize hover:scale-125 transition-transform z-30 shadow"
+                  title="Drag to Resize"
+                />
+
+                {/* Info Badge at center on hover/interaction */}
+                <div className="absolute inset-x-0 -bottom-8 flex justify-center pointer-events-none">
+                  <span className="bg-black/85 backdrop-blur-md border border-amber-400/50 text-amber-400 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full shadow">
+                    {transform.rotation !== 0 ? `${transform.rotation}° • ` : ''}{(transform.scale * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Viewport Top Bar */}
+              <div className="absolute top-4 inset-x-4 flex items-center justify-between pointer-events-auto z-20">
+                <div className="bg-slate-950/85 backdrop-blur-md border border-amber-400/40 text-white text-xs font-bold px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <span className="hidden sm:inline">Position garment on your body, then click Generate</span>
+                  <span className="sm:hidden">Align garment on body</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => autoAlignGarment()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
+                    title="Automatically detect body and align garment"
+                  >
+                    <Sparkle className="w-3.5 h-3.5" />
+                    <span>Auto Align</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBeforeImage(null);
+                      setAfterImage(null);
+                    }}
+                    className="bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 active:scale-95 transition cursor-pointer"
+                  >
+                    <span>Change Photo</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ---------------------------------------------------- */}
+          {/* STATE D: 5-STEP AI GENERATION PROGRESS OVERLAY       */}
           {/* ---------------------------------------------------- */}
           {isProcessingAI && (
             <div className="absolute inset-0 z-30 bg-[#080d1a]/95 backdrop-blur-lg flex flex-col items-center justify-center p-6 text-center space-y-6">
@@ -652,7 +1013,7 @@ export default function VirtualFittingRoomModal({
           )}
 
           {/* ---------------------------------------------------- */}
-          {/* STATE D: PHOTOREALISTIC RESULT (BEFORE VS AFTER VIEW) */}
+          {/* STATE E: PHOTOREALISTIC RESULT (BEFORE VS AFTER VIEW) */}
           {/* ---------------------------------------------------- */}
           {afterImage && !isProcessingAI && (
             <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden animate-fade-in">
@@ -793,7 +1154,7 @@ export default function VirtualFittingRoomModal({
                   cleanup();
                   onClose();
                 }}
-                className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-slate-700/80 text-slate-200 hover:text-white hover:bg-red-600/80 transition active:scale-95 shadow"
+                className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-slate-700/80 text-slate-200 hover:text-white hover:bg-red-600/80 transition active:scale-95 shadow cursor-pointer"
                 title="Close Virtual Fitting Room"
               >
                 <X className="w-4 h-4" />
@@ -803,49 +1164,56 @@ export default function VirtualFittingRoomModal({
 
           {/* Bottom Floating Bar on Mobile */}
           <div className="md:hidden absolute bottom-0 inset-x-0 p-4 z-30 bg-gradient-to-t from-black via-black/85 to-transparent flex flex-col gap-3">
+            {beforeImage && !afterImage && (
+              <button
+                type="button"
+                onClick={handleGenerateTryOn}
+                className="w-full bg-gradient-to-r from-amber-400 to-amber-500 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 uppercase tracking-wide cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Generate Realistic Try-On</span>
+              </button>
+            )}
+
             {afterImage && (
               <div className="flex items-center justify-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setAfterImage(null);
-                    setBeforeImage(null);
-                  }}
-                  className="bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                  onClick={() => setAfterImage(null)}
+                  className="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>New Photo</span>
+                  <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Adjust Fit</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDownloadSnapshot}
-                  className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow"
+                  className="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Save Photo</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="bg-amber-400 text-slate-950 px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Cart</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  className="bg-rose-600 text-white px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1"
+                >
+                  <Zap className="w-3.5 h-3.5 fill-current" />
+                  <span>Buy</span>
+                </button>
               </div>
             )}
-
-            {/* Mobile Actions: Add to Cart, Buy Now */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleAddToCart}
-                className="bg-slate-900 text-white border border-slate-700 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>{addedSuccess ? '✓ Added' : 'Add to Cart'}</span>
-              </button>
-
-              <button
-                onClick={handleBuyNow}
-                className="bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <Zap className="w-3.5 h-3.5 fill-current" />
-                <span>Buy Now (অর্ডার)</span>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -854,7 +1222,7 @@ export default function VirtualFittingRoomModal({
         {/* ======================================================== */}
         <div className="hidden md:flex w-96 bg-[#0b101e] border-l border-slate-800/80 p-6 flex-col justify-between overflow-y-auto">
           {/* Top: Product Meta & Studio Controls */}
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Product Card */}
             <div className="flex items-start gap-3.5 p-3 rounded-2xl bg-slate-900/70 border border-slate-800">
               <img
@@ -882,45 +1250,40 @@ export default function VirtualFittingRoomModal({
               </div>
             </div>
 
-            {/* Mode Switcher: AI Photo Try-On vs Live AR Cam */}
+            {/* Garment Category Switcher: Tops vs Bottoms */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                TRY-ON ENGINE
+                GARMENT CATEGORY
               </label>
               <div className="grid grid-cols-2 gap-2 bg-[#080d1a] p-1.5 rounded-xl border border-slate-800">
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveMode('ai');
-                    stopCameraStream(streamRef.current);
-                    setIsCameraActive(false);
+                    setGarmentCategory('tops');
+                    autoAlignGarment('tops');
                   }}
-                  className={`py-2 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 ${
-                    activeMode === 'ai'
+                  className={`py-2 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    garmentCategory === 'tops'
                       ? 'bg-amber-400 text-slate-950 shadow'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>AI Photo Fit</span>
+                  <span>👕 Tops (Jacket/Shirt)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveMode('realtime');
-                    setAfterImage(null);
-                    setBeforeImage(null);
-                    initCamera();
+                    setGarmentCategory('bottoms');
+                    autoAlignGarment('bottoms');
                   }}
-                  className={`py-2 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 ${
-                    activeMode === 'realtime'
-                      ? 'bg-indigo-600 text-white shadow'
+                  className={`py-2 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    garmentCategory === 'bottoms'
+                      ? 'bg-amber-400 text-slate-950 shadow'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>Live AR Cam</span>
+                  <span>👖 Bottoms (Jeans)</span>
                 </button>
               </div>
             </div>
@@ -941,8 +1304,8 @@ export default function VirtualFittingRoomModal({
                     <button
                       key={size}
                       type="button"
-                      onClick={() => handleVariantReFit(size, undefined)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                      onClick={() => setSelectedSize(size)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                         selectedSize === size
                           ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-400/30'
                           : 'bg-[#080d1a] border border-slate-800 text-slate-300 hover:border-slate-600'
@@ -966,8 +1329,8 @@ export default function VirtualFittingRoomModal({
                     <button
                       key={c.color}
                       type="button"
-                      onClick={() => handleVariantReFit(undefined, c.color)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      onClick={() => setSelectedColor(c.color)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                         selectedColor === c.color
                           ? 'border-amber-400 bg-amber-400/10 text-white ring-1 ring-amber-400/30'
                           : 'border-slate-800 bg-[#080d1a] text-slate-400 hover:border-slate-700'
@@ -984,73 +1347,143 @@ export default function VirtualFittingRoomModal({
               </div>
             )}
 
-            {/* Garment Fit Adjustments Accordion */}
-            <details className="group rounded-xl border border-slate-800 bg-[#080d1a] p-3 text-xs">
-              <summary className="flex cursor-pointer items-center justify-between font-bold text-slate-300 select-none">
-                <span className="flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Garment Fit Adjustments</span>
-                </span>
-                <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90 text-slate-500" />
-              </summary>
-              <div className="pt-3 space-y-3">
+            {/* Interactive Positioning Controls (When photo is loaded and ready to align) */}
+            {beforeImage && !afterImage && (
+              <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-amber-400/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                    <Move className="w-3.5 h-3.5" />
+                    <span>Garment Positioning Guide</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => autoAlignGarment()}
+                    className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  >
+                    <Sparkle className="w-3 h-3" />
+                    <span>Auto Align</span>
+                  </button>
+                </div>
+
+                {/* Scale Slider */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>Width / Drape Scale</span>
-                    <span className="font-mono text-amber-400">{(scaleAdjust * 100).toFixed(0)}%</span>
+                    <span>Width / Scale</span>
+                    <span className="font-mono text-amber-400">{(transform.scale * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTransform((prev) => ({ ...prev, scale: Math.max(0.5, +(prev.scale - 0.05).toFixed(2)) }))}
+                      className="p-1 rounded bg-[#080d1a] border border-slate-700 text-slate-300 hover:text-white"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <input
+                      type="range"
+                      min="0.6"
+                      max="2.0"
+                      step="0.02"
+                      value={transform.scale}
+                      onChange={(e) => setTransform((prev) => ({ ...prev, scale: parseFloat(e.target.value) }))}
+                      className="flex-1 accent-amber-400 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setTransform((prev) => ({ ...prev, scale: Math.min(2.5, +(prev.scale + 0.05).toFixed(2)) }))}
+                      className="p-1 rounded bg-[#080d1a] border border-slate-700 text-slate-300 hover:text-white"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Rotation Slider */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Rotation</span>
+                    <span className="font-mono text-amber-400">{transform.rotation}°</span>
                   </div>
                   <input
                     type="range"
-                    min="0.85"
-                    max="1.35"
-                    step="0.02"
-                    value={scaleAdjust}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setScaleAdjust(val);
-                      if (beforeImage) {
-                        setTimeout(() => processRealisticTryOn(beforeImage), 60);
-                      }
-                    }}
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value={transform.rotation}
+                    onChange={(e) => setTransform((prev) => ({ ...prev, rotation: parseInt(e.target.value, 10) }))}
                     className="w-full accent-amber-400 cursor-pointer"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>Vertical Position</span>
-                    <span className="font-mono text-amber-400">
-                      {verticalOffsetAdjust > 0 ? `+${(verticalOffsetAdjust * 100).toFixed(0)}%` : `${(verticalOffsetAdjust * 100).toFixed(0)}%`}
-                    </span>
+                {/* Nudge Buttons */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-400">Nudge Position:</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setTransform((prev) => ({ ...prev, y: Math.max(5, prev.y - 2) }))}
+                      className="p-1.5 rounded-lg bg-[#080d1a] border border-slate-800 text-slate-300 hover:text-white"
+                      title="Move Up"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTransform((prev) => ({ ...prev, y: Math.min(95, prev.y + 2) }))}
+                      className="p-1.5 rounded-lg bg-[#080d1a] border border-slate-800 text-slate-300 hover:text-white"
+                      title="Move Down"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTransform((prev) => ({ ...prev, x: Math.max(5, prev.x - 2) }))}
+                      className="p-1.5 rounded-lg bg-[#080d1a] border border-slate-800 text-slate-300 hover:text-white"
+                      title="Move Left"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTransform((prev) => ({ ...prev, x: Math.min(95, prev.x + 2) }))}
+                      className="p-1.5 rounded-lg bg-[#080d1a] border border-slate-800 text-slate-300 hover:text-white"
+                      title="Move Right"
+                    >
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="-0.08"
-                    max="0.08"
-                    step="0.01"
-                    value={verticalOffsetAdjust}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setVerticalOffsetAdjust(val);
-                      if (beforeImage) {
-                        setTimeout(() => processRealisticTryOn(beforeImage), 60);
-                      }
-                    }}
-                    className="w-full accent-amber-400 cursor-pointer"
-                  />
                 </div>
+
+                {/* Primary Generate Button */}
+                <button
+                  type="button"
+                  onClick={handleGenerateTryOn}
+                  className="w-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Generate Realistic Try-On</span>
+                </button>
               </div>
-            </details>
+            )}
 
-            {/* Quick Actions (Retake, Upload New, Download) */}
+            {/* Quick Actions when result is ready */}
             {afterImage && (
               <div className="space-y-2 pt-2 border-t border-slate-800/80">
                 <button
                   type="button"
-                  onClick={handleDownloadSnapshot}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow"
+                  onClick={() => setAfterImage(null)}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Back to Edit / Adjust Position</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadSnapshot}
+                  className="w-full bg-[#080d1a] hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
                   <span>Download Try-On Image (ছবি সেভ করুন)</span>
                 </button>
 
@@ -1061,7 +1494,7 @@ export default function VirtualFittingRoomModal({
                       setIsCameraOpenInAI(true);
                       initCamera();
                     }}
-                    className="bg-[#080d1a] border border-slate-800 hover:border-slate-700 text-slate-300 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+                    className="bg-[#080d1a] border border-slate-800 hover:border-slate-700 text-slate-300 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Camera className="w-3.5 h-3.5 text-amber-400" />
                     <span>Take Photo</span>
@@ -1070,7 +1503,7 @@ export default function VirtualFittingRoomModal({
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
-                    className="bg-[#080d1a] border border-slate-800 hover:border-slate-700 text-slate-300 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+                    className="bg-[#080d1a] border border-slate-800 hover:border-slate-700 text-slate-300 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Upload className="w-3.5 h-3.5 text-purple-400" />
                     <span>Upload New</span>
@@ -1093,7 +1526,7 @@ export default function VirtualFittingRoomModal({
             <button
               type="button"
               onClick={handleAddToCart}
-              className="w-full bg-[#080d1a] hover:bg-slate-900 border border-slate-700 text-white font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow"
+              className="w-full bg-[#080d1a] hover:bg-slate-900 border border-slate-700 text-white font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>{addedSuccess ? '✓ কার্টে যুক্ত হয়েছে!' : 'ADD TO CART FROM FITTING ROOM'}</span>

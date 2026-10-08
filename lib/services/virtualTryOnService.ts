@@ -17,6 +17,14 @@ export interface TryOnInput {
   color?: string;
   productName?: string;
   fitMode?: 'fitted' | 'relaxed' | 'oversized';
+  manualTransform?: {
+    xPercent: number;
+    yPercent: number;
+    scale: number;
+    rotation: number;
+    widthPercent?: number;
+    heightPercent?: number;
+  };
 }
 
 export interface TryOnOutput {
