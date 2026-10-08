@@ -428,11 +428,42 @@ export default function VirtualFittingRoomModal({
       // Check external cloud AI API first
       let generatedUrl: string | null = null;
       try {
+        setAiStepText('Calling Cloud AI Diffusion (IDM-VTON / SOTA Engine)...');
+
+        // Compress image to ~768x1024 to stay well within Vercel's 4.5MB payload limit
+        const compressedCustomerImg = await new Promise<string>((resolve) => {
+          const cImg = new Image();
+          cImg.crossOrigin = 'anonymous';
+          cImg.onload = () => {
+            const maxDim = 1024;
+            let w = cImg.naturalWidth || cImg.width || 768;
+            let h = cImg.naturalHeight || cImg.height || 1024;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            const compCanvas = document.createElement('canvas');
+            compCanvas.width = w;
+            compCanvas.height = h;
+            const cCtx = compCanvas.getContext('2d');
+            if (!cCtx) return resolve(customerImageDataUrl);
+            cCtx.drawImage(cImg, 0, 0, w, h);
+            resolve(compCanvas.toDataURL('image/jpeg', 0.85));
+          };
+          cImg.onerror = () => resolve(customerImageDataUrl);
+          cImg.src = customerImageDataUrl;
+        });
+
         const res = await fetch('/api/try-on/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            customerImage: customerImageDataUrl,
+            customerImage: compressedCustomerImg,
             garmentImage: garmentAssetUrl,
             garmentType,
             category: garmentCategory,
@@ -442,11 +473,15 @@ export default function VirtualFittingRoomModal({
             manualTransform: manualConfig,
           }),
         });
+
         if (res.ok) {
           const data = await res.json();
           if (data.resultImageUrl && data.provider !== 'neural-cloth-replacement-vton' && data.resultImageUrl !== customerImageDataUrl) {
             generatedUrl = data.resultImageUrl;
           }
+        } else {
+          const errText = await res.text();
+          console.warn('Try-on API response status:', res.status, errText);
         }
       } catch (backendErr) {
         console.warn('Cloud AI try-on note:', backendErr);
