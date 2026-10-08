@@ -5,13 +5,13 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
   public readonly name = 'Fashn.ai Virtual Try-On';
 
   private getApiKey(): string {
-    return (
-      process.env.FASHN_API_KEY ||
-      (process.env.VIRTUAL_TRYON_API_KEY?.startsWith('fa_') ? process.env.VIRTUAL_TRYON_API_KEY : '') ||
-      (process.env.VIRTUAL_TRYON_PROVIDER === 'fashn' ? process.env.VIRTUAL_TRYON_API_KEY : '') ||
-      process.env.VIRTUAL_TRYON_API_KEY ||
-      ''
-    ).trim();
+    if (process.env.FASHN_API_KEY) return process.env.FASHN_API_KEY.trim();
+    const genericKey = (process.env.VIRTUAL_TRYON_API_KEY || '').trim();
+    // Do not use Google (AQ./AIza) or Replicate (r8_) keys for Fashn.ai
+    if (genericKey && !genericKey.startsWith('AQ.') && !genericKey.startsWith('AIza') && !genericKey.startsWith('r8_')) {
+      return genericKey;
+    }
+    return '';
   }
 
   public isConfigured(): boolean {
@@ -35,7 +35,7 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
     const apiKey = this.getApiKey();
     if (!apiKey) {
       throw new Error(
-        'Fashn.ai API Key is not configured. Please add FASHN_API_KEY in your Vercel or local environment variables.'
+        'Fashn.ai API Key কনফিগার করা হয়নি। অনুগ্রহ করে Vercel Settings > Environment Variables-এ FASHN_API_KEY যোগ করুন।'
       );
     }
 
@@ -75,6 +75,13 @@ export class FashnAIProvider implements IVirtualTryOnProvider {
         const jsonErr = JSON.parse(errText);
         parsedErr = jsonErr.error?.message || jsonErr.message || errText;
       } catch (_) {}
+
+      if (res.status === 401) {
+        throw new Error(
+          'Fashn.ai API Key অননুমোদিত (401 Unauthorized: Invalid token)। অনুগ্রহ করে Vercel Environment Variables-এ আপনার সঠিক FASHN_API_KEY দিন।'
+        );
+      }
+
       throw new Error(`Fashn.ai API error (${res.status}): ${parsedErr}`);
     }
 
