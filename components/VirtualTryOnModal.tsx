@@ -199,23 +199,19 @@ export default function VirtualTryOnModal({
 
   useEffect(() => {
     if (isOpen) {
+      setCameraError(null);
       try {
-        sessionStorage.setItem('auto_open_tryon', '1');
-        if (sessionStorage.getItem('auto_start_camera') === '1') {
-          sessionStorage.removeItem('auto_start_camera');
-          setTimeout(() => {
-            startCamera('user');
-          }, 300);
-        }
+        sessionStorage.removeItem('auto_start_camera');
       } catch (_) {}
     } else {
+      stopCamera();
+      setCameraError(null);
       try {
         sessionStorage.removeItem('auto_open_tryon');
         sessionStorage.removeItem('auto_start_camera');
       } catch (_) {}
-      stopCamera();
     }
-  }, [isOpen]);
+  }, [isOpen, stopCamera]);
 
   useEffect(() => {
     if (isCameraActive && videoRef.current && streamRef.current) {
@@ -280,6 +276,7 @@ export default function VirtualTryOnModal({
 
   // Smart camera launcher: Opens native camera on smartphones, WebRTC on desktops
   const handleCameraClick = () => {
+    setCameraError(null);
     const isMobile =
       typeof navigator !== 'undefined' &&
       /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -294,16 +291,19 @@ export default function VirtualTryOnModal({
 
   // Launch Camera with permission handling & fallback
   const startCamera = async (facing: 'user' | 'environment' = facingMode) => {
-    try {
-      sessionStorage.setItem('auto_open_tryon', '1');
-      sessionStorage.setItem('auto_start_camera', '1');
-    } catch (_) {}
-
     setCameraError(null);
     stopCamera();
 
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setCameraError('এই ব্রাউজারে ক্যামেরা সাপোর্টেড নয় অথবা সিকিউর কানেকশন (HTTPS) প্রয়োজন।');
+      if (cameraInputRef.current) {
+        cameraInputRef.current.click();
+        return;
+      }
+      setCameraError('এই ব্রাউজারে ক্যামেরা সাপোর্টেড নয়। অনুগ্রহ করে ছবি আপলোড করুন।');
       return;
     }
 
@@ -330,19 +330,23 @@ export default function VirtualTryOnModal({
       setIsCameraActive(true);
       setPhotoSourceType('camera');
       setCameraError(null);
-      try {
-        sessionStorage.removeItem('auto_start_camera');
-      } catch (_) {}
     } catch (err: any) {
       console.warn('Camera access denied or unavailable:', err);
+
+      // On mobile devices, seamlessly fall back to native camera app without error banner
+      if (isMobile && cameraInputRef.current) {
+        cameraInputRef.current.click();
+        return;
+      }
+
       const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
       const isDeviceBusy = err.name === 'NotReadableError' || err.name === 'TrackStartError';
       setCameraError(
         isDenied
-          ? 'ক্যামেরা পারমিশন অন করা হয়েছে। ব্রাউজারটি Reload দিন।'
+          ? 'ব্রাউজারে ওয়েবক্যাম পারমিশন দেওয়া নেই। নিচের বাটন দিয়ে সরাসরি ক্যামেরা অথবা গ্যালারি থেকে ছবি নিন।'
           : isDeviceBusy
-          ? 'ক্যামেরাটি অন্য মেনুতে চালু রয়েছে। সেটিংস মেনুটি বন্ধ করে Reload দিন।'
-          : 'ক্যামেরা চালু করা সম্ভব হয়নি: ' + (err.message || 'অন্য কোনো অ্যাপে ক্যামেরা চালু থাকতে পারে')
+          ? 'ক্যামেরাটি অন্য মেনুতে চালু রয়েছে। অনুগ্রহ করে ছবি আপলোড করুন।'
+          : 'ক্যামেরা চালু করা সম্ভব হয়নি: ' + (err.message || 'অনুগ্রহ করে ছবি আপলোড করুন')
       );
       setIsCameraActive(false);
     }
@@ -980,37 +984,24 @@ export default function VirtualTryOnModal({
                 {cameraError && (
                   <div className="mt-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-                    <div className="space-y-1.5 flex-1">
+                    <div className="space-y-2 flex-1">
                       <p className="font-semibold">{cameraError}</p>
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <button
-                          type="button"
-                          onClick={handleReloadPage}
-                          className="px-2.5 py-1 rounded-md bg-blue-600 text-white font-bold text-[11px] shadow-sm hover:bg-blue-700 transition"
-                        >
-                          🔄 পেজ Reload দিন
-                        </button>
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => cameraInputRef.current?.click()}
-                          className="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-bold text-[11px] shadow-sm hover:bg-emerald-700 transition flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"
                         >
-                          <Camera className="w-3 h-3" />
+                          <Camera className="w-3.5 h-3.5" />
                           <span>📸 সরাসরি ক্যামেরা খুলুন</span>
                         </button>
                         <button
                           type="button"
-                          onClick={() => startCamera('user')}
-                          className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-[11px] hover:bg-slate-50 transition"
-                        >
-                          ▶️ আবার ট্রাই করুন
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="text-blue-600 dark:text-blue-400 font-bold text-[11px] underline"
+                          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-sm hover:bg-blue-700 transition flex items-center gap-1.5"
                         >
-                          গ্যালারি থেকে ছবি আপলোড
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>🖼️ গ্যালারি থেকে ছবি নিন</span>
                         </button>
                       </div>
                     </div>
