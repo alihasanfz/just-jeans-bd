@@ -75,6 +75,7 @@ export class VirtualTryOnOrchestrator {
     await this.repository.saveJob(initialJob);
 
     // Dispatch job to the active provider asynchronously
+    let activeProvider = provider;
     try {
       const jobRequest: TryOnJobRequest = {
         id: jobId,
@@ -89,7 +90,27 @@ export class VirtualTryOnOrchestrator {
         productId: params.productId,
       };
 
-      const providerResult = await provider.createTryOnJob(jobRequest);
+      let providerResult;
+      try {
+        providerResult = await activeProvider.createTryOnJob(jobRequest);
+      } catch (primaryErr: any) {
+        // If primary provider failed and it's not already HF, automatically fall back to free Hugging Face IDM-VTON!
+        if (activeProvider.id !== 'hf-idm-vton') {
+          console.warn(
+            `[TryOn Orchestrator] Provider ${activeProvider.id} failed (${primaryErr?.message}). Seamlessly failing over to free Hugging Face IDM-VTON...`
+          );
+          const freeHfProvider = this.registry.getProvider('hf-idm-vton');
+          if (freeHfProvider) {
+            activeProvider = freeHfProvider;
+            await this.repository.updateJob(jobId, { provider: activeProvider.id });
+            providerResult = await activeProvider.createTryOnJob(jobRequest);
+          } else {
+            throw primaryErr;
+          }
+        } else {
+          throw primaryErr;
+        }
+      }
 
       const updates: Partial<StoredTryOnJob> = {
         providerJobId: providerResult.providerJobId,
@@ -105,7 +126,7 @@ export class VirtualTryOnOrchestrator {
 
       await this.repository.updateJob(jobId, updates);
     } catch (err: any) {
-      console.error(`Provider ${provider.id} error on job ${jobId}:`, err);
+      console.error(`Provider error on job ${jobId}:`, err);
       await this.repository.updateJob(jobId, {
         status: 'failed',
         stepDescription: 'AI Try-On model initialization failed',
@@ -117,7 +138,7 @@ export class VirtualTryOnOrchestrator {
     return {
       jobId,
       status: 'queued',
-      provider: provider.name,
+      provider: activeProvider.name,
     };
   }
 

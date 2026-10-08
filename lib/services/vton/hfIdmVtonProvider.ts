@@ -32,45 +32,54 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
     return `${host.replace(/\/$/, '')}/${urlOrData.replace(/^\//, '')}`;
   }
 
-  // Uploads Base64 or local data to a public temporary image URL if needed
-  private async ensurePublicUrl(imageSource: string): Promise<string> {
-    const clean = this.toAbsoluteUrl(imageSource);
-    if (clean.startsWith('http://') || clean.startsWith('https://')) {
-      return clean;
-    }
-
-    // If it's a data URI, upload to Catbox CDN so HuggingFace can download it
-    if (clean.startsWith('data:')) {
-      try {
-        const matches = clean.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-        if (matches && matches[2]) {
-          const buffer = Buffer.from(matches[2], 'base64');
-          const mime = matches[1] || 'image/jpeg';
-          const ext = mime.includes('png') ? '.png' : '.jpg';
-          const blob = new Blob([buffer], { type: mime });
-
-          const formData = new FormData();
-          formData.append('reqtype', 'fileupload');
-          formData.append('fileToUpload', blob, `tryon-${Date.now()}${ext}`);
-
-          const res = await fetch('https://catbox.moe/user/api.php', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (res.ok) {
-            const publicUrl = (await res.text()).trim();
-            if (publicUrl && publicUrl.startsWith('http')) {
-              return publicUrl;
-            }
-          }
+  // Directly uploads image to the Hugging Face Gradio container filesystem (/upload)
+  private async uploadToSpace(
+    imageSource: string,
+    defaultFilename: string,
+    spaceUrl: string,
+    token?: string
+  ): Promise<string> {
+    try {
+      let blob: Blob;
+      if (imageSource.startsWith('data:')) {
+        const parts = imageSource.split(',');
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+        const buffer = Buffer.from(parts[1], 'base64');
+        blob = new Blob([buffer], { type: mime });
+      } else {
+        const fullUrl = this.toAbsoluteUrl(imageSource);
+        const fetched = await fetch(fullUrl);
+        if (!fetched.ok) {
+          throw new Error(`Failed to fetch image: ${fetched.status}`);
         }
-      } catch (err) {
-        console.warn('Failed to upload data URI to CDN for HF:', err);
+        const arrayBuf = await fetched.arrayBuffer();
+        const mime = fetched.headers.get('content-type') || 'image/jpeg';
+        blob = new Blob([arrayBuf], { type: mime });
       }
+
+      const form = new FormData();
+      form.append('files', blob, defaultFilename);
+
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${spaceUrl}/upload`, {
+        method: 'POST',
+        headers,
+        body: form,
+      });
+
+      if (res.ok) {
+        const paths = await res.json();
+        if (Array.isArray(paths) && paths[0]) {
+          return paths[0];
+        }
+      }
+    } catch (err) {
+      console.warn(`HF Space upload fallback for ${defaultFilename}:`, err);
     }
 
-    return clean;
+    return this.toAbsoluteUrl(imageSource);
   }
 
   public async createTryOnJob(request: TryOnJobRequest): Promise<{
@@ -78,11 +87,21 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
     status: 'queued' | 'processing' | 'completed';
     resultImageUrl?: string;
   }> {
-    const humanUrl = await this.ensurePublicUrl(request.humanImage);
-    const garmentUrl = await this.ensurePublicUrl(request.garmentImage);
-
     const spaceUrl = process.env.HF_IDM_VTON_URL || 'https://yisol-idm-vton.hf.space';
     const token = this.getHfToken();
+
+    const humanPath = await this.uploadToSpace(
+      request.humanImage,
+      `human_${Date.now()}.jpg`,
+      spaceUrl,
+      token
+    );
+    const garmentPath = await this.uploadToSpace(
+      request.garmentImage,
+      `garment_${Date.now()}.jpg`,
+      spaceUrl,
+      token
+    );
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -94,11 +113,11 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
     const payload = {
       data: [
         {
-          background: { path: humanUrl },
+          background: { path: humanPath },
           layers: [],
           composite: null,
         },
-        { path: garmentUrl },
+        { path: garmentPath },
         `${request.productName || request.garmentType} in size ${request.size || 'M'} ${request.color || ''}`,
         true, // is_checked: auto crop
         false, // is_checked_crop
@@ -163,7 +182,10 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
               const parsed = JSON.parse(dataStr);
               if (Array.isArray(parsed) && parsed[0]) {
                 const outputObj = parsed[0];
-                const outUrl = outputObj.url || outputObj.path;
+                let outUrl = outputObj.url || outputObj.path || '';
+                if (outUrl && !outUrl.startsWith('http')) {
+                  outUrl = `${spaceUrl}/file=${outUrl}`;
+                }
                 if (outUrl) {
                   return {
                     status: 'completed',

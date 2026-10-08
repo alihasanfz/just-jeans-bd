@@ -386,10 +386,10 @@ export default function VirtualTryOnModal({
       setJobStatus('processing');
 
       // 2. Poll /api/virtual-try-on/jobs/[jobId] until completion
-      const pollIntervalMs = submitData.pollIntervalMs || 1800;
+      const pollIntervalMs = submitData.pollIntervalMs || 2000;
       let completed = false;
       let attempts = 0;
-      const maxAttempts = 40; // ~70s timeout
+      const maxAttempts = 60; // ~120s max for AI diffusion model
 
       while (!completed && attempts < maxAttempts) {
         await new Promise((r) => setTimeout(r, pollIntervalMs));

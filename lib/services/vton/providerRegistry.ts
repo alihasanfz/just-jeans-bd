@@ -38,34 +38,32 @@ export class VirtualTryOnRegistry {
 
   /**
    * Resolves the primary active provider:
-   * 1. If user explicitly specified VIRTUAL_TRYON_PROVIDER (e.g. 'fashn', 'hf-idm-vton', 'replicate', 'fal') and it is configured, use it.
-   * 2. If Fashn API key is configured, use Fashn.
-   * 3. Otherwise, seamlessly use Hugging Face IDM-VTON (100% Free diffusion try-on model)!
+   * 1. If user explicitly specified VIRTUAL_TRYON_PROVIDER (e.g. 'fashn', 'fal', 'replicate', 'gemini')
+   *    and it is NOT 'auto' or 'free', use that configured provider.
+   * 2. Default: Hugging Face IDM-VTON (100% Free GPU Virtual Try-On, zero cost, no credit card required)!
    */
   public getActiveProvider(): IVirtualTryOnProvider {
     const configuredTarget = (process.env.VIRTUAL_TRYON_PROVIDER || 'auto').toLowerCase().trim();
 
-    // 1. Explicit provider requested
-    if (configuredTarget !== 'auto' && this.providers.has(configuredTarget)) {
+    // 1. Explicit provider specifically requested (and not 'auto' or 'free')
+    if (
+      configuredTarget !== 'auto' &&
+      configuredTarget !== 'free' &&
+      this.providers.has(configuredTarget)
+    ) {
       const targetProvider = this.providers.get(configuredTarget)!;
       if (targetProvider.isConfigured()) {
         return targetProvider;
       }
     }
 
-    // 2. If Fashn is configured with a valid key, prioritize it
-    const fashn = this.providers.get('fashn');
-    if (fashn && fashn.isConfigured()) {
-      return fashn;
+    // 2. Default & Free: Hugging Face IDM-VTON (Always works, completely free)
+    const hf = this.providers.get('hf-idm-vton');
+    if (hf) {
+      return hf;
     }
 
-    // 3. If Replicate is configured, use it
-    const replicate = this.providers.get('replicate');
-    if (replicate && replicate.isConfigured()) {
-      return replicate;
-    }
-
-    // 4. Default: Hugging Face IDM-VTON (100% Free GPU Virtual Try-On)
-    return this.providers.get('hf-idm-vton')!;
+    // Fallback to any available provider
+    return this.providers.get('fashn') || this.providers.get('replicate')!;
   }
 }

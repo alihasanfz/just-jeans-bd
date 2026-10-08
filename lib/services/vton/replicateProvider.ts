@@ -33,16 +33,13 @@ export class ReplicateIDMVTONProvider implements IVirtualTryOnProvider {
         ? 'dresses'
         : 'upper_body';
 
-    const version = 'c871bb9b046616b680466e01e6659c258d44743ec992e59174526d246c757cbb';
-
-    const res = await fetch('https://api.replicate.com/v1/predictions', {
+    const res = await fetch('https://api.replicate.com/v1/models/cuuupid/idm-vton/predictions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Token ${apiKey}`,
       },
       body: JSON.stringify({
-        version,
         input: {
           human_img: request.humanImage,
           garm_img: request.garmentImage,
