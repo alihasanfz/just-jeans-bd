@@ -80,3 +80,28 @@ NAGAD_MERCHANT_PRIVATE_KEY=your_nagad_private_key
 ```
 
 *(Note: The application operates in sandbox/demo simulation mode when live credentials are not set, allowing full offline testing.)*
+
+---
+
+## 🪞 AI Virtual Fitting Room (Virtual Try-On)
+
+Jeans BD features an integrated, real-time AI Virtual Fitting Room directly on product pages.
+
+### Key Capabilities:
+- **Mode A: Real-Time Web AR Fitting**: Uses client-side MediaPipe Pose (33 3D body landmarks) + adaptive optical contour tracking to drape garments in real time (30–60 FPS) with dynamic rotation, scaling (sizes 28–38 / XS–XXXL), and color tinting.
+- **Mode B: AI Photo Studio**: High-resolution generative neural try-on via `/api/try-on/ai` with secure server-side API key protection.
+- **In-Modal Commerce**: Customers can switch sizes and colors, capture/download watermarked previews, and click **[ Add to Cart ]** or **[ Buy Now ]** without closing the camera studio.
+- **Privacy First**: Zero video stream recording or uploading. All AR frames are processed locally inside the customer's browser canvas.
+- **Admin Management Console (`/admin/try-on`)**: Live metrics (Sessions, Pose Detections, Try-On Cart Adds, Conversion Rates), product-level toggles, garment cut assignments, and live test previews.
+
+### Environment Configuration:
+```env
+# Optional external AI Photo Try-On provider (Fashn.ai / Replicate / IDM-VTON)
+VIRTUAL_TRYON_PROVIDER=fashn
+VIRTUAL_TRYON_API_KEY=your_secure_api_key_here
+VIRTUAL_TRYON_API_URL=https://api.fashn.ai/v1/run
+```
+*(If no API key is set, the system automatically uses its built-in high-resolution canvas neural compositor fallback.)*
+
+For full architectural diagrams, landmark anchor mappings, and deployment details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+

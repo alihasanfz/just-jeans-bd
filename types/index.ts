@@ -65,6 +65,14 @@ export interface Product {
   totalStock: number;
   tags: string[];
   createdAt: string;
+  // AI Virtual Try-On configuration
+  virtualTryOnEnabled?: boolean;
+  virtualTryOnType?: 'both' | 'realtime' | 'ai';
+  garmentCategory?: GarmentCategory;
+  garmentType?: GarmentType;
+  tryOnAssetUrl?: string; // Transparent PNG / WebP cut-out asset
+  tryOnBackAssetUrl?: string;
+  tryOnFitConfig?: TryOnFitConfig;
 }
 
 export interface Category {
@@ -308,4 +316,44 @@ export interface SiteSettings {
     productId?: string;
   }[];
 }
+
+// ==========================================
+// AI VIRTUAL TRY-ON & FITTING ROOM TYPES
+// ==========================================
+export type GarmentCategory = 'tops' | 'bottoms' | 'outerwear' | 'fullbody';
+
+export type GarmentType =
+  | 'jacket'
+  | 'jeans'
+  | 't-shirt'
+  | 'shirt'
+  | 'hoodie'
+  | 'pants'
+  | 'dress';
+
+export interface TryOnFitConfig {
+  scaleMultiplier?: number;
+  verticalOffset?: number;
+  horizontalOffset?: number;
+  aspectRatio?: number;
+  opacity?: number;
+  smoothingAlpha?: number;
+}
+
+export interface TryOnSession {
+  id: string;
+  productId: string;
+  productName: string;
+  productSlug: string;
+  productImage: string;
+  garmentType: GarmentType;
+  startedAt: string;
+  mode: 'realtime' | 'ai';
+  bodyDetected: boolean;
+  capturedCount: number;
+  addedToCart: boolean;
+  boughtNow: boolean;
+  durationSeconds?: number;
+}
+
 

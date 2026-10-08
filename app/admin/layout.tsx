@@ -10,6 +10,7 @@ import {
   PlusCircle,
   Split,
   Sparkles,
+  Camera,
   Tag,
   Tags,
   Palette,
@@ -76,6 +77,7 @@ export function hasPermissionForPath(
   // 2. Products & Catalog Group
   if (
     pathname.startsWith('/admin/products') ||
+    pathname.startsWith('/admin/try-on') ||
     pathname.startsWith('/admin/departments') ||
     pathname.startsWith('/admin/categories') ||
     pathname.startsWith('/admin/subcategories') ||
@@ -433,6 +435,7 @@ function AdminSidebar({
   // Collapsible sections state
   const isProductsActive =
     pathname.startsWith('/admin/products') ||
+    pathname.startsWith('/admin/try-on') ||
     pathname.startsWith('/admin/departments') ||
     pathname.startsWith('/admin/categories') ||
     pathname.startsWith('/admin/subcategories') ||
@@ -595,6 +598,24 @@ function AdminSidebar({
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
                     <span>Add Product</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/try-on"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      pathname === '/admin/try-on'
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                        : isDark
+                        ? 'text-purple-300 hover:text-white hover:bg-slate-800/40'
+                        : 'text-purple-700 hover:text-purple-950 hover:bg-purple-50'
+                    }`}
+                  >
+                    <Camera className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Virtual Try-On</span>
+                    <span className="ml-auto bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[9px] px-1.5 py-0.2 rounded font-black">
+                      AI
+                    </span>
                   </Link>
 
                   <Link

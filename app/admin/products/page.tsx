@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useProducts } from '@/lib/store/productsContext';
-import { Product, ProductFit, GenderCategory } from '@/types';
+import { Product, ProductFit, GenderCategory, GarmentType } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { compressImageFile } from '@/lib/utils/db';
 import { parseVideoUrl, isVideoUrl } from '@/lib/utils/video';
@@ -174,6 +174,11 @@ function AdminProductsContent() {
   const [inputVideoUrl, setInputVideoUrl] = useState<string>('');
   const [previewingVideoUrl, setPreviewingVideoUrl] = useState<string | null>(null);
 
+  // Virtual Try-On configuration state
+  const [formTryOnEnabled, setFormTryOnEnabled] = useState<boolean>(true);
+  const [formGarmentType, setFormGarmentType] = useState<GarmentType>('jacket');
+  const [formTryOnAssetUrl, setFormTryOnAssetUrl] = useState<string>('');
+
   // Hidden file inputs for 6 slots & video file
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const videoFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -212,6 +217,9 @@ function AdminProductsContent() {
     setFormVideos([]);
     setShowVideoUrlInput(false);
     setInputVideoUrl('');
+    setFormTryOnEnabled(true);
+    setFormGarmentType('jacket');
+    setFormTryOnAssetUrl('');
     setIsModalOpen(true);
   };
 
@@ -248,6 +256,11 @@ function AdminProductsContent() {
     setFormVideos(product.videos && product.videos.length > 0 ? product.videos : vid ? [vid] : []);
     setShowVideoUrlInput(false);
     setInputVideoUrl('');
+
+    // populate Try-On config
+    setFormTryOnEnabled(product.virtualTryOnEnabled ?? true);
+    setFormGarmentType(product.garmentType || 'jacket');
+    setFormTryOnAssetUrl(product.tryOnAssetUrl || '');
     setIsModalOpen(true);
   };
 
@@ -432,6 +445,9 @@ function AdminProductsContent() {
           videoUrl: validVideoUrl,
           videos: validVideos,
           description: formDescription,
+          virtualTryOnEnabled: formTryOnEnabled,
+          garmentType: formGarmentType,
+          tryOnAssetUrl: formTryOnAssetUrl.trim() || undefined,
           variants,
         });
 
@@ -473,6 +489,9 @@ function AdminProductsContent() {
           isOnSale: hasDiscount,
           totalStock: formStock,
           tags: [formFit.toLowerCase().replace(/\s+/g, '-'), formGender, 'denim-atelier'],
+          virtualTryOnEnabled: formTryOnEnabled,
+          garmentType: formGarmentType,
+          tryOnAssetUrl: formTryOnAssetUrl.trim() || undefined,
           variants,
         });
 
@@ -959,6 +978,80 @@ function AdminProductsContent() {
                       onChange={(e) => setFormDescription(e.target.value)}
                       className="w-full bg-[#090d16] border border-slate-800 focus:border-[#f59e0b] rounded-xl p-3.5 text-white placeholder-slate-500 focus:outline-none leading-relaxed"
                     />
+                  </div>
+
+                  {/* AI Virtual Try-On Configuration */}
+                  <div className="p-4 bg-gradient-to-br from-indigo-950/40 via-purple-950/20 to-slate-900 border border-indigo-500/30 rounded-2xl space-y-3 shadow-lg">
+                    <div className="flex items-center justify-between pb-2 border-b border-indigo-500/20">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black text-white uppercase tracking-wider block">AI Virtual Try-On (AR)</span>
+                          <span className="text-[10px] text-slate-400">Live camera fitting & 3D body tracking configuration</span>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formTryOnEnabled}
+                          onChange={(e) => setFormTryOnEnabled(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                      </label>
+                    </div>
+
+                    {formTryOnEnabled && (
+                      <div className="space-y-3 pt-1 animate-fade-in">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-300 uppercase mb-1">
+                              Garment Category / Cut
+                            </label>
+                            <select
+                              value={formGarmentType}
+                              onChange={(e) => setFormGarmentType(e.target.value as GarmentType)}
+                              className="w-full bg-[#090d16] border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:outline-none"
+                            >
+                              <option value="jacket">Jacket / Denim Jacket</option>
+                              <option value="jeans">Jeans / Pants / Trousers</option>
+                              <option value="shirt">Casual / Formal Shirt</option>
+                              <option value="tshirt">T-Shirt / Polo</option>
+                              <option value="hoodie">Hoodie / Sweatshirt</option>
+                              <option value="dress">Dress / Kurtis</option>
+                              <option value="panjabi">Panjabi / Traditional</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-300 uppercase mb-1">
+                              Tracking Mode
+                            </label>
+                            <div className="w-full bg-[#090d16] border border-slate-800 rounded-xl px-3 py-2 text-indigo-300 text-xs font-bold flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span>Real-Time AR + AI Dual</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-300 uppercase mb-1">
+                            Custom Transparent Try-On PNG (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Defaults to clean product cutout / main photo"
+                            value={formTryOnAssetUrl}
+                            onChange={(e) => setFormTryOnAssetUrl(e.target.value)}
+                            className="w-full bg-[#090d16] border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-white text-xs font-mono placeholder-slate-600 focus:outline-none"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Transparent PNG / WebP works best. If left empty, system automatically optimizes the primary angle photo.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

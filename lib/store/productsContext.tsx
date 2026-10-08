@@ -20,8 +20,27 @@ function generateProductId(): string {
 function mapDbProduct(row: any): Product {
   const detailsArray = Array.isArray(row.details) ? row.details : [];
   const videoFromDetails = detailsArray.find((d: any) => typeof d === 'string' && d.startsWith('__VIDEO__:'))?.replace('__VIDEO__:', '') || '';
-  const cleanDetails = detailsArray.filter((d: any) => typeof d !== 'string' || !d.startsWith('__VIDEO__:'));
+  const tryOnConfigFromDetails = detailsArray.find((d: any) => typeof d === 'string' && d.startsWith('__TRYON__:'))?.replace('__TRYON__:', '');
+  const cleanDetails = detailsArray.filter(
+    (d: any) => typeof d !== 'string' || (!d.startsWith('__VIDEO__:') && !d.startsWith('__TRYON__:'))
+  );
   const foundVideo = (row.video_url || row.videoUrl || videoFromDetails || (Array.isArray(row.videos) && row.videos[0]) || '') as string;
+
+  let tryOnData: any = {};
+  if (tryOnConfigFromDetails) {
+    try {
+      tryOnData = JSON.parse(tryOnConfigFromDetails);
+    } catch (_) {}
+  }
+
+  const nameLower = (row.name || '').toLowerCase();
+  const catLower = (row.category || '').toLowerCase();
+  const fitName = row.fit || '';
+
+  const isJacket = fitName === 'Denim Jacket' || catLower.includes('jacket') || nameLower.includes('jacket');
+  const isShirt = fitName === 'Denim Shirt' || catLower.includes('shirt') || nameLower.includes('shirt') || nameLower.includes('overshirt');
+  const defaultGarmentType = isJacket ? 'jacket' : isShirt ? 'shirt' : 'jeans';
+  const defaultGarmentCategory = (isJacket || isShirt) ? 'tops' : 'bottoms';
 
   return {
     id: row.id,
@@ -54,6 +73,16 @@ function mapDbProduct(row: any): Product {
     tags: Array.isArray(row.tags) ? row.tags : [],
     createdAt: row.created_at || new Date().toISOString(),
     variants: Array.isArray(row.variants) ? row.variants : [],
+    virtualTryOnEnabled: tryOnData.enabled !== undefined ? !!tryOnData.enabled : true,
+    virtualTryOnType: tryOnData.type || 'both',
+    garmentCategory: tryOnData.category || defaultGarmentCategory,
+    garmentType: tryOnData.garmentType || defaultGarmentType,
+    tryOnAssetUrl: tryOnData.assetUrl || row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
+    tryOnFitConfig: tryOnData.fitConfig || {
+      scaleMultiplier: 1.0,
+      verticalOffset: 0,
+      aspectRatio: 1.0,
+    },
   };
 }
 
@@ -460,9 +489,19 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
     if (isSupabaseConfigured) {
       try {
+        const tryOnMeta = {
+          enabled: newProduct.virtualTryOnEnabled !== undefined ? newProduct.virtualTryOnEnabled : true,
+          type: newProduct.virtualTryOnType || 'both',
+          category: newProduct.garmentCategory || 'tops',
+          garmentType: newProduct.garmentType || 'jacket',
+          assetUrl: newProduct.tryOnAssetUrl || '',
+          fitConfig: newProduct.tryOnFitConfig,
+        };
+
         const detailsPayload = [
           ...(newProduct.details || []),
           ...(newProduct.videoUrl ? [`__VIDEO__:${newProduct.videoUrl}`] : []),
+          `__TRYON__:${JSON.stringify(tryOnMeta)}`,
         ];
 
         const { error } = await supabase.from('products').insert({
@@ -535,12 +574,28 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         if (updates.variants !== undefined) payload.variants = updates.variants;
         if (updates.isOnSale !== undefined) payload.is_on_sale = updates.isOnSale;
 
-        if (updates.details !== undefined || updates.videoUrl !== undefined) {
-          const baseDetails = updates.details || [];
-          const videoToStore = updates.videoUrl;
+        if (
+          updates.details !== undefined ||
+          updates.videoUrl !== undefined ||
+          updates.virtualTryOnEnabled !== undefined ||
+          updates.garmentType !== undefined ||
+          updates.tryOnAssetUrl !== undefined
+        ) {
+          const currentProd = products.find((p) => p.id === id);
+          const baseDetails = updates.details || currentProd?.details || [];
+          const videoToStore = updates.videoUrl !== undefined ? updates.videoUrl : currentProd?.videoUrl;
+          const tryOnMeta = {
+            enabled: updates.virtualTryOnEnabled !== undefined ? updates.virtualTryOnEnabled : currentProd?.virtualTryOnEnabled ?? true,
+            type: updates.virtualTryOnType || currentProd?.virtualTryOnType || 'both',
+            category: updates.garmentCategory || currentProd?.garmentCategory || 'tops',
+            garmentType: updates.garmentType || currentProd?.garmentType || 'jacket',
+            assetUrl: updates.tryOnAssetUrl !== undefined ? updates.tryOnAssetUrl : currentProd?.tryOnAssetUrl || '',
+            fitConfig: updates.tryOnFitConfig || currentProd?.tryOnFitConfig,
+          };
           payload.details = [
-            ...baseDetails.filter((d: any) => typeof d !== 'string' || !d.startsWith('__VIDEO__:')),
+            ...baseDetails.filter((d: any) => typeof d !== 'string' || (!d.startsWith('__VIDEO__:') && !d.startsWith('__TRYON__:'))),
             ...(videoToStore ? [`__VIDEO__:${videoToStore}`] : []),
+            `__TRYON__:${JSON.stringify(tryOnMeta)}`,
           ];
         }
 
@@ -595,9 +650,19 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       let count = 0;
       for (const p of products) {
         const validId = p.id || generateProductId();
+        const tryOnMeta = {
+          enabled: p.virtualTryOnEnabled !== undefined ? p.virtualTryOnEnabled : true,
+          type: p.virtualTryOnType || 'both',
+          category: p.garmentCategory || 'tops',
+          garmentType: p.garmentType || 'jacket',
+          assetUrl: p.tryOnAssetUrl || '',
+          fitConfig: p.tryOnFitConfig,
+        };
+
         const detailsPayload = [
           ...(p.details || []),
           ...(p.videoUrl ? [`__VIDEO__:${p.videoUrl}`] : []),
+          `__TRYON__:${JSON.stringify(tryOnMeta)}`,
         ];
 
         const { error } = await supabase.from('products').upsert({

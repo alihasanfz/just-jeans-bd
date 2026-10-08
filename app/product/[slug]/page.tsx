@@ -37,6 +37,7 @@ import { formatPrice } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/utils/video';
 import ProductCard from '@/components/ui/ProductCard';
 import SizeGuideModal from '@/components/ui/SizeGuideModal';
+import VirtualFittingRoomModal from '@/components/tryon/VirtualFittingRoomModal';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -56,6 +57,7 @@ export default function ProductDetailPage() {
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState<boolean>(false);
+  const [isTryOnOpen, setIsTryOnOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'care' | 'reviews'>('desc');
   const [addedSuccess, setAddedSuccess] = useState<boolean>(false);
   const [shareUrl, setShareUrl] = useState<string>('');
@@ -472,9 +474,25 @@ export default function ProductDetailPage() {
                       </span>
                     )}
                     <span className="inline-flex items-center gap-1 bg-slate-900/80 text-white/95 font-bold text-[11px] px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
-                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                       Premium Wash
                     </span>
+
+                    {/* Virtual Try-On floating trigger badge */}
+                    {product.virtualTryOnEnabled !== false && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsTryOnOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs px-3.5 py-1.5 rounded-full shadow-lg backdrop-blur-md border border-purple-300/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                        title="Try this product live in Virtual Fitting Room"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                        <span>Try On (AR)</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* Wishlist floating toggle on main image */}
@@ -810,6 +828,23 @@ export default function ProductDetailPage() {
 
               {/* Action Buttons Section */}
               <div className="space-y-3 pt-4 border-t border-slate-200/80">
+                {/* AI Virtual Try-On Primary Launcher */}
+                {product.virtualTryOnEnabled !== false && (
+                  <button
+                    type="button"
+                    onClick={() => setIsTryOnOpen(true)}
+                    className="w-full bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 hover:from-purple-800 hover:via-indigo-700 hover:to-blue-700 active:scale-[0.98] text-white py-3.5 px-5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-600/30 border border-purple-400/40 transition-all hover:shadow-xl group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
+                      <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                    </div>
+                    <span>🪄 TRY IT ON (ভার্চুয়াল ফিটিং রুম)</span>
+                    <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-normal ml-1">
+                      LIVE AR
+                    </span>
+                  </button>
+                )}
+
                 {/* Primary Actions: Add to Cart (Deep Indigo Denim) + Buy Now (Vibrant Crimson) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
@@ -1161,6 +1196,17 @@ export default function ProductDetailPage() {
         onClose={() => setIsSizeGuideOpen(false)}
         gender={product.gender}
       />
+
+      {/* AI Virtual Fitting Room Modal */}
+      {product && (
+        <VirtualFittingRoomModal
+          product={product}
+          initialSize={selectedSize}
+          initialColor={selectedColor}
+          isOpen={isTryOnOpen}
+          onClose={() => setIsTryOnOpen(false)}
+        />
+      )}
     </div>
   );
 }
