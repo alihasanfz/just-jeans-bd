@@ -59,7 +59,30 @@ export class VirtualTryOnService {
     this.validateInput(input);
 
     const provider = (process.env.VIRTUAL_TRYON_PROVIDER || 'auto').toLowerCase();
-    const apiKey = process.env.VIRTUAL_TRYON_API_KEY;
+    const apiKey = process.env.VIRTUAL_TRYON_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+    // 0. Google Gemini / Imagen Multimodal Try-On (gemini.google.com API)
+    if (apiKey && (provider === 'gemini' || provider === 'google' || apiKey.startsWith('AQ.') || apiKey.startsWith('AIza') || (provider === 'auto' && (apiKey.startsWith('AIza') || apiKey.startsWith('AQ.'))))) {
+      try {
+        const result = await this.callGeminiVirtualTryOn(input, apiKey);
+        if (result) {
+          return {
+            success: true,
+            resultImageUrl: result,
+            beforeImageUrl: input.customerImage,
+            provider: 'google-gemini-vision-tryon',
+            status: 'completed',
+            details: {
+              garmentType: input.garmentType,
+              processingTimeMs: Date.now() - startTime,
+              replacedGarment: true,
+            },
+          };
+        }
+      } catch (err: any) {
+        console.warn('Google Gemini provider call failed:', err?.message || err);
+      }
+    }
 
     // 1. If Fashn.ai API is configured
     if (apiKey && (provider === 'fashn' || provider === 'auto' && apiKey.startsWith('fa_'))) {
@@ -158,6 +181,87 @@ export class VirtualTryOnService {
     if (!input.garmentImage || typeof input.garmentImage !== 'string') {
       throw new Error('A valid product garment reference is required.');
     }
+  }
+
+  /**
+   * Helper: Convert data URL or HTTP URL to Gemini inlineData payload
+   */
+  private async getGeminiInlineData(imageSource: string): Promise<{ mimeType: string; data: string } | null> {
+    try {
+      if (imageSource.startsWith('data:')) {
+        const matches = imageSource.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (matches && matches[1] && matches[2]) {
+          return { mimeType: matches[1], data: matches[2] };
+        }
+      }
+
+      // If it's a web URL, fetch and convert to base64
+      const res = await fetch(imageSource);
+      if (!res.ok) return null;
+      const arrayBuffer = await res.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const contentType = res.headers.get('content-type') || 'image/jpeg';
+      return { mimeType: contentType, data: base64 };
+    } catch (e) {
+      console.warn('Failed to parse Gemini inline data:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Call Google Gemini Vision / Imagen multimodal API (gemini.google.com API)
+   */
+  private async callGeminiVirtualTryOn(input: TryOnInput, apiKey: string): Promise<string | null> {
+    const customerData = await this.getGeminiInlineData(input.customerImage);
+    const garmentData = await this.getGeminiInlineData(input.garmentImage);
+
+    if (!customerData || !garmentData) return null;
+
+    const promptText = `Image 1 is a customer/person photo. Image 2 is a clothing item (${input.productName || input.garmentType}). 
+Perform a photorealistic Virtual Try-On:
+1. Replace the existing clothing in the ${input.category || 'tops'} region on the person with the garment from Image 2.
+2. Preserve the person's face, neck, skin tone, hands, body proportions, posture, and original background 100% naturally.
+3. Fit the garment realistically with natural 3D fabric folds, lighting highlights, and shadows matching the room.`;
+
+    // 1. Try Gemini 1.5 Flash / Pro Vision endpoint
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const res = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: promptText },
+              { inline_data: { mime_type: customerData.mimeType, data: customerData.data } },
+              { inline_data: { mime_type: garmentData.mimeType, data: garmentData.data } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 2048,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn('Gemini API response error:', res.status, errText);
+      return null;
+    }
+
+    const data = await res.json();
+    // If Gemini returns an image artifact in candidate parts
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.inline_data?.data) {
+        return `data:${part.inline_data.mime_type || 'image/jpeg'};base64,${part.inline_data.data}`;
+      }
+    }
+
+    return null;
   }
 
   /**
