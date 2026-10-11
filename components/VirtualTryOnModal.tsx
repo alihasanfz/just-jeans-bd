@@ -29,6 +29,9 @@ import {
   CheckCheck,
   Maximize2,
   Minimize2,
+  Users,
+  Crosshair,
+  Target,
 } from 'lucide-react';
 import { Product } from '@/types';
 import { useCart } from '@/lib/store/cartContext';
@@ -203,6 +206,10 @@ export default function VirtualTryOnModal({
   const [activeProduct, setActiveProduct] = useState<Product>(initialProduct);
   const [isChangingProduct, setIsChangingProduct] = useState<boolean>(false);
   const [mainCategoryFilter, setMainCategoryFilter] = useState<'all' | 'upper_body' | 'lower_body'>('all');
+  const [selectedGender, setSelectedGender] = useState<'all' | 'men' | 'women'>(
+    initialProduct?.gender === 'women' ? 'women' : initialProduct?.gender === 'men' ? 'men' : 'all'
+  );
+  const [showTargetZoneOverlay, setShowTargetZoneOverlay] = useState<boolean>(true);
   const [garmentFilter, setGarmentFilter] = useState<string>('all');
   const [presetFilter, setPresetFilter] = useState<string>('all');
 
@@ -218,6 +225,9 @@ export default function VirtualTryOnModal({
     setBeforeImageUrl(rec.url);
     setUploadedPhotoUrl(null);
     setPhotoSourceType('preset');
+
+    const g = initialProduct?.gender === 'women' ? 'women' : initialProduct?.gender === 'men' ? 'men' : 'all';
+    setSelectedGender(g);
 
     const nameLower = (initialProduct?.name || '').toLowerCase();
     const catLower = (initialProduct?.category || '').toLowerCase();
@@ -402,11 +412,15 @@ export default function VirtualTryOnModal({
       const isMen = p.gender === 'men';
       const isWomen = p.gender === 'women';
 
-      // 1. Primary filter by Main Category: Upper Wear vs Lower Wear vs All
+      // 1. Primary filter by Gender (Men vs Women vs All)
+      if (selectedGender === 'men' && !isMen) return;
+      if (selectedGender === 'women' && !isWomen) return;
+
+      // 2. Primary filter by Main Category: Upper Wear vs Lower Wear vs All
       if (mainCategoryFilter === 'upper_body' && !isTop) return;
       if (mainCategoryFilter === 'lower_body' && !isBottom) return;
 
-      // 2. Secondary filter
+      // 3. Secondary sub-filter
       if (garmentFilter === 'all' || garmentFilter === 'all-tops' || garmentFilter === 'all-bottoms') {
         list.push(p);
       } else if (garmentFilter === 'men-jeans' && isMen && isBottom && !isShorts) {
@@ -432,14 +446,14 @@ export default function VirtualTryOnModal({
 
     // Make sure activeProduct is placed at the top if it matches current main category or if in 'all'
     const hasActive = list.some((p) => p.id === activeProduct.id);
-    if (!hasActive && mainCategoryFilter === 'all') {
+    if (!hasActive && mainCategoryFilter === 'all' && (selectedGender === 'all' || activeProduct.gender === selectedGender)) {
       list = [activeProduct, ...list];
     } else if (hasActive) {
       list = [activeProduct, ...list.filter((p) => p.id !== activeProduct.id)];
     }
 
     return isChangingProduct ? list : list.slice(0, 8);
-  }, [products, activeProduct, mainCategoryFilter, garmentFilter, isChangingProduct]);
+  }, [products, activeProduct, mainCategoryFilter, garmentFilter, selectedGender, isChangingProduct]);
 
   const handleSelectProduct = (prod: Product) => {
     setActiveProduct(prod);
@@ -466,6 +480,69 @@ export default function VirtualTryOnModal({
     }
   };
 
+  const handleGenderChange = (gender: 'all' | 'men' | 'women') => {
+    setSelectedGender(gender);
+    setGarmentFilter('all');
+    // If active product doesn't match gender, auto-pick first matching product
+    if (gender !== 'all' && activeProduct.gender !== gender) {
+      const match = products.find((p) => {
+        if (p.virtualTryOnEnabled === false || p.gender !== gender) return false;
+        const meta = resolveGarmentMetadata(p);
+        if (mainCategoryFilter === 'upper_body') return meta.category === 'tops';
+        if (mainCategoryFilter === 'lower_body') return meta.category === 'bottoms';
+        return true;
+      });
+      if (match) {
+        handleSelectProduct(match);
+        return;
+      }
+    }
+    // Update preset model to match selected gender
+    if (photoSourceType === 'preset') {
+      const isTop = mainCategoryFilter === 'upper_body' || resolveGarmentMetadata(activeProduct).category === 'tops';
+      if (gender === 'women') {
+        const targetModel = isTop
+          ? PRESET_MODELS.find((m) => m.id === 'women-jacket')
+          : PRESET_MODELS.find((m) => m.id === 'women-shorts' || m.id === 'women-jeans');
+        if (targetModel) handleSelectPresetModel(targetModel);
+      } else if (gender === 'men') {
+        const targetModel = isTop
+          ? PRESET_MODELS.find((m) => m.id === 'men-jacket')
+          : PRESET_MODELS.find((m) => m.id === 'men-shorts' || m.id === 'men-jeans');
+        if (targetModel) handleSelectPresetModel(targetModel);
+      }
+    }
+  };
+
+  const handleRegionChange = (region: 'upper_body' | 'lower_body') => {
+    setMainCategoryFilter(region);
+    setGarmentFilter('all');
+    const targetCategory = region === 'upper_body' ? 'tops' : 'bottoms';
+    const currentMeta = resolveGarmentMetadata(activeProduct);
+    if (currentMeta.category !== targetCategory) {
+      const match = products.find((p) => {
+        if (p.virtualTryOnEnabled === false) return false;
+        if (selectedGender !== 'all' && p.gender !== selectedGender) return false;
+        const m = resolveGarmentMetadata(p);
+        return m.category === targetCategory;
+      });
+      if (match) {
+        handleSelectProduct(match);
+        return;
+      }
+    }
+    if (photoSourceType === 'preset') {
+      const isFem = selectedGender === 'women' || activeProduct.gender === 'women';
+      if (region === 'upper_body') {
+        const m = isFem ? PRESET_MODELS.find((p) => p.id === 'women-jacket') : PRESET_MODELS.find((p) => p.id === 'men-jacket');
+        if (m) handleSelectPresetModel(m);
+      } else {
+        const m = isFem ? PRESET_MODELS.find((p) => p.id === 'women-shorts') : PRESET_MODELS.find((p) => p.id === 'men-shorts');
+        if (m) handleSelectPresetModel(m);
+      }
+    }
+  };
+
   const handleSelectPresetModel = (model: PresetModel) => {
     stopCamera();
     setSelectedPresetId(model.id);
@@ -477,15 +554,19 @@ export default function VirtualTryOnModal({
   };
 
   const filteredPresetModels = useMemo(() => {
-    if (presetFilter === 'all') return PRESET_MODELS;
-    if (presetFilter === 'upper_body') return PRESET_MODELS.filter((m) => m.bodyRegion === 'upper_body');
-    if (presetFilter === 'lower_body') return PRESET_MODELS.filter((m) => m.bodyRegion === 'lower_body');
-    if (presetFilter === 'men-jeans') return PRESET_MODELS.filter((m) => m.gender === 'men' && m.styleCategory === 'jeans');
-    if (presetFilter === 'women-jeans') return PRESET_MODELS.filter((m) => m.gender === 'women' && m.styleCategory === 'jeans');
-    if (presetFilter === 'men-shorts') return PRESET_MODELS.filter((m) => m.gender === 'men' && m.styleCategory === 'shorts');
-    if (presetFilter === 'women-shorts') return PRESET_MODELS.filter((m) => m.gender === 'women' && m.styleCategory === 'shorts');
-    return PRESET_MODELS;
-  }, [presetFilter]);
+    let list = PRESET_MODELS;
+    if (selectedGender !== 'all') {
+      list = list.filter((m) => m.gender === selectedGender);
+    }
+    if (presetFilter === 'all') return list;
+    if (presetFilter === 'upper_body') return list.filter((m) => m.bodyRegion === 'upper_body');
+    if (presetFilter === 'lower_body') return list.filter((m) => m.bodyRegion === 'lower_body');
+    if (presetFilter === 'men-jeans') return list.filter((m) => m.gender === 'men' && m.styleCategory === 'jeans');
+    if (presetFilter === 'women-jeans') return list.filter((m) => m.gender === 'women' && m.styleCategory === 'jeans');
+    if (presetFilter === 'men-shorts') return list.filter((m) => m.gender === 'men' && m.styleCategory === 'shorts');
+    if (presetFilter === 'women-shorts') return list.filter((m) => m.gender === 'women' && m.styleCategory === 'shorts');
+    return list;
+  }, [presetFilter, selectedGender]);
 
   const { garmentType, category, bodyRegion, bodyZoneLabel, bodyZoneBn, garmentImage } = resolveGarmentMetadata(activeProduct);
   const effectivePrice =
@@ -1344,6 +1425,42 @@ export default function VirtualTryOnModal({
                     <span>{bodyZoneLabel}</span>
                   </div>
 
+                  {/* Futuristic Anatomical Targeting Reticle / Scanner Overlay */}
+                  {showTargetZoneOverlay && (
+                    <div
+                      className={`absolute z-20 pointer-events-none transition-all duration-500 ${
+                        bodyRegion === 'upper_body'
+                          ? 'top-[16%] h-[40%] left-[15%] right-[15%]'
+                          : 'top-[44%] bottom-[12%] left-[15%] right-[15%]'
+                      }`}
+                    >
+                      {/* Glowing Box Border & Pulsing Tint */}
+                      <div
+                        className={`w-full h-full rounded-2xl border-2 border-dashed relative transition-all duration-300 ${
+                          bodyRegion === 'upper_body'
+                            ? 'border-amber-400 bg-amber-500/15 shadow-[0_0_25px_rgba(245,158,11,0.4)]'
+                            : 'border-cyan-400 bg-cyan-500/15 shadow-[0_0_25px_rgba(6,182,212,0.4)]'
+                        }`}
+                      >
+                        {/* 4 Tech Corner Brackets */}
+                        <span className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-white rounded-tl" />
+                        <span className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-white rounded-tr" />
+                        <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-white rounded-bl" />
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-white rounded-br" />
+
+                        {/* Center Target Crosshair & Label */}
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-black/85 backdrop-blur-md border border-white/20 text-white text-[9px] font-black tracking-wider uppercase flex items-center gap-1 shadow-lg whitespace-nowrap">
+                          <span className={`w-1.5 h-1.5 rounded-full animate-ping ${bodyRegion === 'upper_body' ? 'bg-amber-400' : 'bg-cyan-400'}`} />
+                          <span>{bodyRegion === 'upper_body' ? '🎯 Torso Inpainting Zone' : '🎯 Lower Body Inpainting Zone'}</span>
+                        </div>
+
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/80 text-[8.5px] font-bold text-slate-200 border border-white/10 whitespace-nowrap">
+                          {bodyRegion === 'upper_body' ? 'কাঁধ থেকে কোমর পরিবর্তন হবে' : 'কোমর/নাভি থেকে পা পরিবর্তন হবে'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Corner Garment Pill Preview */}
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-white/15 text-white z-20 shadow-xl">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -1484,50 +1601,109 @@ export default function VirtualTryOnModal({
                   </button>
                 </div>
 
-                {/* Primary Anatomical Category Switcher: All | Upper Wear / Tops | Lower Wear / Bottoms */}
-                <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMainCategoryFilter('all');
-                      setGarmentFilter('all');
-                    }}
-                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-1 transition ${
-                      mainCategoryFilter === 'all'
-                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <span>✨ All</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMainCategoryFilter('upper_body');
-                      setGarmentFilter('all');
-                    }}
-                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-1 transition ${
-                      mainCategoryFilter === 'upper_body'
-                        ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm shadow-amber-500/30'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <span>👕 Upper Wear</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMainCategoryFilter('lower_body');
-                      setGarmentFilter('all');
-                    }}
-                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-1 transition ${
-                      mainCategoryFilter === 'lower_body'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/30'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <span>👖 Lower Wear</span>
-                  </button>
+                {/* 1. GENDER SELECTOR (ম্যান ওম্যান সিলেক্ট) */}
+                <div className="flex items-center justify-between gap-1 p-1 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700">
+                  <div className="flex items-center gap-1.5 px-2 text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                    <span>জেন্ডার:</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleGenderChange('men')}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition flex items-center gap-1.5 ${
+                        selectedGender === 'men'
+                          ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-500'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>👨</span>
+                      <span>Men (পুরুষ)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGenderChange('women')}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition flex items-center gap-1.5 ${
+                        selectedGender === 'women'
+                          ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-500'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>👩</span>
+                      <span>Women (নারী)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGenderChange('all')}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black transition ${
+                        selectedGender === 'all'
+                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>✨ All</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. WHERE TO CHANGE GARMENT / ANATOMICAL REGION SELECTOR (পোশাকটি কোথায় পরিবর্তন করতে হবে) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-0.5">
+                    <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                      <Target className="w-3 h-3 text-cyan-500" />
+                      পোশাক পরিবর্তনের অঞ্চল (Body Zone):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTargetZoneOverlay(!showTargetZoneOverlay)}
+                      className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      <Crosshair className="w-3 h-3" />
+                      <span>{showTargetZoneOverlay ? 'টার্গেট বক্স অন' : 'টার্গেট বক্স অফ'}</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRegionChange('upper_body')}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 ${
+                        mainCategoryFilter === 'upper_body'
+                          ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/40 text-amber-950 dark:text-amber-200 shadow-sm'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 ${
+                        mainCategoryFilter === 'upper_body' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800'
+                      }`}>
+                        👕
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black leading-tight">উর্ধ্বাঙ্গ (Upper Wear)</p>
+                        <p className="text-[9px] opacity-75 truncate">কাঁধ/বুক থেকে কোমর/নাভি</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRegionChange('lower_body')}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 ${
+                        mainCategoryFilter === 'lower_body'
+                          ? 'border-blue-600 bg-blue-600/10 ring-2 ring-blue-600/40 text-blue-950 dark:text-blue-200 shadow-sm'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 ${
+                        mainCategoryFilter === 'lower_body' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800'
+                      }`}>
+                        👖
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black leading-tight">নিম্নাঙ্গ (Lower Wear)</p>
+                        <p className="text-[9px] opacity-75 truncate">কোমর/নাভি থেকে পা</p>
+                      </div>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Sub-Filter Pills dynamically based on Upper Wear vs Lower Wear */}
