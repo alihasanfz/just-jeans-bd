@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { IVirtualTryOnProvider, TryOnJobRequest, VTOStatusResult } from './types';
 
 export class GeminiVisionProvider implements IVirtualTryOnProvider {
@@ -25,6 +27,15 @@ export class GeminiVisionProvider implements IVirtualTryOnProvider {
         const matches = imageSource.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
         if (matches && matches[1] && matches[2]) {
           return { mimeType: matches[1], data: matches[2] };
+        }
+      }
+      if (imageSource.startsWith('/')) {
+        const localPath = path.join(process.cwd(), 'public', imageSource.replace(/^\//, ''));
+        if (fs.existsSync(localPath)) {
+          const fileBuf = fs.readFileSync(localPath);
+          const ext = path.extname(localPath).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          return { mimeType: mime, data: fileBuf.toString('base64') };
         }
       }
       const res = await fetch(imageSource);

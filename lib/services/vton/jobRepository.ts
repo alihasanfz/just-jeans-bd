@@ -1,16 +1,27 @@
 import { StoredTryOnJob } from './types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
+const globalForTryOn = globalThis as unknown as {
+  tryOnRepository?: TryOnJobRepository;
+  tryOnMemoryStore?: Map<string, StoredTryOnJob>;
+};
+
 export class TryOnJobRepository {
   private static instance: TryOnJobRepository;
-  // In-memory fallback map to guarantee immediate consistency across serverless execution within process
-  private memoryStore: Map<string, StoredTryOnJob> = new Map();
+  private memoryStore: Map<string, StoredTryOnJob>;
+
+  constructor() {
+    if (!globalForTryOn.tryOnMemoryStore) {
+      globalForTryOn.tryOnMemoryStore = new Map();
+    }
+    this.memoryStore = globalForTryOn.tryOnMemoryStore;
+  }
 
   public static getInstance(): TryOnJobRepository {
-    if (!TryOnJobRepository.instance) {
-      TryOnJobRepository.instance = new TryOnJobRepository();
+    if (!globalForTryOn.tryOnRepository) {
+      globalForTryOn.tryOnRepository = new TryOnJobRepository();
     }
-    return TryOnJobRepository.instance;
+    return globalForTryOn.tryOnRepository;
   }
 
   public async saveJob(job: StoredTryOnJob): Promise<void> {

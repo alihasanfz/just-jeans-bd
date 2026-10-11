@@ -147,20 +147,6 @@ export const PRESET_MODELS: PresetModel[] = [
     description: 'Fitted Denim Trucker Jacket (Torso/Upper Wear)',
     url: '/images/tryon-models/women_jacket.jpg',
   },
-  {
-    id: 'women-shorts-studio',
-    name: "Women's Studio Chic",
-    nameBn: 'উইমেন • স্টুডিও লুক',
-    gender: 'women',
-    styleCategory: 'shorts',
-    bodyRegion: 'lower_body',
-    label: 'Studio Shorts',
-    labelBn: 'স্টুডিও শর্টস',
-    badge: "Studio Chic",
-    badgeColor: 'bg-violet-600 text-white',
-    description: 'Sleeveless Top & Shorts Look',
-    url: 'https://litter.catbox.moe/we5jki.png',
-  },
 ];
 
 function getRecommendedPreset(prod: Product): PresetModel {

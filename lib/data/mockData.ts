@@ -88,7 +88,7 @@ export const INITIAL_CATEGORIES: Category[] = [
     slug: 'womens-denim-shorts',
     gender: 'women',
     description: 'Chic high-rise distressed and embroidered butterfly denim shorts for summer poise.',
-    image: 'https://litter.catbox.moe/gltf20.png',
+    image: '/images/products/women_butterfly_shorts.png',
     itemCount: 14,
   },
 ];

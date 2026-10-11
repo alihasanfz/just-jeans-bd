@@ -76,8 +76,8 @@ function mapDbProduct(row: any): Product {
     variants: Array.isArray(row.variants) ? row.variants : [],
     virtualTryOnEnabled: tryOnData.enabled !== undefined ? !!tryOnData.enabled : true,
     virtualTryOnType: tryOnData.type || 'both',
-    garmentCategory: tryOnData.category || defaultGarmentCategory,
-    garmentType: tryOnData.garmentType || defaultGarmentType,
+    garmentCategory: isShorts ? 'bottoms' : (isJacket || isShirt) ? 'tops' : (tryOnData.category || defaultGarmentCategory),
+    garmentType: isShorts ? 'shorts' : isJacket ? 'jacket' : isShirt ? 'shirt' : (tryOnData.garmentType || defaultGarmentType),
     tryOnAssetUrl: tryOnData.assetUrl || row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
     tryOnFitConfig: tryOnData.fitConfig || {
       scaleMultiplier: 1.0,

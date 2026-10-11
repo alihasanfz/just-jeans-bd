@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { IVirtualTryOnProvider, TryOnJobRequest, VTOStatusResult } from './types';
 
 /**
@@ -46,6 +48,22 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
         const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
         const buffer = Buffer.from(parts[1], 'base64');
         blob = new Blob([buffer], { type: mime });
+      } else if (imageSource.startsWith('/')) {
+        const cleanPath = imageSource.replace(/^\//, '');
+        const localPath = path.join(process.cwd(), 'public', cleanPath);
+        if (fs.existsSync(localPath)) {
+          const fileBuf = fs.readFileSync(localPath);
+          const ext = path.extname(localPath).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          blob = new Blob([fileBuf], { type: mime });
+        } else {
+          const fullUrl = this.toAbsoluteUrl(imageSource);
+          const fetched = await fetch(fullUrl);
+          if (!fetched.ok) throw new Error(`Failed to fetch image: ${fetched.status}`);
+          const arrayBuf = await fetched.arrayBuffer();
+          const mime = fetched.headers.get('content-type') || 'image/jpeg';
+          blob = new Blob([arrayBuf], { type: mime });
+        }
       } else {
         const fullUrl = this.toAbsoluteUrl(imageSource);
         const fetched = await fetch(fullUrl);
@@ -110,28 +128,49 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    const isBottom =
+      request.category === 'bottoms' ||
+      request.category === 'lower_body' ||
+      request.garmentType === 'jeans' ||
+      request.garmentType === 'pants' ||
+      request.garmentType === 'shorts' ||
+      request.garmentType === 'skirt';
+
+    const humanObj = {
+      path: humanPath,
+      url: `${spaceUrl}/file=${humanPath}`,
+      size: null,
+      orig_name: 'human.jpg',
+      mime_type: 'image/jpeg',
+      is_stream: false,
+      meta: { _type: 'gradio.FileData' },
+    };
+
+    const garmentObj = {
+      path: garmentPath,
+      url: `${spaceUrl}/file=${garmentPath}`,
+      size: null,
+      orig_name: 'garment.png',
+      mime_type: 'image/png',
+      is_stream: false,
+      meta: { _type: 'gradio.FileData' },
+    };
+
     const payload = {
       data: [
         {
-          background: { path: humanPath },
+          background: humanObj,
           layers: [],
           composite: null,
         },
-        { path: garmentPath },
+        garmentObj,
         (() => {
-          const isBottom =
-            request.category === 'bottoms' ||
-            request.category === 'lower_body' ||
-            request.garmentType === 'jeans' ||
-            request.garmentType === 'pants' ||
-            request.garmentType === 'shorts' ||
-            request.garmentType === 'skirt';
           const bodyType = isBottom
-            ? `lower body bottomwear (${request.garmentType === 'shorts' ? 'denim shorts' : 'denim jeans pants'}) worn on waist, navel and legs`
-            : `upper body topwear (${request.garmentType || 'denim jacket/top'}) worn on torso, chest and shoulders`;
+            ? `lower body bottomwear (${request.garmentType === 'shorts' ? 'denim shorts' : 'denim jeans pants'}) worn on waist and legs`
+            : `upper body topwear (${request.garmentType || 'denim jacket/top'}) worn on torso and chest`;
           return `${request.productName || request.garmentType}, ${bodyType}, size ${request.size || 'M'} ${request.color || ''}`;
         })(),
-        true, // is_checked: auto crop
+        !isBottom, // is_checked: only auto-crop for tops; NEVER auto-crop for bottoms/shorts/jeans!
         false, // is_checked_crop
         20, // denoise_steps (optimized for fast, high-quality diffusion ~12-18s)
         42, // seed
@@ -201,34 +240,37 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
         if (buffer.includes('event: complete')) {
           const lines = buffer.split('\n');
           for (let i = 0; i < lines.length; i++) {
-            if (lines[i].startsWith('event: complete') && lines[i + 1]?.startsWith('data:')) {
-              const dataStr = lines[i + 1].replace(/^data:\s*/, '');
-              try {
-                const parsed = JSON.parse(dataStr);
-                if (Array.isArray(parsed) && parsed[0]) {
-                  const out = parsed[0];
-                  let outUrl = out.url || out.path || '';
-                  if (outUrl && !outUrl.startsWith('http')) {
-                    outUrl = `${spaceUrl}/file=${outUrl}`;
-                  }
-                  if (outUrl) {
-                    clearTimeout(timer);
-                    // Convert to base64 data URI so mobile browsers never get broken image or CORS errors
-                    try {
-                      const imgRes = await fetch(outUrl);
-                      if (imgRes.ok) {
-                        const imgBuf = await imgRes.arrayBuffer();
-                        const mime = imgRes.headers.get('content-type') || 'image/png';
-                        const base64Str = Buffer.from(imgBuf).toString('base64');
-                        return `data:${mime};base64,${base64Str}`;
-                      }
-                    } catch (imgErr) {
-                      console.warn('Base64 image conversion fallback to direct URL:', imgErr);
+            if (lines[i].startsWith('event: complete')) {
+              const dataLine = lines.slice(i + 1).find((l) => l.trim().startsWith('data:'));
+              if (dataLine) {
+                const dataStr = dataLine.replace(/^data:\s*/, '').trim();
+                try {
+                  const parsed = JSON.parse(dataStr);
+                  if (Array.isArray(parsed) && parsed[0]) {
+                    const out = parsed[0];
+                    let outUrl = out.url || out.path || '';
+                    if (outUrl && !outUrl.startsWith('http')) {
+                      outUrl = `${spaceUrl}/file=${outUrl}`;
                     }
-                    return `/api/virtual-try-on/proxy?url=${encodeURIComponent(outUrl)}`;
+                    if (outUrl) {
+                      clearTimeout(timer);
+                      // Convert to base64 data URI so mobile browsers never get broken image or CORS errors
+                      try {
+                        const imgRes = await fetch(outUrl);
+                        if (imgRes.ok) {
+                          const imgBuf = await imgRes.arrayBuffer();
+                          const mime = imgRes.headers.get('content-type') || 'image/png';
+                          const base64Str = Buffer.from(imgBuf).toString('base64');
+                          return `data:${mime};base64,${base64Str}`;
+                        }
+                      } catch (imgErr) {
+                        console.warn('Base64 image conversion fallback to direct URL:', imgErr);
+                      }
+                      return `/api/virtual-try-on/proxy?url=${encodeURIComponent(outUrl)}`;
+                    }
                   }
-                }
-              } catch (_) {}
+                } catch (_) {}
+              }
             }
           }
         }

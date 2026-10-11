@@ -94,19 +94,15 @@ export class VirtualTryOnOrchestrator {
       try {
         providerResult = await activeProvider.createTryOnJob(jobRequest);
       } catch (primaryErr: any) {
-        // If primary provider failed and it's not already HF, automatically fall back to free Hugging Face IDM-VTON!
-        if (activeProvider.id !== 'hf-idm-vton') {
-          console.warn(
-            `[TryOn Orchestrator] Provider ${activeProvider.id} failed (${primaryErr?.message}). Seamlessly failing over to free Hugging Face IDM-VTON...`
-          );
-          const freeHfProvider = this.registry.getProvider('hf-idm-vton');
-          if (freeHfProvider) {
-            activeProvider = freeHfProvider;
-            await this.repository.updateJob(jobId, { provider: activeProvider.id });
-            providerResult = await activeProvider.createTryOnJob(jobRequest);
-          } else {
-            throw primaryErr;
-          }
+        // If primary provider failed, try fallback
+        console.warn(
+          `[TryOn Orchestrator] Provider ${activeProvider.id} failed (${primaryErr?.message}). Seamlessly failing over...`
+        );
+        const neuralProvider = this.registry.getProvider('neural-engine');
+        if (neuralProvider) {
+          activeProvider = neuralProvider;
+          await this.repository.updateJob(jobId, { provider: activeProvider.id });
+          providerResult = await activeProvider.createTryOnJob(jobRequest);
         } else {
           throw primaryErr;
         }
