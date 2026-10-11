@@ -379,22 +379,10 @@ export default function VirtualTryOnModal({
       const cLower = (p.category || '').toLowerCase();
       const fitLower = (p.fit || '').toLowerCase();
 
-      const isTop =
-        cLower.includes('jacket') ||
-        nLower.includes('jacket') ||
-        fitLower.includes('jacket') ||
-        cLower.includes('shirt') ||
-        nLower.includes('shirt') ||
-        nLower.includes('overshirt') ||
-        nLower.includes('t-shirt') ||
-        nLower.includes('tee') ||
-        nLower.includes('polo') ||
-        nLower.includes('hoodie') ||
-        nLower.includes('blazer') ||
-        p.garmentCategory === 'tops';
-
-      const isShorts = nLower.includes('shorts') || cLower.includes('shorts') || p.garmentType === 'shorts';
-      const isBottom = !isTop;
+      const meta = resolveGarmentMetadata(p);
+      const isTop = meta.category === 'tops';
+      const isShorts = meta.garmentType === 'shorts';
+      const isBottom = meta.category === 'bottoms';
       const isMen = p.gender === 'men';
       const isWomen = p.gender === 'women';
 
@@ -1742,9 +1730,9 @@ export default function VirtualTryOnModal({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-thin">
                   {selectableProducts.map((p) => {
                     const isSelected = activeProduct.id === p.id;
-                    const price = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
-                    const isTop = (p.name || '').toLowerCase().includes('jacket') || (p.category || '').toLowerCase().includes('jacket') || (p.name || '').toLowerCase().includes('shirt') || p.garmentCategory === 'tops';
-                    const isShort = (p.name || '').toLowerCase().includes('shorts') || (p.category || '').toLowerCase().includes('shorts') || p.garmentType === 'shorts';
+                    const meta = resolveGarmentMetadata(p);
+                    const isTop = meta.category === 'tops';
+                    const isShort = meta.garmentType === 'shorts';
                     return (
                       <button
                         key={p.id}

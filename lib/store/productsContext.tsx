@@ -37,11 +37,15 @@ function mapDbProduct(row: any): Product {
   const catLower = (row.category || '').toLowerCase();
   const fitName = row.fit || '';
 
-  const isJacket = fitName === 'Denim Jacket' || catLower.includes('jacket') || nameLower.includes('jacket');
+  const isJacket = fitName === 'Denim Jacket' || catLower.includes('jacket') || nameLower.includes('jacket') || nameLower.includes('bomber') || nameLower.includes('trucker');
   const isShirt = fitName === 'Denim Shirt' || catLower.includes('shirt') || nameLower.includes('shirt') || nameLower.includes('overshirt');
-  const isShorts = catLower.includes('shorts') || nameLower.includes('shorts');
+  const isShorts = catLower.includes('shorts') || nameLower.includes('shorts') || nameLower.includes('butterfly');
+  const isJeans = !isShorts && !isJacket && !isShirt && (catLower.includes('jeans') || nameLower.includes('jeans') || catLower.includes('bottom') || nameLower.includes('flare'));
   const defaultGarmentType = isJacket ? 'jacket' : isShirt ? 'shirt' : isShorts ? 'shorts' : 'jeans';
   const defaultGarmentCategory = (isJacket || isShirt) ? 'tops' : 'bottoms';
+
+  const resolvedGarmentCategory = isShorts || isJeans ? 'bottoms' : (isJacket || isShirt) ? 'tops' : (tryOnData.category || defaultGarmentCategory);
+  const resolvedGarmentType = isShorts ? 'shorts' : isJeans ? 'jeans' : isJacket ? 'jacket' : isShirt ? 'shirt' : (tryOnData.garmentType || defaultGarmentType);
 
   return {
     id: row.id,
@@ -76,8 +80,8 @@ function mapDbProduct(row: any): Product {
     variants: Array.isArray(row.variants) ? row.variants : [],
     virtualTryOnEnabled: tryOnData.enabled !== undefined ? !!tryOnData.enabled : true,
     virtualTryOnType: tryOnData.type || 'both',
-    garmentCategory: isShorts ? 'bottoms' : (isJacket || isShirt) ? 'tops' : (tryOnData.category || defaultGarmentCategory),
-    garmentType: isShorts ? 'shorts' : isJacket ? 'jacket' : isShirt ? 'shirt' : (tryOnData.garmentType || defaultGarmentType),
+    garmentCategory: resolvedGarmentCategory,
+    garmentType: resolvedGarmentType,
     tryOnAssetUrl: tryOnData.assetUrl || row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
     tryOnFitConfig: tryOnData.fitConfig || {
       scaleMultiplier: 1.0,
