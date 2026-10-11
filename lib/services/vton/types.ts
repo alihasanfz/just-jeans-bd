@@ -21,7 +21,7 @@ export interface TryOnJobRequest {
     | 'jeans'
     | 'pants'
     | (string & {});
-  category: 'tops' | 'bottoms' | 'one-pieces';
+  category: 'tops' | 'bottoms' | 'one-pieces' | 'upper_body' | 'lower_body';
   productName?: string;
   size?: string;
   color?: string;

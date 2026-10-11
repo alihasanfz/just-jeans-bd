@@ -118,7 +118,19 @@ export class HuggingFaceIDMVTONProvider implements IVirtualTryOnProvider {
           composite: null,
         },
         { path: garmentPath },
-        `${request.productName || request.garmentType} in size ${request.size || 'M'} ${request.color || ''}`,
+        (() => {
+          const isBottom =
+            request.category === 'bottoms' ||
+            request.category === 'lower_body' ||
+            request.garmentType === 'jeans' ||
+            request.garmentType === 'pants' ||
+            request.garmentType === 'shorts' ||
+            request.garmentType === 'skirt';
+          const bodyType = isBottom
+            ? `lower body bottomwear (${request.garmentType === 'shorts' ? 'denim shorts' : 'denim jeans pants'}) worn on waist, navel and legs`
+            : `upper body topwear (${request.garmentType || 'denim jacket/top'}) worn on torso, chest and shoulders`;
+          return `${request.productName || request.garmentType}, ${bodyType}, size ${request.size || 'M'} ${request.color || ''}`;
+        })(),
         true, // is_checked: auto crop
         false, // is_checked_crop
         20, // denoise_steps (optimized for fast, high-quality diffusion ~12-18s)

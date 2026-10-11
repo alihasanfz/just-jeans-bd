@@ -43,33 +43,150 @@ interface VirtualTryOnModalProps {
   initialColor?: string;
 }
 
-// Preset verified models for instant test/evaluation
-const PRESET_MODELS = [
+// Preset verified models for instant test/evaluation (Upper Wear & Lower Wear)
+export interface PresetModel {
+  id: string;
+  name: string;
+  nameBn: string;
+  gender: 'men' | 'women';
+  styleCategory: 'jeans' | 'shorts' | 'jacket' | 'tops';
+  bodyRegion: 'upper_body' | 'lower_body';
+  label: string;
+  labelBn: string;
+  badge: string;
+  badgeColor: string;
+  description: string;
+  url: string;
+}
+
+export const PRESET_MODELS: PresetModel[] = [
   {
-    id: 'male-casual',
-    name: 'Male (Casual)',
+    id: 'men-jeans',
+    name: "Men's Jeans Pant",
+    nameBn: 'মেন • জিন্স প্যান্ট',
     gender: 'men',
-    url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
+    styleCategory: 'jeans',
+    bodyRegion: 'lower_body',
+    label: 'Jeans Pant',
+    labelBn: 'জিন্স প্যান্ট',
+    badge: "Men's Jeans",
+    badgeColor: 'bg-blue-600 text-white',
+    description: 'Straight-Fit Dark Indigo Jeans',
+    url: '/images/tryon-models/men_jeans.jpg',
   },
   {
-    id: 'female-casual',
-    name: 'Female (Studio)',
+    id: 'women-jeans',
+    name: "Women's Jeans Pant",
+    nameBn: 'উইমেন • জিন্স প্যান্ট',
     gender: 'women',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+    styleCategory: 'jeans',
+    bodyRegion: 'lower_body',
+    label: 'Jeans Pant',
+    labelBn: 'জিন্স প্যান্ট',
+    badge: "Women's Jeans",
+    badgeColor: 'bg-indigo-600 text-white',
+    description: 'High-Rise Vintage Flare Jeans',
+    url: '/images/tryon-models/women_jeans.jpg',
   },
   {
-    id: 'male-urban',
-    name: 'Male (Urban)',
+    id: 'men-shorts',
+    name: "Men's Denim Shorts",
+    nameBn: 'মেন • ডেনিম শর্টস',
     gender: 'men',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80',
+    styleCategory: 'shorts',
+    bodyRegion: 'lower_body',
+    label: 'Denim Shorts',
+    labelBn: 'ডেনিম শর্টস',
+    badge: "Men's Shorts",
+    badgeColor: 'bg-cyan-600 text-white',
+    description: 'Vintage Light Blue Denim Shorts',
+    url: '/images/tryon-models/men_shorts.jpg',
   },
   {
-    id: 'female-fashion',
-    name: 'Female (Chic)',
+    id: 'women-shorts',
+    name: "Women's Denim Shorts",
+    nameBn: 'উইমেন • ডেনিম শর্টস',
     gender: 'women',
-    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
+    styleCategory: 'shorts',
+    bodyRegion: 'lower_body',
+    label: 'Denim Shorts',
+    labelBn: 'ডেনিম শর্টস',
+    badge: "Women's Shorts",
+    badgeColor: 'bg-rose-500 text-white',
+    description: 'High-Rise Summer Denim Shorts',
+    url: '/images/tryon-models/women_shorts.jpg',
+  },
+  {
+    id: 'men-jacket',
+    name: "Men's Denim Jacket",
+    nameBn: 'মেন • ডেনিম জ্যাকেট',
+    gender: 'men',
+    styleCategory: 'jacket',
+    bodyRegion: 'upper_body',
+    label: 'Denim Jacket',
+    labelBn: 'ডেনিম জ্যাকেট',
+    badge: "Men's Jacket",
+    badgeColor: 'bg-amber-600 text-white',
+    description: 'Classic Trucker Jacket (Torso/Upper Wear)',
+    url: '/images/tryon-models/men_jacket.jpg',
+  },
+  {
+    id: 'women-jacket',
+    name: "Women's Denim Jacket",
+    nameBn: 'উইমেন • ডেনিম জ্যাকেট',
+    gender: 'women',
+    styleCategory: 'jacket',
+    bodyRegion: 'upper_body',
+    label: 'Denim Jacket',
+    labelBn: 'ডেনিম জ্যাকেট',
+    badge: "Women's Jacket",
+    badgeColor: 'bg-rose-600 text-white',
+    description: 'Fitted Denim Trucker Jacket (Torso/Upper Wear)',
+    url: '/images/tryon-models/women_jacket.jpg',
+  },
+  {
+    id: 'women-shorts-studio',
+    name: "Women's Studio Chic",
+    nameBn: 'উইমেন • স্টুডিও লুক',
+    gender: 'women',
+    styleCategory: 'shorts',
+    bodyRegion: 'lower_body',
+    label: 'Studio Shorts',
+    labelBn: 'স্টুডিও শর্টস',
+    badge: "Studio Chic",
+    badgeColor: 'bg-violet-600 text-white',
+    description: 'Sleeveless Top & Shorts Look',
+    url: 'https://litter.catbox.moe/we5jki.png',
   },
 ];
+
+function getRecommendedPreset(prod: Product): PresetModel {
+  const nameLower = (prod?.name || '').toLowerCase();
+  const catLower = (prod?.category || '').toLowerCase();
+  const fitLower = (prod?.fit || '').toLowerCase();
+  const isTop =
+    catLower.includes('jacket') ||
+    nameLower.includes('jacket') ||
+    fitLower.includes('jacket') ||
+    catLower.includes('shirt') ||
+    nameLower.includes('shirt') ||
+    nameLower.includes('t-shirt') ||
+    prod?.garmentCategory === 'tops';
+
+  const isShorts = nameLower.includes('shorts') || catLower.includes('shorts') || prod?.garmentType === 'shorts';
+  const isWomen = prod?.gender === 'women';
+
+  if (isTop && isWomen) {
+    return PRESET_MODELS.find((m) => m.id === 'women-jacket') || PRESET_MODELS[0];
+  }
+  if (isTop && !isWomen) {
+    return PRESET_MODELS.find((m) => m.id === 'men-jacket') || PRESET_MODELS[0];
+  }
+  if (isWomen && isShorts) return PRESET_MODELS.find((m) => m.id === 'women-shorts') || PRESET_MODELS[3];
+  if (!isWomen && isShorts) return PRESET_MODELS.find((m) => m.id === 'men-shorts') || PRESET_MODELS[2];
+  if (isWomen && !isShorts) return PRESET_MODELS.find((m) => m.id === 'women-jeans') || PRESET_MODELS[1];
+  return PRESET_MODELS[0]; // men-jeans
+}
 
 export default function VirtualTryOnModal({
   product: initialProduct,
@@ -85,10 +202,37 @@ export default function VirtualTryOnModal({
   // Active product being fitted (supports "Change Product" feature)
   const [activeProduct, setActiveProduct] = useState<Product>(initialProduct);
   const [isChangingProduct, setIsChangingProduct] = useState<boolean>(false);
+  const [mainCategoryFilter, setMainCategoryFilter] = useState<'all' | 'upper_body' | 'lower_body'>('all');
+  const [garmentFilter, setGarmentFilter] = useState<string>('all');
+  const [presetFilter, setPresetFilter] = useState<string>('all');
 
-  // Sync active product when prop changes
+  const initialPreset = useMemo(() => getRecommendedPreset(initialProduct), [initialProduct]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(initialPreset.id);
+
+  // Sync active product and intelligent preset when prop changes
   useEffect(() => {
     setActiveProduct(initialProduct);
+    const rec = getRecommendedPreset(initialProduct);
+    setSelectedPresetId(rec.id);
+    setActivePhotoUrl(rec.url);
+    setBeforeImageUrl(rec.url);
+    setUploadedPhotoUrl(null);
+    setPhotoSourceType('preset');
+
+    const nameLower = (initialProduct?.name || '').toLowerCase();
+    const catLower = (initialProduct?.category || '').toLowerCase();
+    const isTop =
+      catLower.includes('jacket') ||
+      nameLower.includes('jacket') ||
+      catLower.includes('shirt') ||
+      nameLower.includes('shirt') ||
+      initialProduct?.garmentCategory === 'tops';
+
+    if (isTop) {
+      setMainCategoryFilter('upper_body');
+    } else {
+      setMainCategoryFilter('lower_body');
+    }
   }, [initialProduct]);
 
   // Selected Variant
@@ -98,7 +242,7 @@ export default function VirtualTryOnModal({
   const [selectedColor, setSelectedColor] = useState<string>(defaultColor);
 
   // Customer Photo States
-  const [activePhotoUrl, setActivePhotoUrl] = useState<string>(PRESET_MODELS[0].url);
+  const [activePhotoUrl, setActivePhotoUrl] = useState<string>(initialPreset.url);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
   const [photoSourceType, setPhotoSourceType] = useState<'preset' | 'upload' | 'camera'>('preset');
 
@@ -128,7 +272,7 @@ export default function VirtualTryOnModal({
   const [providerName, setProviderName] = useState<string>('AI Diffusion');
 
   // Result States
-  const [beforeImageUrl, setBeforeImageUrl] = useState<string>(PRESET_MODELS[0].url);
+  const [beforeImageUrl, setBeforeImageUrl] = useState<string>(initialPreset.url);
   const [afterImageUrl, setAfterImageUrl] = useState<string | null>(null);
   const [isAfterImageLoaded, setIsAfterImageLoaded] = useState<boolean>(false);
   const [afterImageError, setAfterImageError] = useState<boolean>(false);
@@ -152,44 +296,24 @@ export default function VirtualTryOnModal({
   const [addedToCartSuccess, setAddedToCartSuccess] = useState<boolean>(false);
   const [copiedShareLink, setCopiedShareLink] = useState<boolean>(false);
 
-  // Garment Category & Type Resolver (Handles tops, jackets, shorts, jeans, and dresses accurately)
+  // Garment Category & Type Resolver (Handles Upper Wear vs Lower Wear accurately)
   const resolveGarmentMetadata = useCallback((prod: Product) => {
     const nameLower = (prod.name || '').toLowerCase();
     const catLower = (prod.category || '').toLowerCase();
+    const fitLower = (prod.fit || '').toLowerCase();
 
     let garmentType: any = prod.garmentType || 'jacket';
     let category: 'tops' | 'bottoms' | 'one-pieces' = 'tops';
+    let bodyRegion: 'upper_body' | 'lower_body' | 'full_body' = 'upper_body';
+    let bodyZoneLabel = 'Upper Body (Torso)';
+    let bodyZoneBn = 'উর্ধ্বাঙ্গ (কাঁধ থেকে কোমর/নাভি)';
 
     if (nameLower.includes('shorts') || catLower.includes('shorts')) {
       garmentType = 'shorts';
       category = 'bottoms';
-    } else if (nameLower.includes('t-shirt') || nameLower.includes('tshirt') || nameLower.includes('tee')) {
-      garmentType = 'tshirt';
-      category = 'tops';
-    } else if (nameLower.includes('polo')) {
-      garmentType = 'polo';
-      category = 'tops';
-    } else if (nameLower.includes('panjabi') || nameLower.includes('kurta')) {
-      garmentType = 'panjabi';
-      category = 'tops';
-    } else if (nameLower.includes('blazer')) {
-      garmentType = 'blazer';
-      category = 'tops';
-    } else if (nameLower.includes('hoodie')) {
-      garmentType = 'hoodie';
-      category = 'tops';
-    } else if (nameLower.includes('shirt')) {
-      garmentType = 'shirt';
-      category = 'tops';
-    } else if (nameLower.includes('jacket') || prod.fit === 'Denim Jacket') {
-      garmentType = 'jacket';
-      category = 'tops';
-    } else if (nameLower.includes('dress') || catLower.includes('dress')) {
-      garmentType = 'dress';
-      category = 'one-pieces';
-    } else if (nameLower.includes('skirt') || catLower.includes('skirt')) {
-      garmentType = 'skirt';
-      category = 'bottoms';
+      bodyRegion = 'lower_body';
+      bodyZoneLabel = 'Lower Body (Waist & Legs)';
+      bodyZoneBn = 'নিম্নাঙ্গ (কোমর/নাভি থেকে পা)';
     } else if (
       nameLower.includes('jeans') ||
       nameLower.includes('pants') ||
@@ -199,29 +323,123 @@ export default function VirtualTryOnModal({
     ) {
       garmentType = 'jeans';
       category = 'bottoms';
+      bodyRegion = 'lower_body';
+      bodyZoneLabel = 'Lower Body (Waist & Legs)';
+      bodyZoneBn = 'নিম্নাঙ্গ (কোমর থেকে পা)';
+    } else if (nameLower.includes('skirt') || catLower.includes('skirt')) {
+      garmentType = 'skirt';
+      category = 'bottoms';
+      bodyRegion = 'lower_body';
+      bodyZoneLabel = 'Lower Body (Waist & Hips)';
+      bodyZoneBn = 'নিম্নাঙ্গ (কোমর ও হিপস)';
+    } else if (nameLower.includes('jacket') || fitLower.includes('jacket')) {
+      garmentType = 'jacket';
+      category = 'tops';
+      bodyRegion = 'upper_body';
+      bodyZoneLabel = 'Upper Body (Torso)';
+      bodyZoneBn = 'উর্ধ্বাঙ্গ (কাঁধ থেকে কোমর/নাভি)';
+    } else if (nameLower.includes('shirt') || fitLower.includes('shirt')) {
+      garmentType = 'shirt';
+      category = 'tops';
+      bodyRegion = 'upper_body';
+      bodyZoneLabel = 'Upper Body (Torso)';
+      bodyZoneBn = 'উর্ধ্বাঙ্গ (বুক ও বডি)';
+    } else if (nameLower.includes('t-shirt') || nameLower.includes('tshirt') || nameLower.includes('tee')) {
+      garmentType = 'tshirt';
+      category = 'tops';
+      bodyRegion = 'upper_body';
+      bodyZoneLabel = 'Upper Body (Torso)';
+      bodyZoneBn = 'উর্ধ্বাঙ্গ (কাঁধ ও বডি)';
+    } else if (nameLower.includes('polo')) {
+      garmentType = 'polo';
+      category = 'tops';
+      bodyRegion = 'upper_body';
+      bodyZoneLabel = 'Upper Body (Torso)';
+      bodyZoneBn = 'উর্ধ্বাঙ্গ (গলা ও বডি)';
+    } else if (nameLower.includes('dress') || catLower.includes('dress')) {
+      garmentType = 'dress';
+      category = 'one-pieces';
+      bodyRegion = 'full_body';
+      bodyZoneLabel = 'Full Outfit (Co-ord)';
+      bodyZoneBn = 'কম্বো সেট (ফুল বডি)';
+    } else {
+      category = prod.garmentCategory === 'bottoms' ? 'bottoms' : 'tops';
+      bodyRegion = category === 'bottoms' ? 'lower_body' : 'upper_body';
+      bodyZoneLabel = category === 'bottoms' ? 'Lower Body (Waist & Legs)' : 'Upper Body (Torso)';
+      bodyZoneBn = category === 'bottoms' ? 'নিম্নাঙ্গ (কোমর/নাভি থেকে পা)' : 'উর্ধ্বাঙ্গ (কাঁধ থেকে কোমর/নাভি)';
     }
 
     const garmentImage = prod.tryOnAssetUrl || prod.thumbnail || prod.images[0] || '';
-    return { garmentType, category, garmentImage };
+    return { garmentType, category, bodyRegion, bodyZoneLabel, bodyZoneBn, garmentImage };
   }, []);
 
-  // Quick 4 selectable products for instant switching
+  // Quick selectable products categorized for instant switching & filtering
   const selectableProducts = useMemo(() => {
-    const list: Product[] = [activeProduct];
-    for (const p of products) {
-      if (list.length >= 4) break;
-      if (p.id !== activeProduct.id && p.virtualTryOnEnabled !== false) {
+    let list: Product[] = [];
+
+    products.forEach((p) => {
+      if (p.virtualTryOnEnabled === false) return;
+      const nLower = (p.name || '').toLowerCase();
+      const cLower = (p.category || '').toLowerCase();
+      const fitLower = (p.fit || '').toLowerCase();
+
+      const isTop =
+        cLower.includes('jacket') ||
+        nLower.includes('jacket') ||
+        fitLower.includes('jacket') ||
+        cLower.includes('shirt') ||
+        nLower.includes('shirt') ||
+        nLower.includes('overshirt') ||
+        nLower.includes('t-shirt') ||
+        nLower.includes('tee') ||
+        nLower.includes('polo') ||
+        nLower.includes('hoodie') ||
+        nLower.includes('blazer') ||
+        p.garmentCategory === 'tops';
+
+      const isShorts = nLower.includes('shorts') || cLower.includes('shorts') || p.garmentType === 'shorts';
+      const isBottom = !isTop;
+      const isMen = p.gender === 'men';
+      const isWomen = p.gender === 'women';
+
+      // 1. Primary filter by Main Category: Upper Wear vs Lower Wear vs All
+      if (mainCategoryFilter === 'upper_body' && !isTop) return;
+      if (mainCategoryFilter === 'lower_body' && !isBottom) return;
+
+      // 2. Secondary filter
+      if (garmentFilter === 'all' || garmentFilter === 'all-tops' || garmentFilter === 'all-bottoms') {
+        list.push(p);
+      } else if (garmentFilter === 'men-jeans' && isMen && isBottom && !isShorts) {
+        list.push(p);
+      } else if (garmentFilter === 'women-jeans' && isWomen && isBottom && !isShorts) {
+        list.push(p);
+      } else if (garmentFilter === 'men-shorts' && isMen && isShorts) {
+        list.push(p);
+      } else if (garmentFilter === 'women-shorts' && isWomen && isShorts) {
+        list.push(p);
+      } else if (garmentFilter === 'jackets' && isTop && (nLower.includes('jacket') || cLower.includes('jacket') || fitLower.includes('jacket'))) {
+        list.push(p);
+      } else if (garmentFilter === 'shirts' && isTop && (nLower.includes('shirt') || cLower.includes('shirt'))) {
+        list.push(p);
+      } else if (garmentFilter === 'men-tops' && isMen && isTop) {
+        list.push(p);
+      } else if (garmentFilter === 'women-tops' && isWomen && isTop) {
+        list.push(p);
+      } else {
         list.push(p);
       }
+    });
+
+    // Make sure activeProduct is placed at the top if it matches current main category or if in 'all'
+    const hasActive = list.some((p) => p.id === activeProduct.id);
+    if (!hasActive && mainCategoryFilter === 'all') {
+      list = [activeProduct, ...list];
+    } else if (hasActive) {
+      list = [activeProduct, ...list.filter((p) => p.id !== activeProduct.id)];
     }
-    for (const p of products) {
-      if (list.length >= 4) break;
-      if (!list.some((item) => item.id === p.id)) {
-        list.push(p);
-      }
-    }
-    return list.slice(0, 4);
-  }, [products, activeProduct]);
+
+    return isChangingProduct ? list : list.slice(0, 8);
+  }, [products, activeProduct, mainCategoryFilter, garmentFilter, isChangingProduct]);
 
   const handleSelectProduct = (prod: Product) => {
     setActiveProduct(prod);
@@ -232,9 +450,44 @@ export default function VirtualTryOnModal({
       setSelectedSize(prod.variants[0].size || '32');
       setSelectedColor(prod.variants[0].color || 'Deep Indigo');
     }
+    // Automatically match preset model and main category tab
+    const meta = resolveGarmentMetadata(prod);
+    if (meta.category === 'bottoms') {
+      setMainCategoryFilter('lower_body');
+    } else if (meta.category === 'tops') {
+      setMainCategoryFilter('upper_body');
+    }
+
+    if (photoSourceType === 'preset') {
+      const rec = getRecommendedPreset(prod);
+      setSelectedPresetId(rec.id);
+      setActivePhotoUrl(rec.url);
+      setBeforeImageUrl(rec.url);
+    }
   };
 
-  const { garmentType, category, garmentImage } = resolveGarmentMetadata(activeProduct);
+  const handleSelectPresetModel = (model: PresetModel) => {
+    stopCamera();
+    setSelectedPresetId(model.id);
+    setActivePhotoUrl(model.url);
+    setBeforeImageUrl(model.url);
+    setAfterImageUrl(null);
+    setUploadedPhotoUrl(null);
+    setPhotoSourceType('preset');
+  };
+
+  const filteredPresetModels = useMemo(() => {
+    if (presetFilter === 'all') return PRESET_MODELS;
+    if (presetFilter === 'upper_body') return PRESET_MODELS.filter((m) => m.bodyRegion === 'upper_body');
+    if (presetFilter === 'lower_body') return PRESET_MODELS.filter((m) => m.bodyRegion === 'lower_body');
+    if (presetFilter === 'men-jeans') return PRESET_MODELS.filter((m) => m.gender === 'men' && m.styleCategory === 'jeans');
+    if (presetFilter === 'women-jeans') return PRESET_MODELS.filter((m) => m.gender === 'women' && m.styleCategory === 'jeans');
+    if (presetFilter === 'men-shorts') return PRESET_MODELS.filter((m) => m.gender === 'men' && m.styleCategory === 'shorts');
+    if (presetFilter === 'women-shorts') return PRESET_MODELS.filter((m) => m.gender === 'women' && m.styleCategory === 'shorts');
+    return PRESET_MODELS;
+  }, [presetFilter]);
+
+  const { garmentType, category, bodyRegion, bodyZoneLabel, bodyZoneBn, garmentImage } = resolveGarmentMetadata(activeProduct);
   const effectivePrice =
     activeProduct.discountPrice && activeProduct.discountPrice < activeProduct.price
       ? activeProduct.discountPrice
@@ -989,6 +1242,11 @@ export default function VirtualTryOnModal({
                         AFTER (AI FITTED)
                       </span>
 
+                      {/* Target Body Zone Badge in Split View */}
+                      <span className="absolute top-11 left-3 z-20 bg-slate-900/80 backdrop-blur-md text-cyan-300 text-[10px] font-bold px-2.5 py-1 rounded-md border border-cyan-500/30 shadow-md pointer-events-none flex items-center gap-1.5">
+                        <span>🎯 {bodyZoneLabel}</span>
+                      </span>
+
                       {/* Draggable Divider Line & Glowing Handle */}
                       <div
                         className="absolute inset-y-0 w-1 bg-gradient-to-b from-cyan-400 via-white to-indigo-500 cursor-ew-resize z-20 flex items-center justify-center -ml-0.5 shadow-[0_0_15px_rgba(34,211,238,0.9)]"
@@ -1068,24 +1326,57 @@ export default function VirtualTryOnModal({
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none z-10" />
 
+                  {/* Top-Left Active Model Indicator */}
+                  <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                    <span className="truncate max-w-[170px]">
+                      {photoSourceType === 'preset'
+                        ? PRESET_MODELS.find((m) => m.id === selectedPresetId)?.badge || 'Preset Model'
+                        : photoSourceType === 'camera'
+                        ? 'Live Camera'
+                        : 'Uploaded Photo'}
+                    </span>
+                  </div>
+
+                  {/* Target Anatomical Body Region Indicator */}
+                  <div className="absolute top-12 left-3 z-30 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-cyan-400/40 text-[10px] font-bold text-cyan-200 shadow-md">
+                    <span>{bodyRegion === 'upper_body' ? '👕' : '👖'}</span>
+                    <span>{bodyZoneLabel}</span>
+                  </div>
+
                   {/* Corner Garment Pill Preview */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-white z-20">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={garmentImage}
-                        alt="Garment Preview"
-                        className="w-10 h-10 rounded-lg object-cover bg-white shrink-0"
-                      />
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2.5 rounded-2xl bg-black/80 backdrop-blur-md border border-white/15 text-white z-20 shadow-xl">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-white shrink-0 p-0.5 border border-white/20">
+                        <img
+                          src={garmentImage}
+                          alt="Garment Preview"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
                       <div className="text-left text-xs min-w-0">
-                        <p className="font-bold truncate max-w-[150px]">{activeProduct.name}</p>
-                        <p className="text-cyan-300 font-semibold text-[11px]">
-                          Size {selectedSize} • {selectedColor}
+                        <p className="font-bold truncate max-w-[160px] text-white">{activeProduct.name}</p>
+                        <p className="text-cyan-300 font-semibold text-[11px] flex items-center gap-1">
+                          <span>Size {selectedSize}</span>
+                          <span>•</span>
+                          <span className="truncate">{selectedColor}</span>
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-300 uppercase px-2 py-1 rounded bg-white/10 shrink-0">
-                      {category}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg shadow-sm ${
+                        bodyRegion === 'upper_body'
+                          ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+                          : garmentType === 'shorts'
+                          ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white'
+                          : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                      }`}>
+                        {bodyRegion === 'upper_body' ? '👕 Upper Wear' : garmentType === 'shorts' ? '🩳 Shorts' : '👖 Jeans'}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-300 uppercase px-2 py-0.5 rounded-lg bg-white/10 border border-white/10">
+                        {activeProduct.gender === 'women' ? 'Women' : 'Men'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Quick Fit/Fill Toggle Button */}
@@ -1095,7 +1386,7 @@ export default function VirtualTryOnModal({
                       e.stopPropagation();
                       setImageFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
                     }}
-                    className="absolute top-3 right-3 z-30 px-2.5 py-1 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md transition active:scale-95"
+                    className="absolute top-3 right-3 z-30 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md transition active:scale-95"
                     title={imageFitMode === 'contain' ? 'Switch to Full Cover' : 'Switch to Fit Image'}
                   >
                     {imageFitMode === 'contain' ? (
@@ -1177,26 +1468,121 @@ export default function VirtualTryOnModal({
           {/* RIGHT COLUMN: Controls, Garment Selection, Photo Source & Actions */}
           <div className="lg:col-span-6 flex flex-col justify-between space-y-4">
             <div className="space-y-4">
-              {/* SECTION 1: 4 Selectable Garments Grid */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-2.5">
+              {/* SECTION 1: Select Garment to Try On with Category Tabs (Men/Women Jeans & Shorts) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-blue-600" />
-                    1. Select Garment to Try On ({selectableProducts.length} Styles):
+                    1. Select Garment to Try On ({selectableProducts.length}):
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsChangingProduct(!isChangingProduct)}
                     className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition"
                   >
-                    {isChangingProduct ? 'Hide All' : 'Browse All'}
+                    {isChangingProduct ? 'Show Less' : 'Browse All'}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* Primary Anatomical Category Switcher: All | Upper Wear / Tops | Lower Wear / Bottoms */}
+                <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMainCategoryFilter('all');
+                      setGarmentFilter('all');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-1 transition ${
+                      mainCategoryFilter === 'all'
+                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>✨ All</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMainCategoryFilter('upper_body');
+                      setGarmentFilter('all');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-1 transition ${
+                      mainCategoryFilter === 'upper_body'
+                        ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm shadow-amber-500/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>👕 Upper Wear</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMainCategoryFilter('lower_body');
+                      setGarmentFilter('all');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-1 transition ${
+                      mainCategoryFilter === 'lower_body'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>👖 Lower Wear</span>
+                  </button>
+                </div>
+
+                {/* Sub-Filter Pills dynamically based on Upper Wear vs Lower Wear */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  {(mainCategoryFilter === 'upper_body'
+                    ? [
+                        { id: 'all', label: 'All Tops (Torso)', icon: '✨' },
+                        { id: 'jackets', label: 'Denim Jackets', icon: '🧥' },
+                        { id: 'shirts', label: 'Denim Shirts', icon: '👔' },
+                        { id: 'men-tops', label: "Men's Tops", icon: '👨' },
+                        { id: 'women-tops', label: "Women's Tops", icon: '👩' },
+                      ]
+                    : mainCategoryFilter === 'lower_body'
+                    ? [
+                        { id: 'all', label: 'All Bottoms (Waist & Legs)', icon: '✨' },
+                        { id: 'men-jeans', label: "Men's Jeans", icon: '👖' },
+                        { id: 'women-jeans', label: "Women's Jeans", icon: '👖' },
+                        { id: 'men-shorts', label: "Men's Shorts", icon: '🩳' },
+                        { id: 'women-shorts', label: "Women's Shorts", icon: '🩳' },
+                      ]
+                    : [
+                        { id: 'all', label: 'All Styles', icon: '✨' },
+                        { id: 'men-jeans', label: "Men's Jeans", icon: '👖' },
+                        { id: 'women-jeans', label: "Women's Jeans", icon: '👖' },
+                        { id: 'men-shorts', label: "Men's Shorts", icon: '🩳' },
+                        { id: 'women-shorts', label: "Women's Shorts", icon: '🩳' },
+                        { id: 'jackets', label: 'Jackets & Tops', icon: '🧥' },
+                      ]
+                  ).map((tab) => {
+                    const isActive = garmentFilter === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setGarmentFilter(tab.id as any)}
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
+                          isActive
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30 ring-1 ring-blue-500'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <span>{tab.icon}</span>
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Garments Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-thin">
                   {selectableProducts.map((p) => {
                     const isSelected = activeProduct.id === p.id;
                     const price = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
+                    const isTop = (p.name || '').toLowerCase().includes('jacket') || (p.category || '').toLowerCase().includes('jacket') || (p.name || '').toLowerCase().includes('shirt') || p.garmentCategory === 'tops';
+                    const isShort = (p.name || '').toLowerCase().includes('shorts') || (p.category || '').toLowerCase().includes('shorts') || p.garmentType === 'shorts';
                     return (
                       <button
                         key={p.id}
@@ -1204,7 +1590,7 @@ export default function VirtualTryOnModal({
                         onClick={() => handleSelectProduct(p)}
                         className={`relative p-2 rounded-xl border text-left flex flex-col items-center gap-1.5 transition-all group ${
                           isSelected
-                            ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/50 ring-2 ring-blue-500/40 shadow-sm'
+                            ? 'border-blue-600 bg-blue-50/90 dark:bg-blue-950/60 ring-2 ring-blue-500/50 shadow-md'
                             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700'
                         }`}
                       >
@@ -1214,8 +1600,14 @@ export default function VirtualTryOnModal({
                             alt={p.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
+                          {/* Tag for Upper Wear vs Shorts vs Jeans */}
+                          <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider backdrop-blur-md text-white ${
+                            isTop ? 'bg-amber-600/90' : isShort ? 'bg-cyan-700/90' : 'bg-black/60'
+                          }`}>
+                            {isTop ? '🧥 Upper Wear' : isShort ? '🩳 Shorts' : '👖 Jeans'}
+                          </div>
                           {isSelected && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shadow">
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/40">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </div>
                           )}
@@ -1224,9 +1616,14 @@ export default function VirtualTryOnModal({
                           <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
                             {p.name}
                           </p>
-                          <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                            ৳{price.toLocaleString()}
-                          </p>
+                          <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                              ৳{price.toLocaleString()}
+                            </span>
+                            <span className="text-[9px] font-semibold text-slate-400 uppercase">
+                              {p.gender === 'women' ? 'Women' : 'Men'}
+                            </span>
+                          </div>
                         </div>
                       </button>
                     );
@@ -1312,34 +1709,97 @@ export default function VirtualTryOnModal({
                 )}
               </div>
 
-              {/* SECTION 3: Quick Preset Model Selector */}
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  3. Or Test Instantly with Preset Models:
-                </span>
-                <div className="grid grid-cols-4 gap-2">
-                  {PRESET_MODELS.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => {
-                        stopCamera();
-                        setActivePhotoUrl(model.url);
-                        setBeforeImageUrl(model.url);
-                        setAfterImageUrl(null);
-                        setPhotoSourceType('preset');
-                      }}
-                      className={`relative aspect-[3/4] rounded-2xl overflow-hidden border-2 transition-all ${
-                        activePhotoUrl === model.url && !uploadedPhotoUrl
-                          ? 'border-cyan-400 ring-2 ring-cyan-400/40 scale-105 shadow-md shadow-cyan-500/20'
-                          : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100 hover:scale-102'
-                      }`}
-                    >
-                      <img src={model.url} alt={model.name} className="w-full h-full object-cover" />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent text-[9px] font-bold text-white text-center pt-2 pb-1 truncate px-1">
-                        {model.gender === 'men' ? 'Male' : 'Female'}
-                      </div>
-                    </button>
-                  ))}
+              {/* SECTION 3: Quick Preset Model Selector with Filter Tabs (Men/Women Jeans & Shorts) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
+                      3. Test Instantly with Preset Models:
+                    </span>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Full-body models for Men & Women (Jeans & Denim Shorts)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Filter Tabs for Models: All | Upper Body | Men Jeans | Women Jeans | Men Shorts | Women Shorts */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+                  {[
+                    { id: 'all', label: 'All Models', icon: '✨' },
+                    { id: 'upper_body', label: 'Upper Body (Torso)', icon: '👕' },
+                    { id: 'men-jeans', label: 'Men Jeans', icon: '👖' },
+                    { id: 'women-jeans', label: 'Women Jeans', icon: '👖' },
+                    { id: 'men-shorts', label: 'Men Shorts', icon: '🩳' },
+                    { id: 'women-shorts', label: 'Women Shorts', icon: '🩳' },
+                  ].map((tab) => {
+                    const isActive = presetFilter === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setPresetFilter(tab.id as any)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
+                          isActive
+                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <span>{tab.icon}</span>
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Preset Model Cards Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {filteredPresetModels.map((model) => {
+                    const isSelected = activePhotoUrl === model.url && !uploadedPhotoUrl;
+                    return (
+                      <button
+                        key={model.id}
+                        type="button"
+                        onClick={() => handleSelectPresetModel(model)}
+                        className={`group relative aspect-[3/4] rounded-xl overflow-hidden border-2 text-left transition-all ${
+                          isSelected
+                            ? 'border-cyan-400 ring-2 ring-cyan-400/50 scale-[1.03] shadow-md shadow-cyan-500/25 z-10'
+                            : 'border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100 hover:scale-[1.02]'
+                        }`}
+                      >
+                        <img
+                          src={model.url}
+                          alt={model.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+
+                        {/* Top Gender Pill */}
+                        <div className="absolute top-1 left-1 z-10">
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow ${
+                            model.gender === 'men' ? 'bg-blue-600 text-white' : 'bg-rose-600 text-white'
+                          }`}>
+                            {model.gender === 'men' ? '👨 Men' : '👩 Women'}
+                          </span>
+                        </div>
+
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 z-10 w-4 h-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center shadow">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                        )}
+
+                        {/* Bottom Style Overlay */}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-3 pb-1 px-1 text-center">
+                          <p className="text-[9px] font-black text-cyan-300 truncate">
+                            {model.styleCategory === 'shorts' ? '🩳 Shorts' : '👖 Jeans'}
+                          </p>
+                          <p className="text-[8px] text-white/90 font-bold truncate">
+                            {model.nameBn || model.name}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1375,8 +1835,14 @@ export default function VirtualTryOnModal({
                   <span>Photo Guidelines:</span>
                 </div>
                 <p>✓ Single person • Good lighting • Clear body & face • Natural posture</p>
+                <div className="pt-1.5 mt-1 border-t border-blue-200/50 dark:border-blue-900/40 flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    🎯 Target Zone: <strong className="text-blue-600 dark:text-blue-400 font-extrabold">{bodyZoneLabel}</strong>
+                  </span>
+                  <span className="text-slate-500 font-medium">{bodyZoneBn}</span>
+                </div>
                 <p className="text-[10px] text-slate-400">
-                  Note: AI accurately removes the previous clothing and fits this garment naturally onto your body contours.
+                  Note: AI accurately removes only the targeted clothing region without altering the rest of your outfit.
                 </p>
               </div>
 
@@ -1412,7 +1878,7 @@ export default function VirtualTryOnModal({
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform text-amber-300" />
-                      <span>✨ Try On Garment Now</span>
+                      <span>✨ Try On {bodyRegion === 'upper_body' ? 'Upper Wear' : 'Lower Wear'} Now</span>
                     </>
                   )}
                 </button>

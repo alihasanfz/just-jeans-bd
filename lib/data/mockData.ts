@@ -73,6 +73,24 @@ export const INITIAL_CATEGORIES: Category[] = [
     image: 'https://images.unsplash.com/photo-1560243563-062bfc001d68?auto=format&fit=crop&w=800&q=80',
     itemCount: 20,
   },
+  {
+    id: 'cat-men-shorts',
+    name: "Men's Denim Shorts",
+    slug: 'mens-denim-shorts',
+    gender: 'men',
+    description: 'Casual vintage wash and street cut denim shorts for effortless warm-weather style.',
+    image: '/images/products/men_denim_shorts.jpg',
+    itemCount: 12,
+  },
+  {
+    id: 'cat-women-shorts',
+    name: "Women's Denim Shorts",
+    slug: 'womens-denim-shorts',
+    gender: 'women',
+    description: 'Chic high-rise distressed and embroidered butterfly denim shorts for summer poise.',
+    image: 'https://litter.catbox.moe/gltf20.png',
+    itemCount: 14,
+  },
 ];
 
 export const INITIAL_PRODUCTS: Product[] = [];

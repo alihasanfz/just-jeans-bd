@@ -27,9 +27,14 @@ export class ReplicateIDMVTONProvider implements IVirtualTryOnProvider {
     }
 
     const category =
-      request.garmentType === 'jeans' || request.garmentType === 'pants'
+      request.category === 'bottoms' ||
+      request.category === 'lower_body' ||
+      request.garmentType === 'jeans' ||
+      request.garmentType === 'pants' ||
+      request.garmentType === 'shorts' ||
+      request.garmentType === 'skirt'
         ? 'lower_body'
-        : request.garmentType === 'dress'
+        : request.garmentType === 'dress' || request.category === 'one-pieces'
         ? 'dresses'
         : 'upper_body';
 

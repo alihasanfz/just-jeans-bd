@@ -47,7 +47,7 @@ export class VirtualTryOnOrchestrator {
     const normalizedGarmentType: any = params.garmentType || 'jacket';
     const normalizedCategory: any =
       params.category ||
-      (normalizedGarmentType === 'jeans' || normalizedGarmentType === 'pants' ? 'bottoms' : 'tops');
+      (normalizedGarmentType === 'jeans' || normalizedGarmentType === 'pants' || normalizedGarmentType === 'shorts' ? 'bottoms' : 'tops');
 
     const retentionHours = parseInt(process.env.TRYON_RETENTION_HOURS || '24', 10);
     const expiresAt = new Date(Date.now() + retentionHours * 3600 * 1000).toISOString();

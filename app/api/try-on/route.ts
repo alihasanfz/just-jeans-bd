@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const normCategory =
-      category === 'lower_body' || category === 'bottoms' || garmentType === 'jeans' || garmentType === 'pants'
+      category === 'lower_body' || category === 'bottoms' || garmentType === 'jeans' || garmentType === 'pants' || garmentType === 'shorts'
         ? 'bottoms'
         : 'tops';
 

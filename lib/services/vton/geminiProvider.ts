@@ -59,16 +59,29 @@ export class GeminiVisionProvider implements IVirtualTryOnProvider {
       throw new Error('Failed to load human or garment image for Gemini processing.');
     }
 
-    const promptText = `TASK: HIGH-PRECISION PHOTOREALISTIC VIRTUAL TRY-ON & GARMENT REPLACEMENT.
-INPUT 1: Customer photograph.
-INPUT 2: Retail clothing product (${request.productName || request.garmentType}, Category: ${request.category}).
+    const isBottom =
+      request.category === 'bottoms' ||
+      request.category === 'lower_body' ||
+      request.garmentType === 'jeans' ||
+      request.garmentType === 'pants' ||
+      request.garmentType === 'shorts' ||
+      request.garmentType === 'skirt';
 
-STRICT INSTRUCTIONS:
-1. Identify the existing clothing on the person in the ${request.category === 'bottoms' ? 'lower-body (jeans/pants)' : 'upper-body (torso/chest/shoulders)'} region.
-2. Completely REPLACE the person's existing clothing with the exact garment from Input 2.
-3. Preserve 100% of the customer's facial identity, facial expressions, hairstyle, neck, skin tone, hands, arms, body pose, posture, and room background.
-4. Fit the garment realistically according to the person's body contours, anatomical shoulder width, waistline, and torso proportions.
-5. Generate natural fabric drapery, realistic wrinkles, ambient drop-shadow beneath collar/hem, and lighting highlights consistent with the original photograph.`;
+    const promptText = `TASK: HIGH-PRECISION PHOTOREALISTIC VIRTUAL TRY-ON & BODY-REGION GARMENT SWAP.
+INPUT 1: Customer photograph.
+INPUT 2: Retail clothing product (${request.productName || request.garmentType}, Target Category: ${isBottom ? 'Lower Wear / Bottoms' : 'Upper Wear / Tops'}).
+
+ANATOMICAL COVERAGE AREA:
+${
+  isBottom
+    ? '- TARGET ZONE: Lower Body / Bottoms (Waist, Navel/Abdomen, Hips, Thighs, and Legs down to hem/ankles).\n- ACTION: Detect and replace ONLY the bottom garment (jeans/pants/shorts). Keep the customer\'s upper body top/shirt/torso, face, hair, and background 100% UNTOUCHED and PRESERVED.'
+    : '- TARGET ZONE: Upper Body / Tops (Neck, Shoulders, Chest, Torso, and Arms down to the navel/waistline).\n- ACTION: Detect and replace ONLY the top garment (jacket/shirt/t-shirt). Keep the customer\'s lower body pants/shorts/legs, footwear, and background 100% UNTOUCHED and PRESERVED.'
+}
+
+STRICT QUALITY RULES:
+1. Seamless anatomical blending along the waistline/navel border where upper wear meets lower wear.
+2. Perfect preservation of customer skin, facial identity, body posture, hands, and room lighting.
+3. Realistic fabric texture, stitching details, buttons/zippers, natural cloth folds, and subtle drop shadows.`;
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 

@@ -39,7 +39,8 @@ function mapDbProduct(row: any): Product {
 
   const isJacket = fitName === 'Denim Jacket' || catLower.includes('jacket') || nameLower.includes('jacket');
   const isShirt = fitName === 'Denim Shirt' || catLower.includes('shirt') || nameLower.includes('shirt') || nameLower.includes('overshirt');
-  const defaultGarmentType = isJacket ? 'jacket' : isShirt ? 'shirt' : 'jeans';
+  const isShorts = catLower.includes('shorts') || nameLower.includes('shorts');
+  const defaultGarmentType = isJacket ? 'jacket' : isShirt ? 'shirt' : isShorts ? 'shorts' : 'jeans';
   const defaultGarmentCategory = (isJacket || isShirt) ? 'tops' : 'bottoms';
 
   return {
