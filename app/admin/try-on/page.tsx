@@ -52,6 +52,7 @@ export default function AdminTryOnManagementPage() {
   const [isLoadingStats, setIsLoadingStats] = useState<boolean>(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [aiTestingProduct, setAiTestingProduct] = useState<Product | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -86,7 +87,15 @@ export default function AdminTryOnManagementPage() {
       (p.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.fit || '').toLowerCase().includes(searchQuery.toLowerCase());
 
+    const matchesGender =
+      genderFilter === 'all' ? true : p.gender === genderFilter;
+
     const isEnabled = p.virtualTryOnEnabled !== false;
+    const isShorts =
+      (p.name || '').toLowerCase().includes('shorts') ||
+      (p.category || '').toLowerCase().includes('shorts') ||
+      p.garmentType === 'shorts';
+
     const matchesType =
       filterType === 'all'
         ? true
@@ -94,9 +103,11 @@ export default function AdminTryOnManagementPage() {
         ? isEnabled
         : filterType === 'disabled'
         ? !isEnabled
-        : p.garmentType === filterType;
+        : filterType === 'shorts'
+        ? isShorts
+        : p.garmentType === filterType || (p.fit || '').toLowerCase().includes(filterType);
 
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesGender && matchesType;
   });
 
   const totalEnabled = products.filter((p) => p.virtualTryOnEnabled !== false).length;
@@ -119,7 +130,7 @@ export default function AdminTryOnManagementPage() {
   const handleGarmentTypeChange = async (product: Product, type: GarmentType) => {
     setUpdatingId(product.id);
     const category =
-      type === 'jeans' || type === 'pants'
+      type === 'jeans' || type === 'pants' || type === 'shorts' || type === 'skirt'
         ? 'bottoms'
         : type === 'dress'
         ? 'fullbody'
@@ -293,27 +304,56 @@ export default function AdminTryOnManagementPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto text-xs">
-          {[
-            { id: 'all', label: 'All Products' },
-            { id: 'enabled', label: 'Try-On Enabled' },
-            { id: 'disabled', label: 'Disabled' },
-            { id: 'jacket', label: 'Jackets' },
-            { id: 'shirt', label: 'Shirts' },
-            { id: 'jeans', label: 'Jeans' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilterType(tab.id)}
-              className={`px-3 py-1.5 rounded-lg font-bold transition ${
-                filterType === tab.id
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Gender & Category Filter Badges */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          {/* Gender Filter Tabs */}
+          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            {[
+              { id: 'all', label: 'All Genders' },
+              { id: 'men', label: '👨 Men' },
+              { id: 'women', label: '👩 Women' },
+            ].map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setGenderFilter(g.id as any)}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition ${
+                  genderFilter === g.id
+                    ? g.id === 'men'
+                      ? 'bg-blue-600 text-white shadow'
+                      : g.id === 'women'
+                      ? 'bg-rose-600 text-white shadow'
+                      : 'bg-slate-700 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Garment Style Filter Tabs */}
+          <div className="flex items-center gap-1.5 flex-wrap text-xs">
+            {[
+              { id: 'all', label: 'All Styles' },
+              { id: 'shorts', label: '🩳 Shorts' },
+              { id: 'jeans', label: '👖 Jeans' },
+              { id: 'jacket', label: '🧥 Jacket' },
+              { id: 'enabled', label: 'Enabled' },
+              { id: 'disabled', label: 'Disabled' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setFilterType(tab.id)}
+                className={`px-2.5 py-1 rounded-lg font-bold transition ${
+                  filterType === tab.id
+                    ? 'bg-cyan-500 text-slate-950 shadow font-black'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -324,7 +364,7 @@ export default function AdminTryOnManagementPage() {
             <thead className="bg-slate-900/80 text-slate-400 uppercase font-black tracking-wider text-[11px] border-b border-slate-800">
               <tr>
                 <th className="px-5 py-3.5">Product & Image</th>
-                <th className="px-5 py-3.5">Category & Fit</th>
+                <th className="px-5 py-3.5">Gender & Category</th>
                 <th className="px-5 py-3.5">AI Garment Type</th>
                 <th className="px-5 py-3.5">Virtual Try-On</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
@@ -333,7 +373,11 @@ export default function AdminTryOnManagementPage() {
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
               {filteredProducts.map((p) => {
                 const isEnabled = p.virtualTryOnEnabled !== false;
-                const currentType: GarmentType = p.garmentType || (p.fit === 'Denim Jacket' ? 'jacket' : 'jeans');
+                const isShorts =
+                  (p.name || '').toLowerCase().includes('shorts') ||
+                  (p.category || '').toLowerCase().includes('shorts') ||
+                  p.garmentType === 'shorts';
+                const currentType: GarmentType = p.garmentType || (isShorts ? 'shorts' : p.fit === 'Denim Jacket' ? 'jacket' : 'jeans');
                 const isUpdating = updatingId === p.id;
 
                 return (
@@ -357,13 +401,17 @@ export default function AdminTryOnManagementPage() {
                       </div>
                     </td>
 
-                    {/* Category & Fit */}
+                    {/* Gender & Category */}
                     <td className="px-5 py-3.5">
-                      <div>
-                        <span className="font-bold text-white uppercase text-[11px]">
-                          {p.fit}
+                      <div className="space-y-1">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                          p.gender === 'women'
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                        }`}>
+                          {p.gender === 'women' ? '👩 Women' : '👨 Men'}
                         </span>
-                        <p className="text-[10px] text-slate-400">{p.gender}</p>
+                        <p className="text-[11px] font-bold text-slate-300">{p.category || p.fit}</p>
                       </div>
                     </td>
 
@@ -375,17 +423,15 @@ export default function AdminTryOnManagementPage() {
                         disabled={isUpdating}
                         className="bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-bold"
                       >
-                        <option value="jacket">Jacket (Outerwear)</option>
-                        <option value="shirt">Shirt (Top)</option>
-                        <option value="tshirt">T-Shirt (Top)</option>
-                        <option value="polo">Polo Shirt (Top)</option>
-                        <option value="panjabi">Panjabi (Top/Full)</option>
-                        <option value="kurta">Kurta (Top)</option>
-                        <option value="blazer">Blazer (Outerwear)</option>
-                        <option value="hoodie">Hoodie (Top)</option>
-                        <option value="dress">Dress (One-piece)</option>
-                        <option value="jeans">Jeans (Bottoms)</option>
-                        <option value="pants">Pants (Bottoms)</option>
+                        <option value="shorts">🩳 Shorts (Bottoms)</option>
+                        <option value="jeans">👖 Jeans (Bottoms)</option>
+                        <option value="pants">👖 Pants (Bottoms)</option>
+                        <option value="jacket">🧥 Jacket (Tops / Outerwear)</option>
+                        <option value="shirt">👕 Shirt (Tops)</option>
+                        <option value="tshirt">👕 T-Shirt (Tops)</option>
+                        <option value="polo">👕 Polo Shirt (Tops)</option>
+                        <option value="dress">👗 Dress (Full Body)</option>
+                        <option value="skirt">👗 Skirt (Bottoms)</option>
                       </select>
                     </td>
 
