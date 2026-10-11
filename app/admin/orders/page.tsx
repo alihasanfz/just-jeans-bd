@@ -17,6 +17,8 @@ import {
   PhoneCall,
   MapPin,
   X,
+  Zap,
+  RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useOrder } from '@/lib/store/orderContext';
@@ -24,6 +26,8 @@ import { useAdminTheme } from '@/lib/store/adminThemeContext';
 import { Order, OrderStatus } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import CustomerMessageModal from '@/components/admin/CustomerMessageModal';
+import CourierDispatchModal from '@/components/admin/CourierDispatchModal';
+import CourierTrackingModal from '@/components/admin/CourierTrackingModal';
 
 function AdminOrdersContent() {
   const searchParams = useSearchParams();
@@ -37,6 +41,20 @@ function AdminOrdersContent() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [deleteConfirmOrder, setDeleteConfirmOrder] = useState<Order | null>(null);
+
+  // Live Courier API Modals
+  const [apiDispatchOrder, setApiDispatchOrder] = useState<Order | null>(null);
+  const [trackingModalData, setTrackingModalData] = useState<{
+    open: boolean;
+    courier: string;
+    tracking: string;
+    cid?: string;
+    orderNumber?: string;
+  }>({
+    open: false,
+    courier: '',
+    tracking: '',
+  });
 
   // Edit status modal
   const [modalStatus, setModalStatus] = useState<OrderStatus>('Pending');
@@ -258,6 +276,36 @@ function AdminOrdersContent() {
                             <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.512 3.735 7.151V22l3.414-1.874c.905.251 1.864.387 2.851.387 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.002 12.441l-2.56-2.73-5 2.73 5.5-5.84 2.62 2.73 4.94-2.73-5.5 5.84z"/>
                           </svg>
                         </button>
+                        {/* Quick Courier API Dispatch */}
+                        <button
+                          type="button"
+                          onClick={() => setApiDispatchOrder(ord)}
+                          title="Dispatch via Steadfast/Pathao API"
+                          className="p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-amber-300" />
+                        </button>
+
+                        {/* Live Hub tracking if tracking number exists */}
+                        {ord.delivery?.trackingNumber && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTrackingModalData({
+                                open: true,
+                                courier: ord.delivery.courierCompany || 'Steadfast',
+                                tracking: ord.delivery.trackingNumber || '',
+                                cid: ord.delivery.consignmentId,
+                                orderNumber: ord.orderNumber,
+                              })
+                            }
+                            title="Check Live Courier Hub API Status"
+                            className="p-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-600 hover:text-white transition-all cursor-pointer"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         <Link
                           href={`/track-order?order=${encodeURIComponent(ord.orderNumber)}&phone=${encodeURIComponent(ord.customer.phone)}`}
                           target="_blank"
@@ -392,6 +440,30 @@ function AdminOrdersContent() {
                 />
               </div>
 
+              {/* Quick API Dispatch Action */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Auto-Dispatch via Courier API</span>
+                  </span>
+                  <p className="text-[11px] text-slate-400">
+                    Book consignment with Steadfast or Pathao and auto-generate tracking code
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ord = selectedOrder;
+                    setSelectedOrder(null);
+                    setApiDispatchOrder(ord);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider shrink-0 shadow-md transition-all active:scale-95"
+                >
+                  Send via API
+                </button>
+              </div>
+
               <div className={`pt-4 border-t flex items-center justify-between gap-3 ${
                 isDark ? 'border-slate-800' : 'border-slate-100'
               }`}>
@@ -484,6 +556,23 @@ function AdminOrdersContent() {
         isOpen={isMessageModalOpen}
         onClose={() => setIsMessageModalOpen(false)}
         initialChannel={messageChannel}
+      />
+
+      {/* Courier API Dispatch Modal */}
+      <CourierDispatchModal
+        order={apiDispatchOrder}
+        isOpen={Boolean(apiDispatchOrder)}
+        onClose={() => setApiDispatchOrder(null)}
+      />
+
+      {/* Live Courier Tracking Modal */}
+      <CourierTrackingModal
+        isOpen={trackingModalData.open}
+        onClose={() => setTrackingModalData({ open: false, courier: '', tracking: '' })}
+        courierCompany={trackingModalData.courier}
+        trackingNumber={trackingModalData.tracking}
+        consignmentId={trackingModalData.cid}
+        orderNumber={trackingModalData.orderNumber}
       />
     </div>
   );

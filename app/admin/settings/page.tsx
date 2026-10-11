@@ -41,6 +41,7 @@ import { formatPrice } from '@/lib/utils';
 import { parseVideoUrl } from '@/lib/utils/video';
 import { uploadVideoFile } from '@/lib/utils/uploader';
 import ImageUploadField from '@/components/admin/ImageUploadField';
+import CourierSettingsManager from '@/components/admin/CourierSettingsManager';
 
 export default function AdminSettingsPage() {
   return (
@@ -56,7 +57,7 @@ function AdminSettingsContent() {
 
   const { siteSettings, updateSiteSettings, categories, isLoaded } = useProducts();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'shipping' | 'payments' | 'home' | 'header-footer'>(
+  const [activeTab, setActiveTab] = useState<'store' | 'courier' | 'shipping' | 'payments' | 'home' | 'header-footer'>(
     (urlTab as any) || 'store'
   );
 
@@ -549,6 +550,7 @@ function AdminSettingsContent() {
 
   const tabs = [
     { id: 'store', label: 'Store Details', icon: Store },
+    { id: 'courier', label: 'Courier APIs (Steadfast & Pathao)', icon: Truck },
     { id: 'shipping', label: 'Shipping & Delivery', icon: Truck },
     { id: 'payments', label: 'Payment Methods', icon: CreditCard },
     { id: 'home', label: 'Home Sections (Visuals & Reviews)', icon: LayoutTemplate },
@@ -776,6 +778,13 @@ function AdminSettingsContent() {
           </div>
         )}
 
+        {/* TAB: Courier APIs (Steadfast & Pathao) */}
+        {activeTab === 'courier' && (
+          <div className="animate-fade-in">
+            <CourierSettingsManager />
+          </div>
+        )}
+
         {/* TAB 2: Shipping & Delivery */}
         {activeTab === 'shipping' && (
           <div className="bg-slate-950/80 p-6 rounded-3xl border border-slate-800 space-y-4 animate-fade-in">
@@ -827,6 +836,26 @@ function AdminSettingsContent() {
                 onChange={(e) => setDefaultCourier(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white"
               />
+            </div>
+
+            {/* Quick Courier API configuration callout */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600/10 via-emerald-600/10 to-rose-600/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <span className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Steadfast & Pathao Merchant API Integration</span>
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  Manage API keys, merchant tokens, sandbox modes, and automatic parcel booking in the Courier APIs console.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('courier')}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shrink-0 shadow-md shadow-blue-600/30 transition-all active:scale-95"
+              >
+                Open Courier Console →
+              </button>
             </div>
           </div>
         )}

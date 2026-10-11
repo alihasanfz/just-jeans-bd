@@ -98,6 +98,29 @@ export const INITIAL_PRODUCTS: Product[] = [];
 export const INITIAL_COUPONS: Coupon[] = [];
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  courierSettings: {
+    defaultCourierDhaka: 'Steadfast',
+    defaultCourierOutsideDhaka: 'Pathao',
+    autoDispatchOnConfirm: false,
+    steadfast: {
+      enabled: false,
+      apiKey: '',
+      secretKey: '',
+      baseUrl: 'https://portal.steadfast.com.bd/api/v1',
+      defaultNote: 'Handover Jeans BD Premium Parcel. Handle with care.',
+    },
+    pathao: {
+      enabled: false,
+      clientId: '',
+      clientSecret: '',
+      username: '',
+      password: '',
+      storeId: '',
+      isSandbox: false,
+      defaultDeliveryType: 48,
+      defaultItemType: 2,
+    },
+  },
   siteName: 'Jeans BD',
   tagline: 'Premium Denim Fashion Bangladesh',
   logoUrl: '/logo.svg',

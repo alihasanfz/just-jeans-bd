@@ -44,7 +44,7 @@ import { useProducts } from '@/lib/store/productsContext';
 import { AdminThemeProvider, useAdminTheme } from '@/lib/store/adminThemeContext';
 import AdminThemeToggle from '@/components/admin/AdminThemeToggle';
 
-export interface AdminUser {
+interface AdminUser {
   id?: string;
   name?: string;
   email?: string;
@@ -53,7 +53,7 @@ export interface AdminUser {
   permissions?: string[];
 }
 
-export function isUserSuperAdmin(user: AdminUser | null): boolean {
+function isUserSuperAdmin(user: AdminUser | null): boolean {
   if (!user) return false;
   // Strictly check if the user is designated as Super Admin or has All Permissions
   return (
@@ -62,7 +62,7 @@ export function isUserSuperAdmin(user: AdminUser | null): boolean {
   );
 }
 
-export function hasPermissionForPath(
+function hasPermissionForPath(
   user: AdminUser | null,
   pathname: string
 ): boolean {
@@ -913,6 +913,24 @@ function AdminSidebar({
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Payments</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=courier"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && currentTab === 'courier'
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Courier APIs</span>
+                    <span className="ml-auto bg-emerald-500/20 text-emerald-300 text-[9px] font-black px-1.5 py-0.5 rounded">
+                      Live
+                    </span>
                   </Link>
 
                   <Link

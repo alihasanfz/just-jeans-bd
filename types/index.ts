@@ -126,14 +126,21 @@ export interface OrderAddress {
 }
 
 export interface OrderDelivery {
-  courierCompany?: string; // 'Steadfast' | 'Pathao' | 'RedX' | 'Sundarban' | 'Paperfly'
+  courierCompany?: string; // 'Steadfast Courier' | 'Pathao Express' | 'RedX' | 'Sundarban' | 'Paperfly'
   trackingNumber?: string;
+  consignmentId?: string;
+  trackingCode?: string;
+  trackingUrl?: string;
   deliveryCharge: number;
   dispatchDate?: string;
   estimatedDeliveryDate?: string;
   actualDeliveryDate?: string;
   deliveryStatus: string;
+  courierStatus?: string;
+  courierRawStatus?: string;
   notes?: string;
+  dispatchedAt?: string;
+  lastCourierSync?: string;
 }
 
 export interface OrderItem {
@@ -216,7 +223,40 @@ export interface HeroSlide {
   videoUrl?: string; // Optional motion video background (MP4 file or streaming link)
 }
 
+export interface SteadfastConfig {
+  enabled: boolean;
+  apiKey: string;
+  secretKey: string;
+  baseUrl?: string;
+  defaultNote?: string;
+}
+
+export interface PathaoConfig {
+  enabled: boolean;
+  clientId: string;
+  clientSecret: string;
+  username: string;
+  password: string;
+  storeId: string;
+  isSandbox: boolean;
+  defaultDeliveryType?: number; // 48: normal delivery, 12: on demand
+  defaultItemType?: number; // 2: parcel / clothing
+}
+
+export interface CourierSettings {
+  defaultCourierDhaka: 'Steadfast' | 'Pathao';
+  defaultCourierOutsideDhaka: 'Steadfast' | 'Pathao';
+  autoDispatchOnConfirm: boolean;
+  steadfast: SteadfastConfig;
+  pathao: PathaoConfig;
+  lastTested?: {
+    steadfast?: { success: boolean; message: string; timestamp?: string; balance?: number };
+    pathao?: { success: boolean; message: string; timestamp?: string; storeCount?: number };
+  };
+}
+
 export interface SiteSettings {
+  courierSettings?: CourierSettings;
   siteName: string;
   tagline: string;
   logoUrl: string;

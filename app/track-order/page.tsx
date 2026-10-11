@@ -13,6 +13,7 @@ import {
   AlertCircle,
   ArrowRight,
   ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
 import { useOrder } from '@/lib/store/orderContext';
 import { formatPrice } from '@/lib/utils';
@@ -258,25 +259,52 @@ function TrackOrderContent() {
                 )}
 
                 {/* Courier and Dispatch Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 text-xs">
-                  <div>
-                    <span className="text-slate-400 font-semibold block mb-0.5">Assigned Courier</span>
-                    <span className="font-bold text-slate-900">
-                      {trackedOrder.delivery.courierCompany || 'Steadfast Courier'}
-                    </span>
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <span className="text-slate-400 font-semibold block mb-0.5">Assigned Courier</span>
+                      <span className="font-bold text-slate-900">
+                        {trackedOrder.delivery.courierCompany || 'Steadfast Courier'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block mb-0.5">Tracking Number</span>
+                      <span className="font-bold text-blue-600 font-mono">
+                        {trackedOrder.delivery.trackingNumber || 'Pending Dispatch Assignment'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block mb-0.5">Delivery Destination</span>
+                      <span className="font-bold text-slate-900">
+                        {trackedOrder.customer.area}, {trackedOrder.customer.district}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 font-semibold block mb-0.5">Tracking Number</span>
-                    <span className="font-bold text-blue-600 font-mono">
-                      {trackedOrder.delivery.trackingNumber || 'Pending Dispatch Assignment'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 font-semibold block mb-0.5">Delivery Destination</span>
-                    <span className="font-bold text-slate-900">
-                      {trackedOrder.customer.area}, {trackedOrder.customer.district}
-                    </span>
-                  </div>
+
+                  {trackedOrder.delivery.trackingNumber && (
+                    <div className="pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[11px] text-slate-600 font-medium">
+                          Real-time status synchronized with {(trackedOrder.delivery.courierCompany || 'Steadfast')} Hub
+                        </span>
+                      </div>
+                      <a
+                        href={
+                          trackedOrder.delivery.trackingUrl ||
+                          ((trackedOrder.delivery.courierCompany || '').toLowerCase().includes('pathao')
+                            ? `https://pathao.com/courier-tracking/?consignment_id=${trackedOrder.delivery.consignmentId || trackedOrder.delivery.trackingNumber}`
+                            : `https://steadfast.com.bd/t/${trackedOrder.delivery.trackingNumber}`)
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition-all shadow-sm active:scale-95"
+                      >
+                        <span>Live Courier Portal Tracking</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Timeline Status History */}

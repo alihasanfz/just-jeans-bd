@@ -26,11 +26,15 @@ import {
   Send,
   ArrowRight,
   ShieldCheck,
+  Zap,
+  RefreshCw,
 } from 'lucide-react';
 import { useOrder } from '@/lib/store/orderContext';
 import { useAdminTheme } from '@/lib/store/adminThemeContext';
 import { Order, OrderStatus } from '@/types';
 import { formatPrice } from '@/lib/utils';
+import CourierDispatchModal from '@/components/admin/CourierDispatchModal';
+import CourierTrackingModal from '@/components/admin/CourierTrackingModal';
 
 export default function AdminDeliveryPage() {
   return (
@@ -49,6 +53,20 @@ function AdminDeliveryContent() {
   const [selectedCourier, setSelectedCourier] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Live Courier API Dispatch & Tracking Modals
+  const [dispatchModalOrder, setDispatchModalOrder] = useState<Order | null>(null);
+  const [liveTrackingData, setLiveTrackingData] = useState<{
+    open: boolean;
+    courier: string;
+    tracking: string;
+    cid?: string;
+    orderNumber?: string;
+  }>({
+    open: false,
+    courier: '',
+    tracking: '',
+  });
 
   // Edit modal state
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -320,16 +338,30 @@ function AdminDeliveryContent() {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setNewTrackingNumber(`STDF-${Math.floor(100000 + Math.random() * 900000)}`);
-            setIsNewDispatchOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Dispatch</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/admin/settings?tab=courier"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider border transition-all hover:scale-[1.02] shadow-sm ${
+              isDark
+                ? 'bg-slate-900 border-slate-700 text-slate-200 hover:text-white hover:bg-slate-800'
+                : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Courier APIs (Steadfast & Pathao)</span>
+          </Link>
+
+          <button
+            onClick={() => {
+              setNewTrackingNumber(`STDF-${Math.floor(100000 + Math.random() * 900000)}`);
+              setIsNewDispatchOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Dispatch</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Stats Grid */}
@@ -566,6 +598,39 @@ function AdminDeliveryContent() {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* API Dispatch Button */}
+                        <button
+                          onClick={() => setDispatchModalOrder(ord)}
+                          title="Dispatch to Steadfast / Pathao via API"
+                          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1 active:scale-95"
+                        >
+                          <Zap className="w-3 h-3 text-amber-300" />
+                          <span className="hidden sm:inline">API Send</span>
+                        </button>
+
+                        {/* Live Courier Hub API Status */}
+                        {tracking && (
+                          <button
+                            onClick={() =>
+                              setLiveTrackingData({
+                                open: true,
+                                courier: courier,
+                                tracking: tracking,
+                                cid: ord.delivery?.consignmentId,
+                                orderNumber: ord.orderNumber,
+                              })
+                            }
+                            title="Check Live Courier Hub API Status"
+                            className={`p-1.5 rounded-lg border transition-colors ${
+                              isDark
+                                ? 'bg-slate-900 border-slate-700 text-cyan-400 hover:bg-slate-800 hover:text-cyan-300'
+                                : 'bg-slate-100 border-slate-200 text-cyan-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         {/* Public Tracking link */}
                         <Link
                           href={`/track-order?order=${encodeURIComponent(ord.orderNumber)}&phone=${encodeURIComponent(ord.customer.phone)}`}
@@ -1178,6 +1243,26 @@ function AdminDeliveryContent() {
           </div>
         </div>
       )}
+
+      {/* COURIER API DISPATCH MODAL */}
+      <CourierDispatchModal
+        order={dispatchModalOrder}
+        isOpen={Boolean(dispatchModalOrder)}
+        onClose={() => setDispatchModalOrder(null)}
+        onSuccess={(code, cid, prov) => {
+          showToast('success', `Consignment booked with ${prov}! Tracking code: ${code}`);
+        }}
+      />
+
+      {/* LIVE COURIER TRACKING MODAL */}
+      <CourierTrackingModal
+        isOpen={liveTrackingData.open}
+        onClose={() => setLiveTrackingData({ open: false, courier: '', tracking: '' })}
+        courierCompany={liveTrackingData.courier}
+        trackingNumber={liveTrackingData.tracking}
+        consignmentId={liveTrackingData.cid}
+        orderNumber={liveTrackingData.orderNumber}
+      />
     </div>
   );
 }

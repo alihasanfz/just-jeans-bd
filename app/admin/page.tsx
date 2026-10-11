@@ -476,6 +476,14 @@ function AdminDashboardContent() {
             </Link>
 
             <Link
+              href="/admin/settings?tab=courier"
+              className="px-4 py-2 rounded-2xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <Truck className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Courier APIs (Steadfast & Pathao)</span>
+            </Link>
+
+            <Link
               href="/admin/settings?tab=home"
               className="px-4 py-2 rounded-2xl text-xs font-black bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95"
             >
