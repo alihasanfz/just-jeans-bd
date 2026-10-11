@@ -354,7 +354,16 @@ function AdminDashboardContent() {
         </div>
 
         {/* Right utility items */}
-        <div className="flex items-center gap-3 self-end md:self-auto">
+        <div className="flex items-center gap-3 self-end md:self-auto flex-wrap">
+          {/* AI Virtual Try-On Quick Access */}
+          <Link
+            href="/admin/try-on"
+            className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition active:scale-95 cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>AI Virtual Try-On</span>
+          </Link>
+
           {/* Notification Bell */}
           <button
             title="Notifications"
@@ -464,14 +473,6 @@ function AdminDashboardContent() {
             >
               <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
               <span>Storefront</span>
-            </Link>
-
-            <Link
-              href="/admin/try-on"
-              className="px-4 py-2 rounded-2xl text-xs font-black bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white flex items-center gap-1.5 shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-95"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>AI Virtual Try-On Studio</span>
             </Link>
 
             <Link

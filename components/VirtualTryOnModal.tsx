@@ -379,10 +379,25 @@ export default function VirtualTryOnModal({
       const cLower = (p.category || '').toLowerCase();
       const fitLower = (p.fit || '').toLowerCase();
 
-      const meta = resolveGarmentMetadata(p);
-      const isTop = meta.category === 'tops';
-      const isShorts = meta.garmentType === 'shorts';
-      const isBottom = meta.category === 'bottoms';
+      const isShorts = nLower.includes('shorts') || cLower.includes('shorts') || p.garmentType === 'shorts';
+      const isJeans = !isShorts && (nLower.includes('jeans') || cLower.includes('jeans') || nLower.includes('pants') || cLower.includes('bottoms') || p.garmentType === 'jeans');
+      const isBottom = isShorts || isJeans;
+
+      const isTop = !isBottom && (
+        cLower.includes('jacket') ||
+        nLower.includes('jacket') ||
+        fitLower.includes('jacket') ||
+        cLower.includes('shirt') ||
+        nLower.includes('shirt') ||
+        nLower.includes('overshirt') ||
+        nLower.includes('t-shirt') ||
+        nLower.includes('tee') ||
+        nLower.includes('polo') ||
+        nLower.includes('hoodie') ||
+        nLower.includes('blazer') ||
+        p.garmentCategory === 'tops'
+      );
+
       const isMen = p.gender === 'men';
       const isWomen = p.gender === 'women';
 
@@ -418,9 +433,16 @@ export default function VirtualTryOnModal({
       }
     });
 
-    // Make sure activeProduct is placed at the top if it matches current main category or if in 'all'
+    // Make sure activeProduct is placed at the top only if it actually matches current category & gender
     const hasActive = list.some((p) => p.id === activeProduct.id);
-    if (!hasActive && mainCategoryFilter === 'all' && (selectedGender === 'all' || activeProduct.gender === selectedGender)) {
+    const activeMeta = resolveGarmentMetadata(activeProduct);
+    const activeMatchesCat =
+      mainCategoryFilter === 'all' ||
+      (mainCategoryFilter === 'upper_body' && activeMeta.category === 'tops') ||
+      (mainCategoryFilter === 'lower_body' && activeMeta.category === 'bottoms');
+    const activeMatchesGender = selectedGender === 'all' || activeProduct.gender === selectedGender;
+
+    if (!hasActive && activeMatchesCat && activeMatchesGender) {
       list = [activeProduct, ...list];
     } else if (hasActive) {
       list = [activeProduct, ...list.filter((p) => p.id !== activeProduct.id)];
@@ -1730,9 +1752,10 @@ export default function VirtualTryOnModal({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-thin">
                   {selectableProducts.map((p) => {
                     const isSelected = activeProduct.id === p.id;
-                    const meta = resolveGarmentMetadata(p);
-                    const isTop = meta.category === 'tops';
-                    const isShort = meta.garmentType === 'shorts';
+                    const price = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
+                    const isShort = (p.name || '').toLowerCase().includes('shorts') || (p.category || '').toLowerCase().includes('shorts') || p.garmentType === 'shorts';
+                    const isJeans = !isShort && ((p.name || '').toLowerCase().includes('jeans') || (p.category || '').toLowerCase().includes('jeans') || (p.name || '').toLowerCase().includes('pants') || p.garmentType === 'jeans');
+                    const isTop = !isShort && !isJeans && ((p.name || '').toLowerCase().includes('jacket') || (p.category || '').toLowerCase().includes('jacket') || (p.name || '').toLowerCase().includes('shirt') || p.garmentCategory === 'tops');
                     return (
                       <button
                         key={p.id}
