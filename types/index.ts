@@ -418,11 +418,25 @@ export interface VisitorSession {
   city?: string;
   userAgent?: string;
   device?: string; // 'Mobile' | 'Desktop' | 'Tablet'
+  deviceModel?: string; // e.g. 'iPhone 15 Pro', 'Samsung Galaxy', 'Windows 11 PC'
+  os?: string; // e.g. 'iOS 17', 'Android 14', 'Windows 11', 'macOS'
   browser?: string; // 'Chrome' | 'Safari' | 'Firefox' | 'Edge'
+  screenResolution?: string; // e.g. '1920x1080', '393x852'
+  language?: string; // e.g. 'bn-BD', 'en-US'
+  connectionType?: string; // e.g. '4G', 'WiFi', '5G'
+  touchSupport?: boolean;
   totalPages: number;
   pagesHistory: PageviewRecord[];
   firstSeen: string;
   lastSeen: string;
+  
+  // Real vs Fake Customer Intelligence
+  authenticityScore?: number; // 0 - 100%
+  customerStatus?: 'VERIFIED_REAL' | 'HIGH_INTENT' | 'SUSPICIOUS' | 'BOT_CRAWLER';
+  botReason?: string;
+  hasInteracted?: boolean; // Mouse moved, scrolled, or tapped
+  scrollDepth?: number; // 0 - 100%
+  shoppingIntent?: 'Viewing Home' | 'Browsing Catalog' | 'Examining Product' | 'Cart & Checkout';
 }
 
 
