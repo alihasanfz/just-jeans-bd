@@ -122,18 +122,16 @@ function AdminOrdersContent() {
       </div>
 
       {/* Filter and Search */}
-      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${
-        isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-      }`}>
+      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
         <div className="relative w-full sm:w-80">
           <input
             type="text"
             placeholder="Search by Order #, Customer, Phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full border rounded-xl py-2 pl-9 pr-4 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-500 ${
-              isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-            }`}
+            className={`w-full border rounded-xl py-2 pl-9 pr-4 text-xs placeholder-slate-400 focus:outline-none focus:border-blue-500 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+              }`}
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
@@ -143,13 +141,12 @@ function AdminOrdersContent() {
             <button
               key={st}
               onClick={() => setSelectedStatus(st)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex-shrink-0 ${
-                selectedStatus === st
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : isDark
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex-shrink-0 ${selectedStatus === st
+                ? 'bg-blue-600 text-white shadow-sm'
+                : isDark
                   ? 'bg-slate-900 text-slate-400 hover:text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+                }`}
             >
               {st}
             </button>
@@ -158,14 +155,12 @@ function AdminOrdersContent() {
       </div>
 
       {/* Orders Table */}
-      <div className={`rounded-3xl border shadow-sm overflow-hidden ${
-        isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
+      <div className={`rounded-3xl border shadow-sm overflow-hidden ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className={`text-[11px] font-black uppercase tracking-wider border-b ${
-              isDark ? 'text-slate-400 bg-slate-900/80 border-slate-800' : 'text-slate-500 bg-slate-50 border-slate-200'
-            }`}>
+            <thead className={`text-[11px] font-black uppercase tracking-wider border-b ${isDark ? 'text-slate-400 bg-slate-900/80 border-slate-800' : 'text-slate-500 bg-slate-50 border-slate-200'
+              }`}>
               <tr>
                 <th className="py-3.5 px-4">Order ID & Date</th>
                 <th className="py-3.5 px-4">Customer & Phone</th>
@@ -177,9 +172,8 @@ function AdminOrdersContent() {
                 <th className="py-3.5 px-4 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className={`divide-y font-medium ${
-              isDark ? 'divide-slate-800 text-slate-300' : 'divide-slate-100 text-slate-700'
-            }`}>
+            <tbody className={`divide-y font-medium ${isDark ? 'divide-slate-800 text-slate-300' : 'divide-slate-100 text-slate-700'
+              }`}>
               {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-slate-500">
@@ -231,15 +225,14 @@ function AdminOrdersContent() {
                       <select
                         value={ord.orderStatus}
                         onChange={(e) => updateOrderStatus(ord.id, e.target.value as OrderStatus, `Status updated from table`)}
-                        className={`text-[11px] font-bold px-2 py-1 rounded-xl border focus:outline-none transition-all ${
-                          ord.orderStatus === 'Delivered'
-                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                            : ord.orderStatus === 'Shipped' || ord.orderStatus === 'Out for Delivery'
+                        className={`text-[11px] font-bold px-2 py-1 rounded-xl border focus:outline-none transition-all ${ord.orderStatus === 'Delivered'
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                          : ord.orderStatus === 'Shipped' || ord.orderStatus === 'Out for Delivery'
                             ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
                             : ord.orderStatus === 'Cancelled' || ord.orderStatus === 'Returned'
-                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
-                            : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
-                        } ${isDark ? 'bg-slate-900' : 'bg-white'}`}
+                              ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                              : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                          } ${isDark ? 'bg-slate-900' : 'bg-white'}`}
                       >
                         <option value="Pending">Pending</option>
                         <option value="Confirmed">Confirmed</option>
@@ -262,7 +255,7 @@ function AdminOrdersContent() {
                           className="p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-[#25D366] hover:text-white transition-all cursor-pointer"
                         >
                           <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.983.541 1.879.82 2.791.82 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.768-5.766zm3.385 8.163c-.144.405-.837.774-1.17.822-.312.043-.681.077-2.203-.554-1.944-.805-3.18-2.778-3.277-2.907-.097-.129-.788-1.047-.788-1.996 0-.949.499-1.417.676-1.611.178-.194.388-.242.517-.242.13 0 .259.002.371.008.119.006.278-.045.435.334.162.388.55 1.341.599 1.438.048.097.081.21.016.339-.065.129-.097.21-.194.323-.097.113-.205.253-.293.34-.097.097-.198.202-.085.396.113.194.502.828 1.078 1.342.741.661 1.365.865 1.559.962.194.097.307.081.42-.048.113-.129.484-.565.613-.759.129-.194.258-.162.436-.097.178.065 1.13.533 1.324.63.194.097.323.145.371.226.048.081.048.469-.096.874zM12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.176L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.636 0-3.167-.488-4.453-1.327l-.319-.209-2.955.775.789-2.88-.23-.366A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z"/>
+                            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.983.541 1.879.82 2.791.82 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.586-5.766-5.768-5.766zm3.385 8.163c-.144.405-.837.774-1.17.822-.312.043-.681.077-2.203-.554-1.944-.805-3.18-2.778-3.277-2.907-.097-.129-.788-1.047-.788-1.996 0-.949.499-1.417.676-1.611.178-.194.388-.242.517-.242.13 0 .259.002.371.008.119.006.278-.045.435.334.162.388.55 1.341.599 1.438.048.097.081.21.016.339-.065.129-.097.21-.194.323-.097.113-.205.253-.293.34-.097.097-.198.202-.085.396.113.194.502.828 1.078 1.342.741.661 1.365.865 1.559.962.194.097.307.081.42-.048.113-.129.484-.565.613-.759.129-.194.258-.162.436-.097.178.065 1.13.533 1.324.63.194.097.323.145.371.226.048.081.048.469-.096.874zM12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.66 1.438 5.176L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.636 0-3.167-.488-4.453-1.327l-.319-.209-2.955.775.789-2.88-.23-.366A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z" />
                           </svg>
                         </button>
                         {/* Messenger button */}
@@ -273,7 +266,7 @@ function AdminOrdersContent() {
                           className="p-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-gradient-to-r hover:from-[#0084FF] hover:to-[#A824F3] hover:text-white transition-all cursor-pointer"
                         >
                           <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                            <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.512 3.735 7.151V22l3.414-1.874c.905.251 1.864.387 2.851.387 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.002 12.441l-2.56-2.73-5 2.73 5.5-5.84 2.62 2.73 4.94-2.73-5.5 5.84z"/>
+                            <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.512 3.735 7.151V22l3.414-1.874c.905.251 1.864.387 2.851.387 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.002 12.441l-2.56-2.73-5 2.73 5.5-5.84 2.62 2.73 4.94-2.73-5.5 5.84z" />
                           </svg>
                         </button>
                         {/* Quick Courier API Dispatch */}
@@ -310,11 +303,10 @@ function AdminOrdersContent() {
                           href={`/track-order?order=${encodeURIComponent(ord.orderNumber)}&phone=${encodeURIComponent(ord.customer.phone)}`}
                           target="_blank"
                           title="View Tracking / Invoice"
-                          className={`p-1.5 rounded-lg border transition-colors ${
-                            isDark
-                              ? 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800'
-                              : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                          }`}
+                          className={`p-1.5 rounded-lg border transition-colors ${isDark
+                            ? 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800'
+                            : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                            }`}
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </Link>
@@ -327,11 +319,10 @@ function AdminOrdersContent() {
                         <button
                           onClick={() => setDeleteConfirmOrder(ord)}
                           title="Delete Order"
-                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                            isDark
-                              ? 'bg-rose-950/40 border-rose-800/40 text-rose-400 hover:bg-rose-600 hover:text-white hover:border-rose-600'
-                              : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600'
-                          }`}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${isDark
+                            ? 'bg-rose-950/40 border-rose-800/40 text-rose-400 hover:bg-rose-600 hover:text-white hover:border-rose-600'
+                            : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600'
+                            }`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -348,12 +339,10 @@ function AdminOrdersContent() {
       {/* Order Manage & Status Update Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className={`border rounded-3xl max-w-xl w-full p-6 lg:p-8 shadow-2xl space-y-6 ${
-            isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className={`flex items-center justify-between pb-4 border-b ${
-              isDark ? 'border-slate-800' : 'border-slate-100'
+          <div className={`border rounded-3xl max-w-xl w-full p-6 lg:p-8 shadow-2xl space-y-6 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
             }`}>
+            <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'
+              }`}>
               <div>
                 <span className="text-[10px] font-black uppercase text-blue-500">Fulfillment Console</span>
                 <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>Order #{selectedOrder.orderNumber}</h3>
@@ -374,9 +363,8 @@ function AdminOrdersContent() {
                 <select
                   value={modalStatus}
                   onChange={(e) => setModalStatus(e.target.value as OrderStatus)}
-                  className={`w-full border rounded-xl px-3.5 py-2.5 font-bold ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}
+                  className={`w-full border rounded-xl px-3.5 py-2.5 font-bold ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                 >
                   <option value="Pending">Pending (Order Placed)</option>
                   <option value="Confirmed">Confirmed</option>
@@ -397,9 +385,8 @@ function AdminOrdersContent() {
                   <select
                     value={modalCourier}
                     onChange={(e) => setModalCourier(e.target.value)}
-                    className={`w-full border rounded-xl px-3.5 py-2.5 ${
-                      isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
+                    className={`w-full border rounded-xl px-3.5 py-2.5 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                      }`}
                   >
                     <option value="Steadfast">Steadfast Courier</option>
                     <option value="Pathao">Pathao Express</option>
@@ -418,9 +405,8 @@ function AdminOrdersContent() {
                     placeholder="e.g. ST-98432190"
                     value={modalTracking}
                     onChange={(e) => setModalTracking(e.target.value)}
-                    className={`w-full border rounded-xl px-3.5 py-2.5 font-mono ${
-                      isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
+                    className={`w-full border rounded-xl px-3.5 py-2.5 font-mono ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                      }`}
                   />
                 </div>
               </div>
@@ -434,9 +420,8 @@ function AdminOrdersContent() {
                   placeholder="e.g. Verified by phone call, dispatched via banani hub"
                   value={modalNote}
                   onChange={(e) => setModalNote(e.target.value)}
-                  className={`w-full border rounded-xl px-3.5 py-2.5 ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}
+                  className={`w-full border rounded-xl px-3.5 py-2.5 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                 />
               </div>
 
@@ -464,9 +449,8 @@ function AdminOrdersContent() {
                 </button>
               </div>
 
-              <div className={`pt-4 border-t flex items-center justify-between gap-3 ${
-                isDark ? 'border-slate-800' : 'border-slate-100'
-              }`}>
+              <div className={`pt-4 border-t flex items-center justify-between gap-3 ${isDark ? 'border-slate-800' : 'border-slate-100'
+                }`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -504,9 +488,8 @@ function AdminOrdersContent() {
       {/* Delete Confirmation Modal */}
       {deleteConfirmOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 ${
-            isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
+          <div className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+            }`}>
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
                 <AlertTriangle className="w-6 h-6" />
@@ -529,9 +512,8 @@ function AdminOrdersContent() {
               <button
                 type="button"
                 onClick={() => setDeleteConfirmOrder(null)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                  isDark ? 'border-slate-800 text-slate-400 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${isDark ? 'border-slate-800 text-slate-400 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
               >
                 Cancel
               </button>
