@@ -132,11 +132,10 @@ function AdminOrdersContent() {
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-              isDark
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${isDark
                 ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-sm'
-            }`}
+              }`}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
             <span>Sync Orders</span>

@@ -169,3 +169,33 @@ body {
   animation: vtonScan 3s ease-in-out infinite;
 }
 
+/* ==========================================================================
+   Admin Appearance Customization System (Dark/Light/System & Accents)
+   ========================================================================== */
+:root {
+  --admin-accent: #2563eb;
+  --admin-accent-hover: #1d4ed8;
+  --admin-accent-glow: rgba(37, 99, 235, 0.35);
+  --admin-accent-light: rgba(37, 99, 235, 0.12);
+  --admin-accent-border: rgba(37, 99, 235, 0.3);
+}
+
+/* Reduced Motion Override for Accessibility & Performance */
+html[data-admin-reduced-motion="true"] *,
+html[data-admin-reduced-motion="true"] *::before,
+html[data-admin-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* High-contrast and smooth theme switching */
+[data-admin-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-admin-theme="light"] {
+  color-scheme: light;
+}
+
+

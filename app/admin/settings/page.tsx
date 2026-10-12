@@ -35,6 +35,7 @@ import {
   Play,
   Link2,
   X,
+  Palette,
 } from 'lucide-react';
 import { useProducts } from '@/lib/store/productsContext';
 import { formatPrice } from '@/lib/utils';
@@ -42,6 +43,7 @@ import { parseVideoUrl } from '@/lib/utils/video';
 import { uploadVideoFile } from '@/lib/utils/uploader';
 import ImageUploadField from '@/components/admin/ImageUploadField';
 import CourierSettingsManager from '@/components/admin/CourierSettingsManager';
+import AdminAppearanceSettings from '@/components/admin/AdminAppearanceSettings';
 
 export default function AdminSettingsPage() {
   return (
@@ -57,7 +59,7 @@ function AdminSettingsContent() {
 
   const { siteSettings, updateSiteSettings, categories, isLoaded } = useProducts();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'courier' | 'shipping' | 'payments' | 'home' | 'header-footer'>(
+  const [activeTab, setActiveTab] = useState<'store' | 'courier' | 'shipping' | 'payments' | 'home' | 'header-footer' | 'appearance'>(
     (urlTab as any) || 'store'
   );
 
@@ -550,6 +552,7 @@ function AdminSettingsContent() {
 
   const tabs = [
     { id: 'store', label: 'Store Details', icon: Store },
+    { id: 'appearance', label: 'Theme & Appearance', icon: Palette },
     { id: 'courier', label: 'Courier APIs (Steadfast & Pathao)', icon: Truck },
     { id: 'shipping', label: 'Shipping & Delivery', icon: Truck },
     { id: 'payments', label: 'Payment Methods', icon: CreditCard },
@@ -2116,44 +2119,53 @@ function AdminSettingsContent() {
           </div>
         )}
 
-        {/* Global Save Button at bottom */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
-          <div>
-            <span className="text-xs text-slate-400 block">
-              Clicking Save will update the frontend and synchronize your live store immediately across all devices.
-            </span>
-            {savedSuccess && (
-              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 mt-1">
-                <Check className="w-3.5 h-3.5" />
-                All changes saved &amp; synced to live store!
-              </span>
-            )}
-            {saveErrorMessage && (
-              <span className="text-xs text-red-400 font-bold flex items-center gap-1.5 mt-1">
-                <AlertCircle className="w-3.5 h-3.5" />
-                {saveErrorMessage}
-              </span>
-            )}
+        {/* TAB 7: Appearance & Theme Customization */}
+        {activeTab === 'appearance' && (
+          <div className="animate-fade-in">
+            <AdminAppearanceSettings />
           </div>
-          <button
-            type="button"
-            onClick={() => handleSave()}
-            disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-7 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50 shrink-0"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving Changes...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>Save All Changes</span>
-              </>
-            )}
-          </button>
-        </div>
+        )}
+
+        {/* Global Save Button at bottom (for non-appearance tabs) */}
+        {activeTab !== 'appearance' && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+            <div>
+              <span className="text-xs text-slate-400 block">
+                Clicking Save will update the frontend and synchronize your live store immediately across all devices.
+              </span>
+              {savedSuccess && (
+                <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 mt-1">
+                  <Check className="w-3.5 h-3.5" />
+                  All changes saved &amp; synced to live store!
+                </span>
+              )}
+              {saveErrorMessage && (
+                <span className="text-xs text-red-400 font-bold flex items-center gap-1.5 mt-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {saveErrorMessage}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={isSaving}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-7 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50 shrink-0"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving Changes...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Save All Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

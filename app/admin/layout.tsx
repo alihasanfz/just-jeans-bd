@@ -119,7 +119,11 @@ function hasPermissionForPath(
     return perms.includes('Financial Reports & Analytics');
   }
 
-  // 8. Store Settings
+  // 8. Store Settings & Appearance
+  if (pathname.startsWith('/admin/settings/appearance') || pathname.startsWith('/admin/appearance')) {
+    return true; // Appearance is personal preference for all admins
+  }
+
   if (pathname.startsWith('/admin/settings')) {
     return perms.includes('Logistics & Store Settings');
   }
@@ -209,12 +213,26 @@ export default function AdminLayout({
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '';
-  const { theme } = useAdminTheme();
+  const {
+    theme,
+    resolvedTheme,
+    accent,
+    accentColor,
+    density,
+    fontSize,
+    reducedMotion,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+  } = useAdminTheme();
   const isDark = theme === 'dark';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(sidebarCollapsed);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [isUserLoaded, setIsUserLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsCollapsed(sidebarCollapsed);
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -251,7 +269,16 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`min-h-screen flex flex-col md:flex-row font-sans transition-colors duration-200 selection:bg-blue-600 selection:text-white ${
+      data-admin-theme={resolvedTheme}
+      data-admin-accent={accentColor}
+      data-admin-density={density}
+      data-admin-font={fontSize}
+      data-admin-motion={reducedMotion ? 'reduced' : 'normal'}
+      className={`min-h-screen flex flex-col md:flex-row font-sans transition-colors ${
+        reducedMotion ? '' : 'duration-200'
+      } ${
+        fontSize === 'sm' ? 'text-[13px]' : fontSize === 'lg' ? 'text-[15px]' : 'text-[14px]'
+      } selection:bg-blue-600 selection:text-white ${
         isDark ? 'bg-[#090d16] text-slate-100' : 'bg-[#f4f7fb] text-slate-800'
       }`}
     >
@@ -329,7 +356,15 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Main Admin Area */}
       <main
-        className={`flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto transition-colors duration-200 ${
+        className={`flex-1 overflow-y-auto transition-colors ${
+          reducedMotion ? '' : 'duration-200'
+        } ${
+          density === 'compact'
+            ? 'p-2 sm:p-3.5 lg:p-4'
+            : density === 'spacious'
+            ? 'p-4 sm:p-6 lg:p-8'
+            : 'p-3 sm:p-5 lg:p-6'
+        } ${
           isDark ? 'bg-[#090d16]/95' : 'bg-[#f4f7fb]'
         }`}
       >
@@ -420,7 +455,7 @@ function AdminSidebar({
 
   const { orders } = useOrder();
   const { products } = useProducts();
-  const { theme } = useAdminTheme();
+  const { theme, accent, accentColor } = useAdminTheme();
   const isDark = theme === 'dark';
 
   const isSuperAdmin = isUserSuperAdmin(currentUser || null);
@@ -519,7 +554,7 @@ function AdminSidebar({
             title="Dashboard"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
               pathname === '/admin' && !currentAction && !currentTab
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                ? `${accent.bgClass} text-white shadow-md`
                 : isDark
                 ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -712,7 +747,7 @@ function AdminSidebar({
               title="Orders"
               className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
                 pathname === '/admin/orders'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  ? `${accent.bgClass} text-white shadow-md`
                   : isDark
                   ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -723,7 +758,7 @@ function AdminSidebar({
                 {!isCollapsed && <span>Orders</span>}
               </div>
               {!isCollapsed && (
-                <span className="bg-blue-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                <span className={`${accent.bgClass} text-white text-[11px] font-black px-2 py-0.5 rounded-full shadow-sm`}>
                   {orders.length}
                 </span>
               )}
@@ -738,7 +773,7 @@ function AdminSidebar({
               title="Customers"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
                 pathname === '/admin/customers'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  ? `${accent.bgClass} text-white shadow-md`
                   : isDark
                   ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -756,7 +791,7 @@ function AdminSidebar({
             title="Visitors"
             className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
               pathname === '/admin/visitors'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                ? `${accent.bgClass} text-white shadow-md`
                 : isDark
                 ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -827,7 +862,7 @@ function AdminSidebar({
               title="Discounts & Promos"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
                 pathname === '/admin/coupons'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  ? `${accent.bgClass} text-white shadow-md`
                   : isDark
                   ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -846,7 +881,7 @@ function AdminSidebar({
               title="Sales Analytics"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
                 pathname === '/admin/analytics'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  ? `${accent.bgClass} text-white shadow-md`
                   : isDark
                   ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -865,7 +900,7 @@ function AdminSidebar({
               title="Sub-Admins & Staff"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all ${
                 pathname === '/admin/staff'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  ? `${accent.bgClass} text-white shadow-md`
                   : isDark
                   ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -875,6 +910,31 @@ function AdminSidebar({
               {!isCollapsed && <span>Staff & Roles</span>}
             </Link>
           )}
+
+          {/* 8.5 Theme & Appearance */}
+          <Link
+            href="/admin/settings/appearance"
+            onClick={onCloseMobile}
+            title="Theme & Appearance Customization"
+            className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
+              pathname === '/admin/settings/appearance' || pathname === '/admin/appearance' || (pathname === '/admin/settings' && currentTab === 'appearance')
+                ? `${accent.bgClass} text-white shadow-md`
+                : isDark
+                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Palette className="w-4 h-4 shrink-0" style={{ color: (pathname === '/admin/settings/appearance' || pathname === '/admin/appearance' || (pathname === '/admin/settings' && currentTab === 'appearance')) ? '#ffffff' : accent.primaryHex }} />
+              {!isCollapsed && <span>Theme & Colors</span>}
+            </div>
+            {!isCollapsed && (
+              <span
+                className="w-2.5 h-2.5 rounded-full ring-2 ring-white/20"
+                style={{ backgroundColor: accent.primaryHex }}
+              />
+            )}
+          </Link>
 
           {/* 9. Store Settings Group (RBAC: Logistics & Store Settings) */}
           {canManageSettings && (
@@ -926,6 +986,21 @@ function AdminSidebar({
                   >
                     <Store className="w-3.5 h-3.5" />
                     <span>Store Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=appearance"
+                    onClick={onCloseMobile}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      pathname === '/admin/settings' && currentTab === 'appearance'
+                        ? 'text-blue-500 font-bold bg-blue-500/10'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Palette className="w-3.5 h-3.5" style={{ color: accent.primaryHex }} />
+                    <span>Theme & Appearance</span>
                   </Link>
 
                   <Link
