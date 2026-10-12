@@ -150,11 +150,21 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
               .eq('is_active', true)
               .order('created_at', { ascending: false });
 
-            if (!error && Array.isArray(dbProducts) && dbProducts.length > 0) {
-              const mapped = dbProducts.map(mapDbProduct);
-              setProducts(mapped);
-              await idbSet('jeansbd_products', mapped);
-              loadedFromSupabase = true;
+            if (!error && Array.isArray(dbProducts)) {
+              if (dbProducts.length > 0) {
+                const mapped = dbProducts.map(mapDbProduct);
+                setProducts(mapped);
+                await idbSet('jeansbd_products', mapped);
+                loadedFromSupabase = true;
+              } else {
+                // Database is cleared (demo products removed)
+                setProducts([]);
+                await idbSet('jeansbd_products', []);
+                try {
+                  localStorage.removeItem('jeansbd_products');
+                } catch (e) {}
+                loadedFromSupabase = true;
+              }
             }
 
             // Fetch categories from Supabase

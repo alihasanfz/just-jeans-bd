@@ -295,7 +295,7 @@ export default function AdminLoginPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Demo secret password is: admin123 (or check Staff & Roles page in Admin).')}
+                  onClick={() => alert('Default staff key is: admin123 (or check Staff & Roles page in Admin).')}
                   className="text-[11px] text-blue-400 hover:underline"
                 >
                   Forgot Key?

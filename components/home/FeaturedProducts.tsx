@@ -71,12 +71,32 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
           </div>
         </div>
 
-        {/* 8 Product Cards (2 rows of 4) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 mb-12">
-          {displayedProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {/* Product Cards or Empty Catalog Banner */}
+        {displayedProducts.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 mb-12">
+            {displayedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="py-16 px-6 text-center border-2 border-dashed border-slate-200 rounded-3xl mb-12 bg-slate-50/60 max-w-2xl mx-auto space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto font-black text-lg">
+              JB
+            </div>
+            <h3 className="text-lg font-black text-slate-900">নতুন প্রিমিয়াম কালেকশন শীঘ্রই যুক্ত হচ্ছে</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              ডেমো প্রোডাক্টসমূহ সফলভাবে মুছে ফেলা হয়েছে। অ্যাডমিন প্যানেল থেকে আপনার নিজস্ব নতুন প্রোডাক্ট ক্যাটালগ যুক্ত করুন।
+            </p>
+            <div className="pt-2">
+              <Link
+                href="/admin/products?action=add"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-6 py-2.5 rounded-full shadow-md shadow-blue-500/20 transition-all hover:scale-105"
+              >
+                <span>+ অ্যাডমিন থেকে প্রোডাক্ট যোগ করুন</span>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* View All Button matching Image 2 */}
         <div className="text-center">

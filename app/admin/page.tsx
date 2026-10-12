@@ -275,35 +275,8 @@ function AdminDashboardContent() {
 
   const lowStockCount = stockAlerts.length;
 
-  // Table orders matching Image 2 with fallback
-  const demoTableOrders = [
-    {
-      id: 'demo-1',
-      orderNumber: 'ORD-84920',
-      customer: {
-        fullName: 'Ali Hasan Sheikh',
-        phone: '01757543148',
-        district: 'Dhaka',
-      },
-      totalAmount: 1970,
-      paymentMethod: 'bkash',
-      orderStatus: 'Shipped',
-    },
-    {
-      id: 'demo-2',
-      orderNumber: 'ORD-66122',
-      customer: {
-        fullName: 'Ali Hasan Sheikh',
-        phone: '01757543148',
-        district: 'Dhaka',
-      },
-      totalAmount: 2040,
-      paymentMethod: 'cod',
-      orderStatus: 'Processing',
-    },
-  ];
-
-  const displayOrders = safeOrders.length > 0 ? safeOrders : demoTableOrders;
+  // Real customer orders only (no demo orders)
+  const displayOrders = safeOrders;
 
   const filteredOrders = displayOrders.filter((o) => {
     if (!o || typeof o !== 'object') return false;

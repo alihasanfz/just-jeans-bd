@@ -251,23 +251,6 @@ export default function AccountPage() {
                 <LogIn className="w-4 h-4" />
                 <span>Sign In to Account</span>
               </button>
-
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-800"></div>
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase">
-                  <span className="bg-slate-900 px-2 text-slate-500 font-bold">Or Test Account</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleQuickDemoLogin}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Continue as Ali Hasan (Account Portal)</span>
-              </button>
             </form>
           )}
 

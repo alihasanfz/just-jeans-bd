@@ -152,7 +152,7 @@ function TrackOrderContent() {
           </form>
 
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <span>💡 Try demo order: <strong className="text-blue-600 cursor-pointer" onClick={() => setOrderNumber('JBD-84920')}>JBD-84920</strong></span>
+            <span>Enter the invoice number sent to your phone via SMS</span>
             <a href="tel:01775743148" className="hover:text-blue-600 transition-colors">Helpline: 01775743148</a>
           </div>
         </div>

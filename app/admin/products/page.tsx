@@ -658,7 +658,29 @@ function AdminProductsContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">
-              {filteredProducts.map((prod) => (
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-16 text-center text-slate-400">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto">
+                        <Plus className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-bold text-white">কোনো প্রোডাক্ট নেই (ক্যাটালগ সম্পূর্ণ খালি)</h4>
+                      <p className="text-xs text-slate-500">
+                        সব ডেমো প্রোডাক্ট সফলভাবে রিমুভ করা হয়েছে। নতুন আসল প্রোডাক্ট যোগ করতে নিচের বাটনে ক্লিক করুন।
+                      </p>
+                      <button
+                        onClick={openCreateModal}
+                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/25 cursor-pointer mt-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add New Product</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((prod) => (
                 <tr key={prod.id} className="hover:bg-slate-900/40 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
@@ -731,7 +753,7 @@ function AdminProductsContent() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
