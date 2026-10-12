@@ -39,6 +39,7 @@ import {
   Lock,
   ShieldAlert,
   ArrowLeft,
+  Eye,
 } from 'lucide-react';
 import { useOrder } from '@/lib/store/orderContext';
 import { useProducts } from '@/lib/store/productsContext';
@@ -106,6 +107,11 @@ function hasPermissionForPath(
   // 6. Customers
   if (pathname.startsWith('/admin/customers')) {
     return perms.includes('Customer Data Access');
+  }
+
+  // 6.1 Visitors Analytics
+  if (pathname.startsWith('/admin/visitors')) {
+    return perms.includes('Customer Data Access') || perms.includes('Financial Reports & Analytics') || isUserSuperAdmin(user);
   }
 
   // 7. Sales Analytics
@@ -742,6 +748,31 @@ function AdminSidebar({
               {!isCollapsed && <span>Customers</span>}
             </Link>
           )}
+
+          {/* 4.1 Visitors Analytics & History (Matching Screenshot) */}
+          <Link
+            href="/admin/visitors"
+            onClick={onCloseMobile}
+            title="Visitors"
+            className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
+              pathname === '/admin/visitors'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                : isDark
+                ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Eye className="w-4 h-4 text-blue-500 shrink-0" />
+              {!isCollapsed && <span>Visitors</span>}
+            </div>
+            {!isCollapsed && (
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            )}
+          </Link>
 
           {/* 5. Delivery Management (RBAC: Assign Courier / Manage Orders) */}
           {canManageCouriers && (

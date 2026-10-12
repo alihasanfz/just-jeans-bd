@@ -403,4 +403,26 @@ export interface TryOnSession {
   durationSeconds?: number;
 }
 
+export interface PageviewRecord {
+  path: string;
+  title?: string;
+  timestamp: string;
+  referrer?: string;
+}
+
+export interface VisitorSession {
+  id: string;
+  sessionId: string;
+  ipAddress: string;
+  country?: string;
+  city?: string;
+  userAgent?: string;
+  device?: string; // 'Mobile' | 'Desktop' | 'Tablet'
+  browser?: string; // 'Chrome' | 'Safari' | 'Firefox' | 'Edge'
+  totalPages: number;
+  pagesHistory: PageviewRecord[];
+  firstSeen: string;
+  lastSeen: string;
+}
+
 

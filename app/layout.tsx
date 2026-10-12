@@ -7,6 +7,7 @@ import { WishlistProvider } from '@/lib/store/wishlistContext';
 import { OrderProvider } from '@/lib/store/orderContext';
 import { AuthProvider } from '@/lib/store/authContext';
 import StoreLayoutShell from '@/components/layout/StoreLayoutShell';
+import VisitorTracker from '@/components/common/VisitorTracker';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -69,6 +70,7 @@ export default function RootLayout({
             <CartProvider>
               <OrderProvider>
                 <AuthProvider>
+                  <VisitorTracker />
                   <StoreLayoutShell>{children}</StoreLayoutShell>
                 </AuthProvider>
               </OrderProvider>
