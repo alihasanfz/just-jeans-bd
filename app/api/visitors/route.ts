@@ -134,14 +134,26 @@ export async function POST(req: NextRequest) {
     const ua = req.headers.get('user-agent') || '';
     const fallback = parseUserAgentFallback(ua);
 
-    const device = hardware.device || fallback.device;
-    const deviceModel = hardware.deviceModel || fallback.model;
-    const os = hardware.os || fallback.os;
-    const browser = hardware.browser || fallback.browser;
+    let device = hardware.device || fallback.device;
+    let deviceModel = hardware.deviceModel || fallback.model;
+    let os = hardware.os || fallback.os;
+    let browser = hardware.browser || fallback.browser;
     const screenResolution = hardware.screenResolution || (device === 'Mobile' ? '393 × 852' : '1920 × 1080');
+    const touchSupport = hardware.touchSupport ?? (device === 'Mobile');
+
+    // Strict Mobile Detection: if screen width is 768 or less, or touch screen with mobile resolution, it IS a smartphone
+    const parsedWidth = parseInt(String(screenResolution).split('×')[0].trim());
+    if ((parsedWidth && parsedWidth <= 768) || (touchSupport && parsedWidth && parsedWidth <= 1024)) {
+      device = 'Mobile';
+      if (!deviceModel || deviceModel.includes('PC') || deviceModel.includes('Linux Workstation')) {
+        deviceModel = /iPhone/i.test(ua) ? 'Apple iPhone' : 'Android Smartphone (Mobile)';
+        os = /iPhone/i.test(ua) ? 'iOS' : 'Android 14';
+        browser = 'Chrome Mobile';
+      }
+    }
+
     const connectionType = hardware.connectionType || (device === 'Mobile' ? '4G Mobile' : 'Broadband');
     const language = hardware.language || 'bn-BD';
-    const touchSupport = hardware.touchSupport ?? (device === 'Mobile');
 
     // Real vs Fake Customer AI Logic
     let authenticityScore = 92;

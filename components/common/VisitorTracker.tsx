@@ -93,6 +93,18 @@ async function detectClientHardware() {
 
   const screenResolution = `${window.screen.width} × ${window.screen.height}`;
   const touchSupport = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+  const minDimension = Math.min(window.screen.width, window.screen.height);
+
+  // If physical screen width is 768px or less, or touch screen with mobile resolution, IT IS 100% MOBILE
+  if (minDimension <= 768 || (touchSupport && Math.max(window.screen.width, window.screen.height) <= 1024)) {
+    device = 'Mobile';
+    if (!deviceModel || deviceModel === 'Windows PC' || deviceModel === 'Linux Workstation') {
+      deviceModel = /iPhone/i.test(ua) ? 'Apple iPhone' : 'Android Smartphone (Mobile)';
+      os = /iPhone/i.test(ua) ? 'iOS' : 'Android 14';
+      browser = 'Chrome Mobile';
+    }
+  }
+
   const language = navigator.language || 'bn-BD';
   const connectionType = (navigator as any).connection?.effectiveType
     ? (navigator as any).connection.effectiveType.toUpperCase()

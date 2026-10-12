@@ -162,6 +162,26 @@ export default function AdminVisitorsPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Resilient device counts
+  const deviceCounts = useMemo(() => {
+    let desktop = 0;
+    let mobile = 0;
+    let tablet = 0;
+    visitors.forEach((v) => {
+      const resWidth = parseInt(String(v.screenResolution || '').split('×')[0].trim());
+      const isMob = Boolean(
+        v.device === 'Mobile' ||
+        (resWidth && resWidth <= 768) ||
+        (v.touchSupport && resWidth && resWidth <= 1024) ||
+        (v.deviceModel && /phone|android|iphone|galaxy|redmi|mobile/i.test(v.deviceModel))
+      );
+      if (isMob) mobile++;
+      else if (v.device === 'Tablet') tablet++;
+      else desktop++;
+    });
+    return { all: visitors.length, desktop, mobile, tablet };
+  }, [visitors]);
+
   // Filtered visitor list
   const filteredVisitors = useMemo(() => {
     return visitors.filter((v) => {
@@ -176,7 +196,20 @@ export default function AdminVisitorsPage() {
         (v.browser && v.browser.toLowerCase().includes(q)) ||
         (v.pagesHistory && v.pagesHistory.some((p) => p.path.toLowerCase().includes(q) || (p.title && p.title.toLowerCase().includes(q))));
 
-      const matchDevice = deviceFilter === 'all' || v.device === deviceFilter;
+      const resWidth = parseInt(String(v.screenResolution || '').split('×')[0].trim());
+      const isMobile = Boolean(
+        v.device === 'Mobile' ||
+        (resWidth && resWidth <= 768) ||
+        (v.touchSupport && resWidth && resWidth <= 1024) ||
+        (v.deviceModel && /phone|android|iphone|galaxy|redmi|mobile/i.test(v.deviceModel))
+      );
+      const isTablet = v.device === 'Tablet' && !isMobile;
+      const isDesktop = !isMobile && !isTablet;
+
+      let matchDevice = true;
+      if (deviceFilter === 'Mobile') matchDevice = isMobile;
+      else if (deviceFilter === 'Tablet') matchDevice = isTablet;
+      else if (deviceFilter === 'Desktop') matchDevice = isDesktop;
 
       let matchStatus = true;
       if (statusFilter === 'REAL') {
@@ -551,20 +584,25 @@ export default function AdminVisitorsPage() {
                 </div>
 
                 <div className="flex items-center gap-1 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
-                  {(['all', 'Desktop', 'Mobile', 'Tablet'] as const).map((dev) => (
+                  {([
+                    { key: 'all', label: `All (${deviceCounts.all})` },
+                    { key: 'Desktop', label: `Desktop (${deviceCounts.desktop})` },
+                    { key: 'Mobile', label: `Mobile (${deviceCounts.mobile})` },
+                    { key: 'Tablet', label: `Tablet (${deviceCounts.tablet})` },
+                  ] as const).map(({ key, label }) => (
                     <button
-                      key={dev}
+                      key={key}
                       type="button"
-                      onClick={() => setDeviceFilter(dev)}
-                      className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl transition-all capitalize ${
-                        deviceFilter === dev
+                      onClick={() => setDeviceFilter(key)}
+                      className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap px-2 ${
+                        deviceFilter === key
                           ? 'bg-blue-600 text-white shadow-sm'
                           : isDark
                           ? 'text-slate-400 hover:text-white'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      {dev}
+                      {label}
                     </button>
                   ))}
                 </div>
