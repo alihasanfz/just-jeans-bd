@@ -33,9 +33,16 @@ function AdminOrdersContent() {
   const searchParams = useSearchParams();
   const highlightedOrder = searchParams.get('order') || '';
 
-  const { orders, updateOrderStatus, updateOrderDelivery, deleteOrder } = useOrder();
+  const { orders, updateOrderStatus, updateOrderDelivery, deleteOrder, refreshOrders } = useOrder();
   const { theme } = useAdminTheme();
   const isDark = theme === 'dark';
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshOrders();
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   const [searchQuery, setSearchQuery] = useState(highlightedOrder);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -118,6 +125,22 @@ function AdminOrdersContent() {
           <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             Process customer orders, assign couriers, generate tracking numbers, and view customer details ({orders.length} total)
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+              isDark
+                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-sm'
+            }`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
+            <span>Sync Orders</span>
+          </button>
         </div>
       </div>
 

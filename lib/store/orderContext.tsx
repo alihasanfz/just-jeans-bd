@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Order, OrderStatus, OrderDelivery } from '@/types';
 import { generateOrderNumber } from '@/lib/utils';
 
@@ -14,53 +14,67 @@ interface OrderContextType {
   updateOrderDelivery: (orderId: string, delivery: Partial<OrderDelivery>) => void;
   updateOrder: (orderId: string, orderData: Partial<Order>) => void;
   deleteOrder: (orderId: string) => void;
+  refreshOrders: () => Promise<void>;
 }
-
-const INITIAL_DEMO_ORDERS: Order[] = [];
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>(INITIAL_DEMO_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
+  // Fetch orders from Supabase via /api/orders
+  const fetchOrdersFromApi = useCallback(async () => {
+    try {
+      const res = await fetch('/api/orders', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+          localStorage.setItem('jeansbd_orders', JSON.stringify(data.orders));
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback to local storage if API is unreachable
     try {
       const saved = localStorage.getItem('jeansbd_orders');
       if (saved) {
         const parsed: Order[] = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Clean out legacy demo orders ord-101, ord-102
-          const cleanOrders = parsed.filter(
-            (o) =>
-              o &&
-              o.id !== 'ord-101' &&
-              o.id !== 'ord-102' &&
-              o.orderNumber !== 'JBD-84920' &&
-              o.orderNumber !== 'JBD-65123'
-          );
-          setOrders(cleanOrders);
-          localStorage.setItem('jeansbd_orders', JSON.stringify(cleanOrders));
+          setOrders(parsed);
         }
-      } else {
-        setOrders([]);
       }
-    } catch (e) {
-      console.error('Failed to load orders', e);
-    } finally {
-      setIsLoaded(true);
-    }
+    } catch {}
   }, []);
 
+  // Initial load
+  useEffect(() => {
+    fetchOrdersFromApi().finally(() => setIsLoaded(true));
+  }, [fetchOrdersFromApi]);
+
+  // Real-time polling every 6 seconds so orders placed on phone immediately show up on PC
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrdersFromApi();
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [fetchOrdersFromApi]);
+
+  // Keep localStorage updated
   useEffect(() => {
     if (!isLoaded) return;
     try {
       localStorage.setItem('jeansbd_orders', JSON.stringify(orders));
     } catch (e) {
-      console.error('Failed to save orders', e);
+      console.error('Failed to save orders locally', e);
     }
   }, [orders, isLoaded]);
 
+  // Create Order: Saves locally AND syncs to Supabase
   const createOrder = (
     orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt' | 'statusHistory'>
   ): Order => {
@@ -81,7 +95,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       ],
     };
 
+    // Update local state immediately for instant UI response
     setOrders((prev) => [newOrder, ...prev]);
+
+    // Send to Supabase via /api/orders in background
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder),
+    }).catch((err) => {
+      console.error('Failed to save order to Supabase:', err);
+    });
+
     return newOrder;
   };
 
@@ -115,7 +140,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderStatus: status,
           updatedAt: now,
           statusHistory: [
-            ...o.statusHistory,
+            ...(o.statusHistory || []),
             {
               status,
               timestamp: now,
@@ -125,6 +150,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    // Sync to Supabase
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, orderStatus: status }),
+    }).catch(() => {});
   };
 
   const updateOrderDelivery = (orderId: string, delivery: Partial<OrderDelivery>) => {
@@ -142,6 +174,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    // Sync to Supabase
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, delivery }),
+    }).catch(() => {});
   };
 
   const updateOrder = (orderId: string, orderData: Partial<Order>) => {
@@ -158,10 +197,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, ...orderData }),
+    }).catch(() => {});
   };
 
   const deleteOrder = (orderId: string) => {
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    fetch(`/api/orders?id=${encodeURIComponent(orderId)}`, {
+      method: 'DELETE',
+    }).catch(() => {});
   };
 
   return (
@@ -176,6 +224,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updateOrderDelivery,
         updateOrder,
         deleteOrder,
+        refreshOrders: fetchOrdersFromApi,
       }}
     >
       {children}
