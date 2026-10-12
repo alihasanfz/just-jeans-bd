@@ -209,10 +209,11 @@ export default function VisitorTracker() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let sessionId = sessionStorage.getItem('jb_visitor_session_id');
+    // Retrieve or create persistent session id for this physical device/phone
+    let sessionId = localStorage.getItem('jb_device_visitor_id');
     if (!sessionId) {
       sessionId = generateSessionId();
-      sessionStorage.setItem('jb_visitor_session_id', sessionId);
+      localStorage.setItem('jb_device_visitor_id', sessionId);
     }
 
     if (lastPathRef.current === pathname) return;
