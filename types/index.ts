@@ -416,6 +416,7 @@ export interface VisitorSession {
   ipAddress: string;
   country?: string;
   city?: string;
+  isp?: string; // e.g. 'Grameenphone 4G', 'Banglalink', 'Robi Axiata', 'Broadband'
   userAgent?: string;
   device?: string; // 'Mobile' | 'Desktop' | 'Tablet'
   deviceModel?: string; // e.g. 'iPhone 15 Pro', 'Samsung Galaxy', 'Windows 11 PC'

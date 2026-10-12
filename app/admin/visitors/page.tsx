@@ -118,14 +118,41 @@ export default function AdminVisitorsPage() {
     fetchVisitors();
   }, [fetchVisitors]);
 
-  // Auto-refresh interval (every 10 seconds for real-time tracking)
+  // Auto-refresh interval (every 3.5 seconds for instant real-time tracking)
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
       fetchVisitors(true);
-    }, 10000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchVisitors]);
+
+  // Clear demo/mock starter sessions
+  const handleClearMockData = async () => {
+    const mockSessionIds = visitors
+      .filter((v) => v.id.startsWith('vis-') || v.sessionId.includes('6acc70ba') || v.sessionId.includes('6acc6c321'))
+      .map((v) => v.sessionId);
+
+    if (mockSessionIds.length === 0) {
+      showToast('No demo sessions found', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/visitors', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionIds: mockSessionIds }),
+      });
+      if (res.ok) {
+        setVisitors((prev) => prev.filter((v) => !mockSessionIds.includes(v.sessionId)));
+        showToast(`Cleared ${mockSessionIds.length} demo sessions. Now showing real visits.`);
+        fetchVisitors(true);
+      }
+    } catch {
+      showToast('Failed to clear demo sessions', 'error');
+    }
+  };
 
   // Copy session ID
   const handleCopy = (text: string) => {
@@ -398,7 +425,7 @@ export default function AdminVisitorsPage() {
               </div>
             </div>
 
-            {/* ACTION BUTTON MATCHING SCREENSHOT: DELETE SELECTED (SAFELY) */}
+            {/* ACTION BUTTON MATCHING SCREENSHOT: DELETE SELECTED (SAFELY) + CLEAR DEMO */}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -415,6 +442,20 @@ export default function AdminVisitorsPage() {
                   DELETE SELECTED (SAFELY)
                   {selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}
                 </span>
+              </button>
+
+              {/* Clear Demo Starter Data */}
+              <button
+                type="button"
+                onClick={handleClearMockData}
+                className={`text-xs font-bold px-4 py-2 rounded-full border transition-all ${
+                  isDark
+                    ? 'bg-slate-800/80 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700'
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+                title="Remove demo initial rows and keep real live visitors"
+              >
+                <span>Clear Demo Sessions</span>
               </button>
 
               {selectedIds.length > 0 && (
@@ -657,12 +698,18 @@ export default function AdminVisitorsPage() {
                               </button>
                             </div>
 
-                            {/* IP & Location */}
-                            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
-                              <span>{visitor.ipAddress || '182.163.108.105'}</span>
-                              <span className="text-slate-500">•</span>
-                              <span className="text-slate-300 dark:text-slate-400 font-sans font-medium">
-                                {visitor.city || 'Dhaka'}, {visitor.country || 'Bangladesh'}
+                            {/* IP & Location & ISP */}
+                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                              <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                {visitor.ipAddress || '103.145.22.10'}
+                              </span>
+                              {visitor.isp && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                  {visitor.isp}
+                                </span>
+                              )}
+                              <span className="text-slate-400 font-sans font-medium">
+                                {visitor.city || 'Dhaka'}, {visitor.country || 'BD'}
                               </span>
                             </div>
                           </div>
