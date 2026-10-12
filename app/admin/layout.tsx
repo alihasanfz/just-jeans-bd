@@ -22,6 +22,7 @@ import {
   Sliders,
   Store,
   Truck,
+  Zap,
   CreditCard,
   LayoutTemplate,
   Rows,
@@ -93,7 +94,7 @@ function hasPermissionForPath(
   }
 
   // 4. Delivery & Couriers
-  if (pathname.startsWith('/admin/delivery')) {
+  if (pathname.startsWith('/admin/delivery') || pathname.startsWith('/admin/courier')) {
     return perms.includes('Assign Courier (Steadfast/Pathao)') || perms.includes('Manage Orders');
   }
 
@@ -757,7 +758,33 @@ function AdminSidebar({
               }`}
             >
               <Truck className="w-4 h-4 text-blue-500 shrink-0" />
-              {!isCollapsed && <span>Delivery & Couriers</span>}
+              {!isCollapsed && <span>Delivery & Hubs</span>}
+            </Link>
+          )}
+
+          {/* 5.1 Courier APIs & Integration (Steadfast & Pathao) */}
+          {canManageCouriers && (
+            <Link
+              href="/admin/courier"
+              onClick={onCloseMobile}
+              title="Steadfast & Pathao Courier APIs"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
+                pathname === '/admin/courier'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/30'
+                  : isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                {!isCollapsed && <span>Courier APIs</span>}
+              </div>
+              {!isCollapsed && (
+                <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  Steadfast/Pathao
+                </span>
+              )}
             </Link>
           )}
 

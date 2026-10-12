@@ -35,6 +35,7 @@ import { Order, OrderStatus } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import CourierDispatchModal from '@/components/admin/CourierDispatchModal';
 import CourierTrackingModal from '@/components/admin/CourierTrackingModal';
+import CourierSettingsManager from '@/components/admin/CourierSettingsManager';
 
 export default function AdminDeliveryPage() {
   return (
@@ -53,6 +54,7 @@ function AdminDeliveryContent() {
   const [selectedCourier, setSelectedCourier] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeDeliveryTab, setActiveDeliveryTab] = useState<'shipments' | 'courier-apis'>('shipments');
 
   // Live Courier API Dispatch & Tracking Modals
   const [dispatchModalOrder, setDispatchModalOrder] = useState<Order | null>(null);
@@ -340,7 +342,7 @@ function AdminDeliveryContent() {
 
         <div className="flex items-center gap-2.5">
           <Link
-            href="/admin/settings?tab=courier"
+            href="/admin/courier"
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider border transition-all hover:scale-[1.02] shadow-sm ${
               isDark
                 ? 'bg-slate-900 border-slate-700 text-slate-200 hover:text-white hover:bg-slate-800'
@@ -348,7 +350,7 @@ function AdminDeliveryContent() {
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>Courier APIs (Steadfast & Pathao)</span>
+            <span>Courier APIs Hub</span>
           </Link>
 
           <button
@@ -363,6 +365,47 @@ function AdminDeliveryContent() {
           </button>
         </div>
       </div>
+
+      {/* Delivery Page Mode Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+        <button
+          onClick={() => setActiveDeliveryTab('shipments')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+            activeDeliveryTab === 'shipments'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+              : isDark
+              ? 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Truck className="w-4 h-4" />
+          <span>Parcel Shipments & Tracking ({orders.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveDeliveryTab('courier-apis')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${
+            activeDeliveryTab === 'courier-apis'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30'
+              : isDark
+              ? 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Zap className="w-4 h-4 text-amber-400" />
+          <span>Steadfast & Pathao API Settings</span>
+          <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30">
+            API Keys
+          </span>
+        </button>
+      </div>
+
+      {activeDeliveryTab === 'courier-apis' ? (
+        <div className="space-y-6">
+          <CourierSettingsManager />
+        </div>
+      ) : (
+        <>
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1242,6 +1285,8 @@ function AdminDeliveryContent() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
 
       {/* COURIER API DISPATCH MODAL */}

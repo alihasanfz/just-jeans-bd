@@ -476,7 +476,7 @@ function AdminDashboardContent() {
             </Link>
 
             <Link
-              href="/admin/settings?tab=courier"
+              href="/admin/courier"
               className="px-4 py-2 rounded-2xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95"
             >
               <Truck className="w-3.5 h-3.5 text-emerald-200" />
