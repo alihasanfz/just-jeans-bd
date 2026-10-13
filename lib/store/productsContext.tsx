@@ -559,7 +559,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           type: newProduct.virtualTryOnType || 'both',
           category: newProduct.garmentCategory || 'tops',
           garmentType: newProduct.garmentType || 'jacket',
-          assetUrl: newProduct.tryOnAssetUrl || '',
+          assetUrl: newProduct.tryOnAssetUrl && !newProduct.tryOnAssetUrl.startsWith('data:') ? newProduct.tryOnAssetUrl : '',
           fitConfig: newProduct.tryOnFitConfig,
         };
 
@@ -649,12 +649,17 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           const currentProd = products.find((p) => p.id === id);
           const baseDetails = updates.details || currentProd?.details || [];
           const videoToStore = updates.videoUrl !== undefined ? updates.videoUrl : currentProd?.videoUrl;
+          
+          // Avoid duplicating massive base64 strings into PostgreSQL text arrays
+          const rawAsset = updates.tryOnAssetUrl !== undefined ? updates.tryOnAssetUrl : currentProd?.tryOnAssetUrl || '';
+          const safeAsset = rawAsset.startsWith('data:') ? '' : rawAsset;
+
           const tryOnMeta = {
             enabled: updates.virtualTryOnEnabled !== undefined ? updates.virtualTryOnEnabled : currentProd?.virtualTryOnEnabled ?? true,
             type: updates.virtualTryOnType || currentProd?.virtualTryOnType || 'both',
             category: updates.garmentCategory || currentProd?.garmentCategory || 'tops',
             garmentType: updates.garmentType || currentProd?.garmentType || 'jacket',
-            assetUrl: updates.tryOnAssetUrl !== undefined ? updates.tryOnAssetUrl : currentProd?.tryOnAssetUrl || '',
+            assetUrl: safeAsset,
             fitConfig: updates.tryOnFitConfig || currentProd?.tryOnFitConfig,
           };
           payload.details = [

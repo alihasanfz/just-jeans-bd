@@ -71,8 +71,74 @@ export async function idbSet(key: string, value: any): Promise<boolean> {
   }
 }
 
-// Client-side image compressor: compresses multi-MB phone photos to ~30-50KB high-res JPEG
-export function compressImageFile(file: File, maxWidth = 900, maxHeight = 1200, quality = 0.78): Promise<string> {
+// Client-side image compressor to Blob for fast upload: compresses multi-MB photos to ~30-50KB high-res JPEG
+export function compressImageToBlob(
+  file: File,
+  maxWidth = 800,
+  maxHeight = 1000,
+  quality = 0.72
+): Promise<Blob> {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        resolve(file);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              resolve(blob || file);
+            },
+            'image/jpeg',
+            quality
+          );
+        } else {
+          resolve(file);
+        }
+      };
+
+      img.onerror = () => resolve(file);
+      img.src = src;
+    };
+
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Client-side image compressor: compresses multi-MB photos to ~25-40KB compact base64
+export function compressImageFile(file: File, maxWidth = 600, maxHeight = 800, quality = 0.62): Promise<string> {
   return new Promise((resolve) => {
     if (!file || !file.type.startsWith('image/')) {
       resolve('');

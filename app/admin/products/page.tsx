@@ -33,7 +33,7 @@ import Link from 'next/link';
 import { useProducts } from '@/lib/store/productsContext';
 import { Product, ProductFit, GenderCategory, GarmentType } from '@/types';
 import { formatPrice } from '@/lib/utils';
-import { compressImageFile } from '@/lib/utils/db';
+import { compressImageFile, compressImageToBlob } from '@/lib/utils/db';
 import { parseVideoUrl, isVideoUrl } from '@/lib/utils/video';
 import { uploadVideoFile } from '@/lib/utils/uploader';
 
@@ -274,9 +274,12 @@ function AdminProductsContent() {
     setUploadingSlot(slotIndex);
 
     try {
-      // 1. Try uploading to /api/upload
+      // 1. Client-side compress to lightweight Blob (~30-50KB) so upload is ultra-fast (< 500ms)
+      const compressedBlob = await compressImageToBlob(file, 800, 1000, 0.72);
+      const safeFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_').slice(0, 30)}.jpg`;
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressedBlob, safeFilename);
 
       try {
         const res = await fetch('/api/upload', {
@@ -286,18 +289,18 @@ function AdminProductsContent() {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.url) {
+          if (data.url && !data.url.startsWith('data:')) {
             applySlotUrl(slotIndex, data.url);
             setUploadingSlot(null);
             return;
           }
         }
       } catch (e) {
-        // Fallback to client-side compression below
+        console.warn('API upload failed, using optimized local compression fallback:', e);
       }
 
-      // 2. High-performance client-side image compression
-      const compressed = await compressImageFile(file, 900, 1200, 0.78);
+      // 2. High-performance ultra-compact client-side image compression fallback (~25KB)
+      const compressed = await compressImageFile(file, 600, 800, 0.62);
       if (compressed) {
         applySlotUrl(slotIndex, compressed);
       }
