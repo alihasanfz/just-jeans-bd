@@ -78,40 +78,21 @@ export async function POST(request: NextRequest) {
 
         const uploadRes = await fetch('https://catbox.moe/user/api.php', {
           method: 'POST',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          },
           body: catboxForm,
         });
 
         if (uploadRes.ok) {
           const cdnUrl = (await uploadRes.text()).trim();
-          if (cdnUrl && cdnUrl.startsWith('http')) {
+          if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('error')) {
             return NextResponse.json({ success: true, url: cdnUrl });
           }
         }
       } catch (catboxErr) {
         console.warn('Catbox upload failed in chunk route:', catboxErr);
-      }
-
-      // 2. Try Litterbox fallback
-      try {
-        const lbForm = new FormData();
-        lbForm.append('reqtype', 'fileupload');
-        lbForm.append('time', '72h');
-        const fileBlob = new Blob([fullBuffer], { type: session.fileType });
-        lbForm.append('fileToUpload', fileBlob, session.filename);
-
-        const lbRes = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-          method: 'POST',
-          body: lbForm,
-        });
-
-        if (lbRes.ok) {
-          const lbUrl = (await lbRes.text()).trim();
-          if (lbUrl && lbUrl.startsWith('http')) {
-            return NextResponse.json({ success: true, url: lbUrl });
-          }
-        }
-      } catch (lbErr) {
-        console.warn('Litterbox upload failed in chunk route:', lbErr);
       }
 
       return NextResponse.json(

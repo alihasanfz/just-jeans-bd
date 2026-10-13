@@ -17,6 +17,44 @@ function generateProductId(): string {
   });
 }
 
+export function resolveProductImage(url: any, name?: string): string {
+  if (url && typeof url === 'string') {
+    const trimmed = url.trim();
+    if (
+      trimmed &&
+      !trimmed.includes('litter.catbox.moe') &&
+      !trimmed.includes('undefined') &&
+      !trimmed.includes('null')
+    ) {
+      return trimmed;
+    }
+  }
+
+  const n = (name || '').toLowerCase();
+  if (n.includes('studded crop jacket') || n.includes('studded')) {
+    return '/images/products/women_studded_crop_jacket.jpg';
+  }
+  if (n.includes('corduroy')) {
+    return '/images/products/women_corduroy_crop_jacket.jpg';
+  }
+  if (n.includes('laser print denim jacket') || n.includes('laser print') || n.includes('floral')) {
+    return '/images/products/womens_laser_print_jacket.jpg';
+  }
+  if (n.includes('short')) {
+    return '/images/products/womens_laser_denim_shorts.jpg';
+  }
+  if (n.includes('crop top')) {
+    return '/images/products/womens_denim_laser_crop_top.jpg';
+  }
+  if (n.includes('baggy')) {
+    return '/images/products/mens_laser_baggy_jeans.png';
+  }
+  if (n.includes('distressed') || n.includes('laser')) {
+    return '/images/products/mens_distressed_laser_studs_2200.jpg';
+  }
+  return 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80';
+}
+
 function mapDbProduct(row: any): Product {
   const detailsArray = Array.isArray(row.details) ? row.details : [];
   const videoFromDetails = detailsArray.find((d: any) => typeof d === 'string' && d.startsWith('__VIDEO__:'))?.replace('__VIDEO__:', '') || '';
@@ -49,6 +87,16 @@ function mapDbProduct(row: any): Product {
   const defaultGarmentCategory = (isJacket || isShirt) && !isBottom ? 'tops' : 'bottoms';
   const defaultGarmentType = isShorts ? 'shorts' : isJacket ? 'jacket' : isShirt ? 'shirt' : 'jeans';
 
+  const rawImages = Array.isArray(row.images) ? row.images : [];
+  const cleanImages = rawImages
+    .map((img: any) => resolveProductImage(img, row.name))
+    .filter((img: string, idx: number, arr: string[]) => Boolean(img) && arr.indexOf(img) === idx);
+  const resolvedThumbnail = resolveProductImage(
+    row.thumbnail || (cleanImages.length > 0 ? cleanImages[0] : null),
+    row.name
+  );
+  const finalImages = cleanImages.length > 0 ? cleanImages : [resolvedThumbnail];
+
   return {
     id: row.id,
     slug: row.slug || `prod-${row.id}`,
@@ -66,8 +114,8 @@ function mapDbProduct(row: any): Product {
     price: Number(row.price) || 0,
     discountPrice: row.discount_price ? Number(row.discount_price) : undefined,
     discountPercentage: Number(row.discount_percentage) || 0,
-    thumbnail: row.thumbnail || (Array.isArray(row.images) && row.images[0]) || 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=800&q=80',
-    images: Array.isArray(row.images) ? row.images : [],
+    thumbnail: resolvedThumbnail,
+    images: finalImages,
     videoUrl: foundVideo,
     videos: foundVideo ? [foundVideo] : [],
     rating: Number(row.rating) || 5.0,
@@ -84,7 +132,7 @@ function mapDbProduct(row: any): Product {
     virtualTryOnType: tryOnData.type || 'both',
     garmentCategory: isShorts ? 'bottoms' : (isJacket || isShirt) ? 'tops' : (tryOnData.category || defaultGarmentCategory),
     garmentType: isShorts ? 'shorts' : isJacket ? 'jacket' : isShirt ? 'shirt' : (tryOnData.garmentType || defaultGarmentType),
-    tryOnAssetUrl: tryOnData.assetUrl || row.thumbnail || (Array.isArray(row.images) && row.images[0]) || '',
+    tryOnAssetUrl: tryOnData.assetUrl ? resolveProductImage(tryOnData.assetUrl, row.name) : resolvedThumbnail,
     tryOnFitConfig: tryOnData.fitConfig || {
       scaleMultiplier: 1.0,
       verticalOffset: 0,

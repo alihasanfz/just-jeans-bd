@@ -102,29 +102,29 @@ function AdminSettingsContent() {
   const [catTitle, setCatTitle] = useState(siteSettings.categoryShowcase?.title || 'Find Your Perfect Style');
   const [catSubtitle, setCatSubtitle] = useState(
     siteSettings.categoryShowcase?.subtitle ||
-      'Explore our wide range of denim for men and women. Quality, comfort and style — all in one place.'
+    'Explore our wide range of denim for men and women. Quality, comfort and style — all in one place.'
   );
   const [catBtnText, setCatBtnText] = useState(siteSettings.categoryShowcase?.buttonText || 'View All Categories');
   const [catBtnLink, setCatBtnLink] = useState(siteSettings.categoryShowcase?.buttonLink || '/shop');
-  
+
   // 2. Promo Banner
   const [promoBadge, setPromoBadge] = useState(siteSettings.promoBanner?.badge || 'LIMITED TIME OFFER');
   const [promoTitle, setPromoTitle] = useState(siteSettings.promoBanner?.title || 'UP TO 30% OFF');
   const [promoSubtitle, setPromoSubtitle] = useState(siteSettings.promoBanner?.subtitle || 'ALL PREMIUM DENIM');
   const [promoDesc, setPromoDesc] = useState(
     siteSettings.promoBanner?.description ||
-      'Upgrade your wardrobe with our exclusive denim collection.'
+    'Upgrade your wardrobe with our exclusive denim collection.'
   );
   const [promoCode, setPromoCode] = useState(siteSettings.promoBanner?.couponCode || 'JEANS10');
   const [promoBtnText, setPromoBtnText] = useState(siteSettings.promoBanner?.buttonText || 'SHOP NOW');
   const [promoBtnLink, setPromoBtnLink] = useState(siteSettings.promoBanner?.buttonLink || '/shop?filter=sale');
   const [promoImgUrl, setPromoImgUrl] = useState(
     siteSettings.promoBanner?.imageUrl ||
-      'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80'
+    'https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=800&q=80'
   );
   const [promoImgUrl2, setPromoImgUrl2] = useState(
     siteSettings.promoBanner?.imageUrl2 ||
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=80'
+    'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=80'
   );
   const [promoImgTag, setPromoImgTag] = useState(siteSettings.promoBanner?.imageTag || 'Good Jeans\nGood Vibes');
 
@@ -222,7 +222,7 @@ function AdminSettingsContent() {
   // Footer Description & Copyright
   const [footerBrandDesc, setFooterBrandDesc] = useState(
     siteSettings.footerBrandDescription ||
-      "Bangladesh's premier denim destination. Engineered with international quality fabrics, tailored cuts, and contemporary street aesthetic for both men and women."
+    "Bangladesh's premier denim destination. Engineered with international quality fabrics, tailored cuts, and contemporary street aesthetic for both men and women."
   );
   const [copyrightText, setCopyrightText] = useState(
     siteSettings.copyrightText || 'All rights reserved. Crafted for Denim Lovers in Bangladesh.'
@@ -621,11 +621,10 @@ function AdminSettingsContent() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
-                isActive
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${isActive
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                   : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800/60 border border-slate-800/80'
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>

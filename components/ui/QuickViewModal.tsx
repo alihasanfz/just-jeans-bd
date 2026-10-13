@@ -222,6 +222,11 @@ export default function QuickViewModal({ product, onClose }: QuickViewModalProps
                   src={selectedImage || product.thumbnail}
                   alt={product.name}
                   className="w-full h-full object-cover object-center"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.src = '/images/products/mens_laser_baggy_jeans.png';
+                  }}
                 />
                 {discountPercent > 0 && (
                   <div className="absolute top-3 left-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">

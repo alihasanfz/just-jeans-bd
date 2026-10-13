@@ -105,12 +105,16 @@ export async function POST(request: NextRequest) {
 
         const uploadRes = await fetch('https://catbox.moe/user/api.php', {
           method: 'POST',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          },
           body: catboxForm,
         });
 
         if (uploadRes.ok) {
           const cdnUrl = (await uploadRes.text()).trim();
-          if (cdnUrl && cdnUrl.startsWith('http')) {
+          if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('error')) {
             return NextResponse.json({ success: true, url: cdnUrl });
           }
         }
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Strategy 2: Local filesystem write (for local dev)
+    // Strategy 2: Local filesystem write (for local development)
     try {
       const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
       await mkdir(uploadsDir, { recursive: true });
@@ -129,25 +133,12 @@ export async function POST(request: NextRequest) {
       const publicUrl = `/uploads/${safeFilename}`;
       return NextResponse.json({ success: true, url: publicUrl });
     } catch (fsErr) {
-      console.warn('Local fs write error, attempting Litterbox fallback:', fsErr);
+      console.warn('Local fs write failed (read-only environment):', fsErr);
 
-      // Strategy 3: Litterbox fallback if local fs is read-only
-      const lbForm = new FormData();
-      lbForm.append('reqtype', 'fileupload');
-      lbForm.append('time', '72h');
-      const fileBlob = new Blob([buffer], { type: file.type });
-      lbForm.append('fileToUpload', fileBlob, safeFilename);
-
-      const lbRes = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-        method: 'POST',
-        body: lbForm,
-      });
-
-      if (lbRes.ok) {
-        const lbUrl = (await lbRes.text()).trim();
-        if (lbUrl && lbUrl.startsWith('http')) {
-          return NextResponse.json({ success: true, url: lbUrl });
-        }
+      // Strategy 3: Permanent Base64 Data URL for images under 5MB to ensure images NEVER expire
+      if (!isVideo && buffer.length <= 5 * 1024 * 1024) {
+        const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
+        return NextResponse.json({ success: true, url: base64Data });
       }
 
       throw fsErr;

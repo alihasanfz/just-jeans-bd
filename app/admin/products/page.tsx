@@ -684,8 +684,17 @@ function AdminProductsContent() {
                 <tr key={prod.id} className="hover:bg-slate-900/40 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shrink-0">
-                        <img src={prod.thumbnail} alt={prod.name} className="w-full h-full object-cover" />
+                      <div className="w-12 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shrink-0 relative flex items-center justify-center">
+                        <img
+                          src={prod.thumbnail}
+                          alt={prod.name}
+                          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.onerror = null;
+                            target.src = '/images/products/mens_laser_baggy_jeans.png';
+                          }}
+                        />
                       </div>
                       <div>
                         <div className="font-bold text-white text-sm">{prod.name}</div>

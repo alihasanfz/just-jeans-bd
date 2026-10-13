@@ -419,6 +419,11 @@ export default function ProductDetailPage() {
                       alt={`${product.name} 3D Spin Angle`}
                       className="w-full h-full object-contain filter drop-shadow-[0_20px_30px_rgba(0,0,0,0.8)]"
                       draggable={false}
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.onerror = null;
+                        target.src = '/images/products/mens_laser_baggy_jeans.png';
+                      }}
                     />
                   </div>
 
@@ -462,6 +467,11 @@ export default function ProductDetailPage() {
                     className={`w-full h-full object-cover object-center transition-transform duration-200 select-none ${
                       isZoomed ? 'scale-[1.8]' : 'scale-100'
                     }`}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.onerror = null;
+                      target.src = '/images/products/mens_laser_baggy_jeans.png';
+                    }}
                     style={
                       isZoomed
                         ? {
