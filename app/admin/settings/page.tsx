@@ -482,17 +482,24 @@ function AdminSettingsContent() {
             console.warn('Auto CDN upload error:', e);
           }
 
-          // Direct client CDN fallback
+          // Direct client FreeImage CDN fallback
           try {
             const res = await fetch(val);
             const blob = await res.blob();
-            const catboxForm = new FormData();
-            catboxForm.append('reqtype', 'fileupload');
-            catboxForm.append('fileToUpload', blob, 'image.jpg');
-            const cbRes = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: catboxForm });
-            const cdn = (await cbRes.text()).trim();
-            if (cdn && cdn.startsWith('http') && !cdn.toLowerCase().includes('error')) {
-              return cdn;
+            const b64 = await new Promise<string>((resolve) => {
+              const r = new FileReader();
+              r.onload = () => resolve((r.result as string).split(',')[1] || '');
+              r.readAsDataURL(blob);
+            });
+            const fiForm = new FormData();
+            fiForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
+            fiForm.append('action', 'upload');
+            fiForm.append('source', b64);
+            fiForm.append('format', 'json');
+            const fiRes = await fetch('https://freeimage.host/api/1/upload', { method: 'POST', body: fiForm });
+            if (fiRes.ok) {
+              const json = await fiRes.json();
+              if (json?.image?.url) return json.image.url;
             }
           } catch (_) {}
         }

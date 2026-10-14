@@ -95,7 +95,38 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Strategy 1: Upload to Catbox permanent CDN (fast, permanent HTTPS CDN, works everywhere including Vercel)
+    // Strategy 1 (For Images): FreeImage.host permanent high-speed direct CDN (never blocked, returns direct image/jpeg URL)
+    if (!isVideo) {
+      try {
+        const b64 = buffer.toString('base64');
+        const fiForm = new FormData();
+        fiForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
+        fiForm.append('action', 'upload');
+        fiForm.append('source', b64);
+        fiForm.append('format', 'json');
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const fiRes = await fetch('https://freeimage.host/api/1/upload', {
+          method: 'POST',
+          body: fiForm,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (fiRes.ok) {
+          const json = await fiRes.json();
+          if (json?.image?.url) {
+            return NextResponse.json({ success: true, url: json.image.url });
+          }
+        }
+      } catch (fiErr) {
+        console.warn('FreeImage.host upload fallback:', fiErr);
+      }
+    }
+
+    // Strategy 2: Upload to Catbox permanent CDN (fast, permanent HTTPS CDN, works for videos & image fallback)
     try {
       const catboxForm = new FormData();
       catboxForm.append('reqtype', 'fileupload');
@@ -122,33 +153,6 @@ export async function POST(request: NextRequest) {
       }
     } catch (cdnErr) {
       console.warn('Catbox CDN upload fallback:', cdnErr);
-    }
-
-    // Strategy 1.5: tmpfiles.org CDN upload (high-speed permanent fallback)
-    try {
-      const tmpForm = new FormData();
-      const fileBlob = new Blob([buffer], { type: file.type });
-      tmpForm.append('file', fileBlob, safeFilename);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const tmpRes = await fetch('https://tmpfiles.org/api/v1/upload', {
-        method: 'POST',
-        body: tmpForm,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (tmpRes.ok) {
-        const json = await tmpRes.json();
-        if (json?.data?.url) {
-          const directUrl = json.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-          return NextResponse.json({ success: true, url: directUrl });
-        }
-      }
-    } catch (tmpErr) {
-      console.warn('tmpfiles CDN upload fallback:', tmpErr);
     }
 
     // Strategy 2: Local filesystem write (for local development)

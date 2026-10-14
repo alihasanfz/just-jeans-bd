@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Image as ImageIcon, X, Loader2, Check, Link as LinkIcon, Laptop } from 'lucide-react';
 import { compressImageFile, compressImageToBlob } from '@/lib/utils/db';
 
@@ -27,7 +27,12 @@ export default function ImageUploadField({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [value]);
 
   const handleFileSelect = async (file: File) => {
     if (!file || !file.type.startsWith('image/')) {
@@ -59,7 +64,7 @@ export default function ImageUploadField({
 
         if (res.ok) {
           const data = await res.json();
-          if (data.url) {
+          if (data.url && !data.url.includes('tmpfiles.org')) {
             onChange(data.url);
             setUploadSuccess(true);
             setTimeout(() => setUploadSuccess(false), 3000);
@@ -71,23 +76,33 @@ export default function ImageUploadField({
         // server upload unavailable, try direct CDN
       }
 
-      // Direct client CDN fallback (Catbox)
+      // 2. Direct client FreeImage CDN fallback
       try {
-        const catboxForm = new FormData();
-        catboxForm.append('reqtype', 'fileupload');
-        catboxForm.append('fileToUpload', uploadPayload, file.name.replace(/\.[^/.]+$/, '.jpg'));
-        const cbRes = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: catboxForm });
-        const cdn = (await cbRes.text()).trim();
-        if (cdn && cdn.startsWith('http') && !cdn.toLowerCase().includes('error')) {
-          onChange(cdn);
-          setUploadSuccess(true);
-          setTimeout(() => setUploadSuccess(false), 3000);
-          setIsUploading(false);
-          return;
+        const reader = new FileReader();
+        const b64Promise = new Promise<string>((resolve) => {
+          reader.onload = () => resolve((reader.result as string).split(',')[1] || '');
+          reader.readAsDataURL(file);
+        });
+        const b64 = await b64Promise;
+        const fiForm = new FormData();
+        fiForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
+        fiForm.append('action', 'upload');
+        fiForm.append('source', b64);
+        fiForm.append('format', 'json');
+        const fiRes = await fetch('https://freeimage.host/api/1/upload', { method: 'POST', body: fiForm });
+        if (fiRes.ok) {
+          const json = await fiRes.json();
+          if (json?.image?.url) {
+            onChange(json.image.url);
+            setUploadSuccess(true);
+            setTimeout(() => setUploadSuccess(false), 3000);
+            setIsUploading(false);
+            return;
+          }
         }
       } catch (_) {}
 
-      // 2. High-performance compressed image fallback (under 30KB)
+      // 3. High-performance compressed image fallback (under 30KB)
       const compressed = await compressImageFile(file, 600, 800, 0.65);
       if (compressed) {
         onChange(compressed);
@@ -182,12 +197,13 @@ export default function ImageUploadField({
               minWidth: aspect === 'portrait' ? '64px' : aspect === 'square' ? '64px' : '96px',
             }}
           >
-            {value ? (
+            {value && !imgError ? (
               <img
                 src={value}
-                alt="Selected"
+                alt="Selected preview"
                 className="w-full h-full object-cover"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={() => setImgError(true)}
               />
             ) : (
               <ImageIcon className="w-6 h-6 text-slate-600" />
