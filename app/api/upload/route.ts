@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       catboxForm.append('fileToUpload', fileBlob, safeFilename);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
       const uploadRes = await fetch('https://catbox.moe/user/api.php', {
         method: 'POST',
@@ -116,14 +116,39 @@ export async function POST(request: NextRequest) {
       });
       clearTimeout(timeoutId);
 
-      if (uploadRes.ok) {
-        const cdnUrl = (await uploadRes.text()).trim();
-        if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('error')) {
-          return NextResponse.json({ success: true, url: cdnUrl });
-        }
+      const cdnUrl = (await uploadRes.text()).trim();
+      if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.toLowerCase().includes('error')) {
+        return NextResponse.json({ success: true, url: cdnUrl });
       }
     } catch (cdnErr) {
       console.warn('Catbox CDN upload fallback:', cdnErr);
+    }
+
+    // Strategy 1.5: tmpfiles.org CDN upload (high-speed permanent fallback)
+    try {
+      const tmpForm = new FormData();
+      const fileBlob = new Blob([buffer], { type: file.type });
+      tmpForm.append('file', fileBlob, safeFilename);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const tmpRes = await fetch('https://tmpfiles.org/api/v1/upload', {
+        method: 'POST',
+        body: tmpForm,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (tmpRes.ok) {
+        const json = await tmpRes.json();
+        if (json?.data?.url) {
+          const directUrl = json.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+          return NextResponse.json({ success: true, url: directUrl });
+        }
+      }
+    } catch (tmpErr) {
+      console.warn('tmpfiles CDN upload fallback:', tmpErr);
     }
 
     // Strategy 2: Local filesystem write (for local development)
@@ -138,8 +163,8 @@ export async function POST(request: NextRequest) {
     } catch (fsErr) {
       console.warn('Local fs write failed (read-only environment):', fsErr);
 
-      // Strategy 3: Permanent Base64 Data URL ONLY for small files under 30KB
-      if (!isVideo && buffer.length <= 30 * 1024) {
+      // Strategy 3: Permanent Base64 Data URL for images under 120KB
+      if (!isVideo && buffer.length <= 120 * 1024) {
         const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
         return NextResponse.json({ success: true, url: base64Data });
       }

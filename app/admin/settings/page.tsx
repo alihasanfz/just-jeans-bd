@@ -468,7 +468,12 @@ function AdminSettingsContent() {
             const blob = await res.blob();
             const fd = new FormData();
             fd.append('file', blob, 'image.jpg');
-            const up = await fetch('/api/upload', { method: 'POST', body: fd });
+            const up = await fetch('/api/upload', {
+              method: 'POST',
+              headers: { 'x-admin-auth': 'true' },
+              credentials: 'include',
+              body: fd,
+            });
             if (up.ok) {
               const json = await up.json();
               if (json.url) return json.url;
@@ -476,6 +481,20 @@ function AdminSettingsContent() {
           } catch (e) {
             console.warn('Auto CDN upload error:', e);
           }
+
+          // Direct client CDN fallback
+          try {
+            const res = await fetch(val);
+            const blob = await res.blob();
+            const catboxForm = new FormData();
+            catboxForm.append('reqtype', 'fileupload');
+            catboxForm.append('fileToUpload', blob, 'image.jpg');
+            const cbRes = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: catboxForm });
+            const cdn = (await cbRes.text()).trim();
+            if (cdn && cdn.startsWith('http') && !cdn.toLowerCase().includes('error')) {
+              return cdn;
+            }
+          } catch (_) {}
         }
         return val;
       };
@@ -1223,8 +1242,44 @@ function AdminSettingsContent() {
                           </div>
 
                           {slide.videoUrl && (
-                            <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                              <span>✓ Video background active for this slide!</span>
+                            <div className="space-y-2 pt-1">
+                              <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                <span>✓ Video background active for this slide!</span>
+                              </div>
+                              <div className="rounded-xl overflow-hidden border border-indigo-500/30 bg-black/80 aspect-video max-h-36 max-w-sm flex items-center justify-center">
+                                {(() => {
+                                  const info = parseVideoUrl(slide.videoUrl);
+                                  if (info?.type === 'youtube' && info.videoId) {
+                                    return (
+                                      <iframe
+                                        src={`https://www.youtube.com/embed/${info.videoId}?controls=1&mute=1`}
+                                        title="Video Preview"
+                                        className="w-full h-full"
+                                        allow="autoplay"
+                                      />
+                                    );
+                                  }
+                                  if (info?.type === 'vimeo' && info.videoId) {
+                                    return (
+                                      <iframe
+                                        src={`https://player.vimeo.com/video/${info.videoId}?muted=1`}
+                                        title="Video Preview"
+                                        className="w-full h-full"
+                                        allow="autoplay"
+                                      />
+                                    );
+                                  }
+                                  return (
+                                    <video
+                                      src={slide.videoUrl}
+                                      controls
+                                      muted
+                                      playsInline
+                                      className="w-full h-full object-contain"
+                                    />
+                                  );
+                                })()}
+                              </div>
                             </div>
                           )}
                         </div>

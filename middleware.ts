@@ -23,9 +23,13 @@ export function middleware(request: NextRequest) {
     const adminSession = request.cookies.get('jeansbd_admin_session')?.value;
     const authHeader = request.headers.get('authorization');
     const customHeader = request.headers.get('x-admin-auth');
+    const referer = request.headers.get('referer') || '';
+    const origin = request.headers.get('origin') || '';
+    const host = request.headers.get('host') || '';
 
-    // Allow if valid admin cookie or header is present
-    const isAuthorized = !!adminSession || !!authHeader || customHeader === 'true';
+    // Allow if valid admin cookie or header is present, or request is from admin app
+    const isSameOrigin = (host && (referer.includes(host) || origin.includes(host))) || referer.includes('/admin');
+    const isAuthorized = !!adminSession || !!authHeader || customHeader === 'true' || isSameOrigin;
 
     if (!isAuthorized) {
       return NextResponse.json(

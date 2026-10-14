@@ -124,43 +124,71 @@ export default function HeroBanner() {
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
               }`}
           >
-            {/* Background Video or Image with Dark Vignette */}
-            {slide.videoUrl ? (
-              (() => {
-                const info = parseVideoUrl(slide.videoUrl);
-                if (info?.type === 'youtube' || info?.type === 'vimeo') {
-                  return (
-                    <div className="w-full h-full relative overflow-hidden pointer-events-none scale-125">
-                      <iframe
-                        src={`${info.embedUrl}&controls=0&mute=1&loop=1&playlist=${info.videoId || ''}&background=1`}
-                        title={slide.title}
-                        className="w-full h-full object-cover scale-150 pointer-events-none"
-                        allow="autoplay; encrypted-media"
-                      />
-                    </div>
-                  );
-                }
+            {/* Base Background Image (Always visible as solid foundation & instant load) */}
+            <img
+              src={slide.imageUrl || 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1920&q=85'}
+              alt={slide.title || 'Jeans BD'}
+              className="absolute inset-0 w-full h-full object-cover object-right lg:object-center transform scale-105 transition-transform duration-[8000ms] ease-out"
+            />
+
+            {/* Background Video Layer (Optional: YouTube, Vimeo, or Direct MP4) */}
+            {slide.videoUrl && (() => {
+              const info = parseVideoUrl(slide.videoUrl);
+              if (info?.type === 'youtube' && info.videoId) {
+                const embedSrc = `https://www.youtube.com/embed/${info.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${info.videoId}&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&enablejsapi=1`;
                 return (
-                  <video
-                    src={slide.videoUrl}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover object-center transform scale-105"
-                  />
+                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-[1]">
+                    <iframe
+                      src={embedSrc}
+                      title={slide.title || 'Background Video'}
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-90 scale-110"
+                      style={{
+                        width: '100vw',
+                        height: '56.25vw',
+                        minHeight: '100%',
+                        minWidth: '177.77vh',
+                      }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
                 );
-              })()
-            ) : (
-              <img
-                src={slide.imageUrl || 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1400&q=85'}
-                alt={slide.title}
-                className="w-full h-full object-cover object-right lg:object-center transform scale-105 transition-transform duration-[8000ms] ease-out"
-              />
-            )}
-            {/* Gradient Mask */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#070b14] via-[#070b14]/85 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-transparent" />
+              }
+              if (info?.type === 'vimeo' && info.videoId) {
+                return (
+                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-[1]">
+                    <iframe
+                      src={`https://player.vimeo.com/video/${info.videoId}?autoplay=1&loop=1&muted=1&background=1`}
+                      title={slide.title || 'Background Video'}
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-90 scale-110"
+                      style={{
+                        width: '100vw',
+                        height: '56.25vw',
+                        minHeight: '100%',
+                        minWidth: '177.77vh',
+                      }}
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    />
+                  </div>
+                );
+              }
+              return (
+                <video
+                  src={slide.videoUrl}
+                  poster={slide.imageUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover object-center transform scale-105 z-[1]"
+                />
+              );
+            })()}
+
+            {/* Gradient Mask for readable text contrast */}
+            <div className="absolute inset-0 z-[2] bg-gradient-to-r from-[#070b14] via-[#070b14]/80 to-transparent" />
+            <div className="absolute inset-0 z-[2] bg-gradient-to-t from-[#070b14] via-transparent to-transparent" />
           </div>
         );
       })}

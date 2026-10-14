@@ -52,6 +52,8 @@ export default function ImageUploadField({
       try {
         const res = await fetch('/api/upload', {
           method: 'POST',
+          headers: { 'x-admin-auth': 'true' },
+          credentials: 'include',
           body: formData,
         });
 
@@ -66,8 +68,24 @@ export default function ImageUploadField({
           }
         }
       } catch (e) {
-        // server upload unavailable, fallback to compressed image
+        // server upload unavailable, try direct CDN
       }
+
+      // Direct client CDN fallback (Catbox)
+      try {
+        const catboxForm = new FormData();
+        catboxForm.append('reqtype', 'fileupload');
+        catboxForm.append('fileToUpload', uploadPayload, file.name.replace(/\.[^/.]+$/, '.jpg'));
+        const cbRes = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: catboxForm });
+        const cdn = (await cbRes.text()).trim();
+        if (cdn && cdn.startsWith('http') && !cdn.toLowerCase().includes('error')) {
+          onChange(cdn);
+          setUploadSuccess(true);
+          setTimeout(() => setUploadSuccess(false), 3000);
+          setIsUploading(false);
+          return;
+        }
+      } catch (_) {}
 
       // 2. High-performance compressed image fallback (under 30KB)
       const compressed = await compressImageFile(file, 600, 800, 0.65);
@@ -88,7 +106,6 @@ export default function ImageUploadField({
     if (file) {
       handleFileSelect(file);
     }
-    // reset input so same file can be selected again
     e.target.value = '';
   };
 
@@ -124,7 +141,7 @@ export default function ImageUploadField({
             className="text-[10px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-colors"
           >
             <LinkIcon className="w-3 h-3" />
-            <span>{showUrlInput ? 'Hide URL' : 'Paste Web URL'}</span>
+            <span>{showUrlInput ? 'Hide Web URL' : 'Edit / Paste Web URL'}</span>
           </button>
         </div>
       )}
@@ -231,16 +248,16 @@ export default function ImageUploadField({
           </div>
         </div>
 
-        {/* Optional Web URL Input */}
-        {showUrlInput && (
-          <div className="mt-3 pt-3 border-t border-slate-800 flex items-center gap-2 animate-fade-in">
+        {/* Web URL Input (Always available or toggled) */}
+        {(showUrlInput || !value) && (
+          <div className="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center gap-2">
             <LinkIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <input
               type="text"
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs font-mono"
+              placeholder="Paste direct photo link (e.g. https://...)"
+              className="w-full bg-slate-950 border border-slate-700/80 focus:border-blue-400 rounded-lg px-2.5 py-1.5 text-white text-xs font-mono placeholder-slate-500 focus:outline-none"
             />
           </div>
         )}

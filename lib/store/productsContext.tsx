@@ -490,7 +490,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         const cleanForCloud = (item: any): any => {
           if (!item) return item;
           if (typeof item === 'string') {
-            if (item.startsWith('data:') && item.length > 30000) {
+            if (item.startsWith('data:') && item.length > 250000) {
               return ''; // Prevent sending huge raw Base64 data directly in SQL query
             }
             return item;
