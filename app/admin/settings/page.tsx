@@ -460,10 +460,64 @@ function AdminSettingsContent() {
     setIsSaving(true);
     setSaveErrorMessage(null);
     try {
+      const ensureUploadedUrl = async (val?: string): Promise<string> => {
+        if (!val || typeof val !== 'string') return val || '';
+        if (val.startsWith('data:image/') && val.length > 25000) {
+          try {
+            const res = await fetch(val);
+            const blob = await res.blob();
+            const fd = new FormData();
+            fd.append('file', blob, 'image.jpg');
+            const up = await fetch('/api/upload', { method: 'POST', body: fd });
+            if (up.ok) {
+              const json = await up.json();
+              if (json.url) return json.url;
+            }
+          } catch (e) {
+            console.warn('Auto CDN upload error:', e);
+          }
+        }
+        return val;
+      };
+
+      const cleanedSlides = await Promise.all(
+        heroSlides.map(async (s) => ({
+          ...s,
+          imageUrl: await ensureUploadedUrl(s.imageUrl),
+        }))
+      );
+      const cleanedPromoImg = await ensureUploadedUrl(promoImgUrl);
+      const cleanedPromoImg2 = await ensureUploadedUrl(promoImgUrl2);
+      const cleanedLogo = await ensureUploadedUrl(logoUrl);
+      const cleanedReviews = await Promise.all(
+        reviewItems.map(async (r) => ({
+          ...r,
+          avatar: await ensureUploadedUrl(r.avatar),
+        }))
+      );
+      const cleanedFits = await Promise.all(
+        fitGuideItems.map(async (f) => ({
+          ...f,
+          image: await ensureUploadedUrl(f.image),
+        }))
+      );
+      const cleanedIgImages = await Promise.all(
+        igImages.map((img) => ensureUploadedUrl(img))
+      );
+
+      // Update state with cleaned URLs
+      setHeroSlides(cleanedSlides);
+      if (cleanedPromoImg !== promoImgUrl) setPromoImgUrl(cleanedPromoImg);
+      if (cleanedPromoImg2 !== promoImgUrl2) setPromoImgUrl2(cleanedPromoImg2);
+      if (cleanedLogo !== logoUrl) setLogoUrl(cleanedLogo);
+      setReviewItems(cleanedReviews);
+      setFitGuideItems(cleanedFits);
+      setIgImages(cleanedIgImages);
+
       await updateSiteSettings({
         siteName,
         tagline,
-        logoUrl,
+        logoUrl: cleanedLogo,
         phone,
         email,
         address,
@@ -481,7 +535,7 @@ function AdminSettingsContent() {
           youtube: youtubeUrl,
         },
         banners: {
-          heroSlides,
+          heroSlides: cleanedSlides,
         },
         categoryShowcase: {
           badge: catBadge,
@@ -498,15 +552,15 @@ function AdminSettingsContent() {
           couponCode: promoCode,
           buttonText: promoBtnText,
           buttonLink: promoBtnLink,
-          imageUrl: promoImgUrl,
-          imageUrl2: promoImgUrl2,
+          imageUrl: cleanedPromoImg,
+          imageUrl2: cleanedPromoImg2,
           imageTag: promoImgTag,
         },
         fitGuide: {
           badge: fitGuideBadge,
           title: fitGuideTitle,
           subtitle: fitGuideSubtitle,
-          items: fitGuideItems,
+          items: cleanedFits,
         },
         customerReviews: {
           badge: reviewsBadge,
@@ -514,14 +568,14 @@ function AdminSettingsContent() {
           subtitle: reviewsSubtitle,
           score: reviewsScore,
           reviewCountText: reviewsCountText,
-          items: reviewItems,
+          items: cleanedReviews,
         },
         instagramFeed: {
           badge: igBadge,
           handle: igHandle,
           title: igTitle,
           url: igUrl,
-          images: igImages,
+          images: cleanedIgImages,
         },
         trustBadges: {
           deliveryTitle: badgeDeliveryTitle,

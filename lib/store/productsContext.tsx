@@ -486,12 +486,12 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     // 3. Supabase Cloud Database sync so all devices and live Vercel store update immediately
     if (isSupabaseConfigured) {
       try {
-        // Strip out massive >100KB Base64 video/data blobs from SQL query payload to prevent Postgres statement_timeout
+        // Strip out massive >30KB Base64 image/video blobs from SQL query payload to prevent Postgres statement_timeout
         const cleanForCloud = (item: any): any => {
           if (!item) return item;
           if (typeof item === 'string') {
-            if (item.startsWith('data:video/') && item.length > 100000) {
-              return ''; // Prevent sending 20MB raw Base64 video string directly in SQL query
+            if (item.startsWith('data:') && item.length > 30000) {
+              return ''; // Prevent sending huge raw Base64 data directly in SQL query
             }
             return item;
           }

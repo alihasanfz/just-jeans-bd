@@ -95,32 +95,35 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Strategy 1: For videos or on serverless hosting (Vercel), upload to Catbox permanent CDN
-    if (isVideo || process.env.VERCEL || process.env.NODE_ENV === 'production') {
-      try {
-        const catboxForm = new FormData();
-        catboxForm.append('reqtype', 'fileupload');
-        const fileBlob = new Blob([buffer], { type: file.type });
-        catboxForm.append('fileToUpload', fileBlob, safeFilename);
+    // Strategy 1: Upload to Catbox permanent CDN (fast, permanent HTTPS CDN, works everywhere including Vercel)
+    try {
+      const catboxForm = new FormData();
+      catboxForm.append('reqtype', 'fileupload');
+      const fileBlob = new Blob([buffer], { type: file.type });
+      catboxForm.append('fileToUpload', fileBlob, safeFilename);
 
-        const uploadRes = await fetch('https://catbox.moe/user/api.php', {
-          method: 'POST',
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          },
-          body: catboxForm,
-        });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-        if (uploadRes.ok) {
-          const cdnUrl = (await uploadRes.text()).trim();
-          if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('error')) {
-            return NextResponse.json({ success: true, url: cdnUrl });
-          }
+      const uploadRes = await fetch('https://catbox.moe/user/api.php', {
+        method: 'POST',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
+        body: catboxForm,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (uploadRes.ok) {
+        const cdnUrl = (await uploadRes.text()).trim();
+        if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('error')) {
+          return NextResponse.json({ success: true, url: cdnUrl });
         }
-      } catch (cdnErr) {
-        console.warn('Catbox CDN upload fallback:', cdnErr);
       }
+    } catch (cdnErr) {
+      console.warn('Catbox CDN upload fallback:', cdnErr);
     }
 
     // Strategy 2: Local filesystem write (for local development)
@@ -135,8 +138,8 @@ export async function POST(request: NextRequest) {
     } catch (fsErr) {
       console.warn('Local fs write failed (read-only environment):', fsErr);
 
-      // Strategy 3: Permanent Base64 Data URL for images under 5MB to ensure images NEVER expire
-      if (!isVideo && buffer.length <= 5 * 1024 * 1024) {
+      // Strategy 3: Permanent Base64 Data URL ONLY for small files under 30KB
+      if (!isVideo && buffer.length <= 30 * 1024) {
         const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
         return NextResponse.json({ success: true, url: base64Data });
       }

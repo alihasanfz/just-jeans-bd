@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Upload, Image as ImageIcon, X, Loader2, Check, Link as LinkIcon, Laptop } from 'lucide-react';
-import { compressImageFile } from '@/lib/utils/db';
+import { compressImageFile, compressImageToBlob } from '@/lib/utils/db';
 
 interface ImageUploadFieldProps {
   value: string;
@@ -39,9 +39,15 @@ export default function ImageUploadField({
     setUploadSuccess(false);
 
     try {
+      // Pre-compress file into lightweight high-res JPEG blob (~40-80KB) before uploading
+      let uploadPayload: Blob | File = file;
+      try {
+        uploadPayload = await compressImageToBlob(file, 1200, 1200, 0.8);
+      } catch (_) {}
+
       // 1. Try uploading to /api/upload
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', uploadPayload, file.name.replace(/\.[^/.]+$/, '.jpg'));
 
       try {
         const res = await fetch('/api/upload', {
@@ -63,8 +69,8 @@ export default function ImageUploadField({
         // server upload unavailable, fallback to compressed image
       }
 
-      // 2. High-performance compressed image fallback
-      const compressed = await compressImageFile(file, 900, 1200, 0.78);
+      // 2. High-performance compressed image fallback (under 30KB)
+      const compressed = await compressImageFile(file, 600, 800, 0.65);
       if (compressed) {
         onChange(compressed);
         setUploadSuccess(true);
