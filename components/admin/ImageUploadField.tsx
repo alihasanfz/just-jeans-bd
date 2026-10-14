@@ -48,7 +48,7 @@ export default function ImageUploadField({
       let uploadPayload: Blob | File = file;
       try {
         uploadPayload = await compressImageToBlob(file, 1200, 1200, 0.8);
-      } catch (_) {}
+      } catch (_) { }
 
       // 1. Try uploading to /api/upload
       const formData = new FormData();
@@ -100,7 +100,7 @@ export default function ImageUploadField({
             return;
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // 3. High-performance compressed image fallback (under 30KB)
       const compressed = await compressImageFile(file, 600, 800, 0.65);
@@ -175,22 +175,20 @@ export default function ImageUploadField({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`relative rounded-2xl border transition-all p-3 bg-slate-900/70 ${
-          isDragging
-            ? 'border-blue-500 bg-blue-950/30 ring-2 ring-blue-500/20'
-            : 'border-slate-800 hover:border-slate-700'
-        }`}
+        className={`relative rounded-2xl border transition-all p-3 bg-slate-900/70 ${isDragging
+          ? 'border-blue-500 bg-blue-950/30 ring-2 ring-blue-500/20'
+          : 'border-slate-800 hover:border-slate-700'
+          }`}
       >
         <div className="flex flex-col sm:flex-row items-center gap-3">
           {/* Image Preview Thumbnail */}
           <div
-            className={`relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shrink-0 flex items-center justify-center ${
-              aspect === 'portrait'
-                ? 'w-16 h-20'
-                : aspect === 'square'
+            className={`relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shrink-0 flex items-center justify-center ${aspect === 'portrait'
+              ? 'w-16 h-20'
+              : aspect === 'square'
                 ? 'w-16 h-16'
                 : 'w-24 h-16'
-            }`}
+              }`}
             style={{
               width: aspect === 'portrait' ? '64px' : aspect === 'square' ? '64px' : '96px',
               height: aspect === 'portrait' ? '80px' : '64px',
