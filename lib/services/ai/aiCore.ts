@@ -29,18 +29,20 @@ export class AiCoreService {
   public static async generateText({
     prompt,
     systemInstruction,
+    userQuery,
     temperature = 0.2,
     maxTokens = 2048,
   }: {
     prompt: string;
     systemInstruction?: string;
+    userQuery?: string;
     temperature?: number;
     maxTokens?: number;
   }): Promise<string> {
     const apiKey = this.getGeminiKey();
 
     if (apiKey) {
-      // Prefer modern gemini-1.5-flash
+      // Try gemini-1.5-flash
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
       try {
@@ -89,7 +91,7 @@ export class AiCoreService {
     }
 
     // High quality local fallback if API key is not present or rate limited
-    return this.fallbackReasoning(prompt);
+    return this.fallbackReasoning(userQuery || prompt);
   }
 
   /**
@@ -130,17 +132,46 @@ export class AiCoreService {
   /**
    * Deterministic local denim intelligence for offline/no-network stability
    */
-  private static fallbackReasoning(prompt: string): string {
-    const p = prompt.toLowerCase();
+  private static fallbackReasoning(queryOrPrompt: string): string {
+    const q = queryOrPrompt.toLowerCase();
+    const isBn = /[\u0980-\u09FF]/.test(queryOrPrompt) || !queryOrPrompt.match(/[a-zA-Z]{6,}/);
 
-    if (p.includes('description') || p.includes('বর্ননা')) {
+    // Buying & How to order
+    if (q.includes('kivabe') || q.includes('ki vabe') || q.includes('কিভাবে') || q.includes('order') || q.includes('অর্ডার') || q.includes('কিনব') || q.includes('nibo')) {
+      return isBn
+        ? `অর্ডার করা খুবই সহজ! 👖 আমাদের ওয়েবসাইট থেকে আপনার পছন্দের জিন্সটি সিলেক্ট করুন, সাইজ বেছে নিন এবং 'Buy Now' বা 'Add to Cart' বাটনে ক্লিক করুন। এরপর আপনার নাম, ঠিকানা ও মোবাইল নম্বর দিয়ে 'Cash on Delivery' সিলেক্ট করে কনফার্ম করুন। পার্সেল হাতে পেয়ে চেক করে পেমেন্ট করতে পারবেন!`
+        : `Ordering is super easy! Simply browse our jeans, pick your size, and click 'Buy Now' or 'Add to Cart'. Fill in your delivery address, select Cash on Delivery (COD), and we'll dispatch it promptly to your doorstep!`;
+    }
+
+    // Cash on Delivery & Delivery Policy
+    if (q.includes('ক্যাশ অন ডেলিভারি') || q.includes('ডেলিভারি') || q.includes('cod') || q.includes('delivery')) {
+      return isBn
+        ? `আমরা সমগ্র বাংলাদেশে ক্যাশ অন ডেলিভারি (Cash on Delivery) সুবিধা প্রদান করি! 🚚 ঢাকা সিটির ভেতরে ডেলিভারি চার্জ ৳৮০ (১-২ দিনে) এবং ঢাকার বাইরে ৳১৩০-৳১৫০ (২-৩ দিনে)। পার্সেল হাতে পেয়ে দেখে পেমেন্ট করার সুবিধা রয়েছে।`
+        : `We offer 100% Cash on Delivery nationwide across all 64 districts in Bangladesh! Delivery fee: Inside Dhaka ৳80 (1-2 days), Outside Dhaka ৳130-150 (2-3 days). You can inspect your denim package upon courier handover.`;
+    }
+
+    // Price inquiry
+    if (q.includes('দাম') || q.includes('dam') || q.includes('price') || q.includes('টাকা') || q.includes('taka')) {
+      return isBn
+        ? `আমাদের এক্সপোর্ট কোয়ালিটি জিন্সের দাম ৳১,১৯০ থেকে শুরু করে ৳২,২৫০ পর্যন্ত (ফিট ও ওয়াশ ভেদে)। আপনি স্লিম, রেগুলার নাকি ব্যাগী ফিট পছন্দ করছেন জানালে বিস্তারিত জানিয়ে দিচ্ছি!`
+        : `Our premium denim collection ranges from ৳1,190 to ৳2,250 depending on the wash, weight, and cut. Tell us your style preference for exact recommendations!`;
+    }
+
+    // Size & Fit
+    if (q.includes('size') || q.includes('সাইজ') || q.includes('fit') || q.includes('ফিট') || q.includes('কোমর') || q.includes('waist')) {
+      return isBn
+        ? `আমাদের জিন্স সাইজ ২৮, ৩০, ৩২, ৩৪, ৩৬ এবং ৩৮ পর্যন্ত রেডি স্টকে রয়েছে। আপনার স্বাভাবিক কোমরের মাপ অনুযায়ী সাইজ নিতে পারেন; একটু ব্যাগী বা ঢিলেঢালা লুক চাইলে ১ সাইজ বড় নিতে পারেন। আমাদের সব জিন্স প্রি-শ্রাঙ্ক (ধোয়ার পর ছোট হয় না)।`
+        : `We stock waist sizes 28 through 38. For a tailored silhouette, order your exact waist size. For a modern streetwear or baggy aesthetic, we recommend sizing up by one step. All our fabrics are pre-shrunk.`;
+    }
+
+    // Product description generation
+    if (q.includes('description') || q.includes('বর্ননা')) {
       return `Elevate your wardrobe with our signature denim piece, crafted from premium heavyweight cotton with engineered comfort stretch. Designed in Bangladesh for supreme durability, featuring reinforced bar-tack stitching, authentic copper rivets, and a tailored silhouette that flatters every movement. Perfect for both casual streetwear and elevated evening styling.`;
     }
 
-    if (p.includes('size') || p.includes('fit') || p.includes('সাইজ')) {
-      return `For this denim style, we recommend selecting your true waist size. If you prefer a relaxed streetwear drape, size up by 1 inch. Our custom denim uses 98% cotton with 2% elastane for maximum comfort and flexibility throughout the day.`;
-    }
-
-    return `Jeans BD AI System: Request processed successfully using authentic database specifications and Bangladesh denim retail analytics.`;
+    // General warm welcome
+    return isBn
+      ? `স্বাগতম Jeans BD-তে! 👖 আমাদের কালেকশনে রয়েছে প্রিমিয়াম স্লিম ফিট, স্ট্রেইট লেগ, ব্যাগী জিন্স এবং ডেনিম জ্যাকেট। ক্যাশ অন ডেলিভারিতে অর্ডার করতে অথবা সাইজ ও দাম জানতে যেকোনো প্রশ্ন করুন!`
+      : `Welcome to Jeans BD! 👖 Explore our signature lineup of Slim Fit, Straight Leg, and Baggy Streetwear Denim. Feel free to ask about our sizing, real-time stock, prices, or Cash on Delivery service.`;
   }
 }
