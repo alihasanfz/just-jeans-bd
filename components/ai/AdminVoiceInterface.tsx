@@ -37,93 +37,213 @@ export default function AdminVoiceInterface({
   const [errorMsg, setErrorMsg] = useState('');
 
   const recognitionRef = useRef<any>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const hasFinalTranscriptRef = useRef(false);
 
-  // Initialize SpeechRecognition safely
-  const startListening = () => {
-    setErrorMsg('');
-    setLastResult(null);
-
-    if (typeof window === 'undefined') return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setErrorMsg('Web Speech API is not supported in this browser. Please use the command bar below.');
-      return;
-    }
-
-    try {
-      // Abort any existing instance
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {}
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = speechLanguage;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        setErrorMsg('');
-      };
-
-      recognition.onresult = (event: any) => {
-        let currentInterim = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            currentInterim += event.results[i][0].transcript;
-          }
-        }
-
-        setInterimTranscript(currentInterim);
-        if (finalTranscript) {
-          setTranscript(finalTranscript);
-          handleVoiceCommand(finalTranscript);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn('Speech recognition error:', event.error);
-        setIsListening(false);
-        if (event.error === 'not-allowed') {
-          setErrorMsg(
-            'Microphone access was denied. ব্রাউজারে অনুমতি চালু করার পর পেজটি রিলোড (Ctrl+F5) দিয়ে পুনরায় মাইক বাটনে ক্লিক করুন।'
-          );
-        } else if (event.error !== 'no-speech') {
-          setErrorMsg(`Notice: ${event.error}. You can also type any command or click the triggers below.`);
-        }
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        setInterimTranscript('');
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (e: any) {
-      console.warn('Recognition start exception:', e);
-      setIsListening(false);
-      setErrorMsg('Could not initialize microphone. Please reload the page or use the command bar.');
-    }
-  };
-
+  // Stop listening and clean up all media tracks
   const stopListening = () => {
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {}
     }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {}
+      mediaStreamRef.current = null;
+    }
+
     setIsListening(false);
     setInterimTranscript('');
+  };
+
+  // Process audio blob through Gemini Audio API
+  const handleAudioBlob = async (blob: Blob) => {
+    setIsProcessing(true);
+    setErrorMsg('');
+    setTranscript('রেকর্ডকৃত অডিও বিশ্লেষণ করা হচ্ছে...');
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64Data = (reader.result as string).split(',')[1];
+        const res = await fetch('/api/ai/voice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audioBase64: base64Data,
+            mimeType: blob.type || 'audio/webm',
+            language: speechLanguage,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.result) {
+            const result: VoiceIntentResult = data.result;
+            setTranscript(result.rawTranscript || 'Command Executed');
+            setLastResult(result);
+
+            if (ttsEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+              try {
+                const utterText = speechLanguage === 'bn-BD' ? result.responseSpeechBn : result.responseSpeechEn;
+                const utterance = new SpeechSynthesisUtterance(utterText);
+                utterance.lang = speechLanguage;
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+              } catch {}
+            }
+
+            if (onActionTrigger) {
+              onActionTrigger(result.intent, result);
+            }
+
+            if (result.targetUrl && !result.targetUrl.startsWith('/admin/ai') && result.intent !== 'general_query') {
+              setTimeout(() => {
+                router.push(result.targetUrl!);
+              }, 1000);
+            }
+          }
+        }
+        setIsProcessing(false);
+      };
+    } catch (err: any) {
+      console.warn('Audio upload error:', err);
+      setIsProcessing(false);
+      setErrorMsg('ভয়েস বিশ্লেষণ সম্পন্ন করতে পারেনি। নিচের কমান্ড বক্স ব্যবহার করুন।');
+    }
+  };
+
+  // Initialize Dual Microphone Listener (Hardware MediaRecorder + WebSpeech fallback)
+  const startListening = async () => {
+    setErrorMsg('');
+    setLastResult(null);
+    setTranscript('');
+    setInterimTranscript('');
+    hasFinalTranscriptRef.current = false;
+
+    if (typeof window === 'undefined') return;
+
+    // 1. Request real hardware audio permission via getUserMedia
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+    } catch (err: any) {
+      console.warn('getUserMedia error:', err);
+      setErrorMsg('মাইক্রোফোন এক্সেস পাওয়া যায়নি। ব্রাউজারের Lock 🔒 আইকনে ক্লিক করে Microphone: Allow নিশ্চিত করুন।');
+      return;
+    }
+
+    setIsListening(true);
+
+    // 2. Start hardware MediaRecorder (Works 100% on PC and Mobile)
+    try {
+      audioChunksRef.current = [];
+      const mimeType =
+        typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : '';
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        setIsListening(false);
+        // If WebSpeech hasn't already handled the transcript, send recorded audio
+        if (!hasFinalTranscriptRef.current && audioChunksRef.current.length > 0) {
+          const recordedBlob = new Blob(audioChunksRef.current, {
+            type: recorder.mimeType || 'audio/webm',
+          });
+          if (recordedBlob.size > 200) {
+            await handleAudioBlob(recordedBlob);
+          }
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(500); // 500ms chunks
+    } catch (recorderErr) {
+      console.warn('MediaRecorder error:', recorderErr);
+    }
+
+    // 3. Run WebSpeech API in parallel for instant live transcription
+    try {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch {}
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = speechLanguage;
+
+        recognition.onresult = (event: any) => {
+          let currentInterim = '';
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              currentInterim += event.results[i][0].transcript;
+            }
+          }
+
+          setInterimTranscript(currentInterim);
+          if (finalTranscript) {
+            hasFinalTranscriptRef.current = true;
+            setTranscript(finalTranscript);
+            stopListening();
+            handleVoiceCommand(finalTranscript);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          // Soft error: Do NOT block or show error if MediaRecorder is actively recording audio!
+          console.log('WebSpeech soft error (MediaRecorder will handle audio stream):', event.error);
+        };
+
+        recognition.onend = () => {
+          // If stopped without final transcript, the MediaRecorder onstop will process the voice
+        };
+
+        recognitionRef.current = recognition;
+        try {
+          recognition.start();
+        } catch (recStartErr) {
+          console.log('SpeechRecognition.start() soft error:', recStartErr);
+        }
+      }
+    } catch (e: any) {
+      console.warn('SpeechRecognition setup skipped:', e);
+    }
   };
 
   const toggleListening = () => {

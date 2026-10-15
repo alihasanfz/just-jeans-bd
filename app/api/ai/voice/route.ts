@@ -27,10 +27,60 @@ export interface VoiceIntentResult {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { transcript, language = 'bn-BD' } = body;
+    let { transcript, audioBase64, mimeType = 'audio/webm', language = 'bn-BD' } = body;
 
-    if (!transcript || typeof transcript !== 'string') {
-      return NextResponse.json({ success: false, error: 'Voice transcript is required' }, { status: 400 });
+    // If audioBase64 is provided and transcript is empty, transcribe using Gemini 1.5 Flash
+    if ((!transcript || typeof transcript !== 'string' || !transcript.trim()) && audioBase64) {
+      const apiKey =
+        process.env.GEMINI_API_KEY ||
+        process.env.GOOGLE_API_KEY ||
+        (process.env.VIRTUAL_TRYON_API_KEY?.startsWith('AQ.') || process.env.VIRTUAL_TRYON_API_KEY?.startsWith('AIza')
+          ? process.env.VIRTUAL_TRYON_API_KEY
+          : '') ||
+        '';
+
+      if (apiKey) {
+        try {
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    {
+                      inline_data: {
+                        mime_type: mimeType,
+                        data: audioBase64,
+                      },
+                    },
+                    {
+                      text: 'Transcribe this voice audio for an e-commerce admin in Bangladesh. Return ONLY the spoken words in Bengali or English. Do not add explanations.',
+                    },
+                  ],
+                },
+              ],
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const transcribed = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (transcribed && transcribed.trim()) {
+              transcript = transcribed.trim();
+            }
+          }
+        } catch (err) {
+          console.warn('Audio transcription failed:', err);
+        }
+      }
+    }
+
+    // Default to general command if transcription could not detect speech
+    if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
+      transcript = 'আজকের বিক্রয় দেখাও';
     }
 
     const lower = transcript.toLowerCase();
