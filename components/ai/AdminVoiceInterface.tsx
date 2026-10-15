@@ -35,12 +35,52 @@ export default function AdminVoiceInterface({
   const [speechLanguage, setSpeechLanguage] = useState<'bn-BD' | 'en-US'>('bn-BD');
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [micPermissionState, setMicPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
 
   const recognitionRef = useRef<any>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const hasFinalTranscriptRef = useRef(false);
+
+  // Check browser permission status on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'microphone' as PermissionName })
+        .then((permissionStatus) => {
+          setMicPermissionState(permissionStatus.state);
+          permissionStatus.onchange = () => {
+            setMicPermissionState(permissionStatus.state);
+          };
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // Explicitly prompt the user for microphone permission via native browser dialog
+  const requestMicPermission = async () => {
+    setErrorMsg('');
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setErrorMsg('আপনার ব্রাউজার মাইক্রোফোন সাপোর্ট করে না। অনুগ্রহ করে ক্রোম ব্রাউজার ব্যবহার করুন।');
+        return;
+      }
+
+      // Triggers native browser popup: "just-jeans-bd-4ik7.vercel.app wants to: Use your microphone"
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicPermissionState('granted');
+      setErrorMsg('');
+      mediaStreamRef.current = stream;
+
+      // Start listening directly with the granted stream
+      startListeningWithStream(stream);
+    } catch (err: any) {
+      console.warn('Explicit permission request error:', err);
+      setMicPermissionState('denied');
+      setErrorMsg('মাইক্রোফোন পারমিশন দেওয়া হয়নি। ব্রাউজারের পপআপে "Allow" বা অনুমতি নির্বাচন করুন অথবা নিচের টেক্সট বক্স ব্যবহার করুন।');
+    }
+  };
 
   // Stop listening and clean up all media tracks
   const stopListening = () => {
@@ -125,45 +165,10 @@ export default function AdminVoiceInterface({
     }
   };
 
-  // Initialize Dual Microphone Listener (Hardware MediaRecorder + WebSpeech fallback)
-  const startListening = async () => {
-    setErrorMsg('');
-    setLastResult(null);
-    setTranscript('');
-    setInterimTranscript('');
-    hasFinalTranscriptRef.current = false;
-
-    if (typeof window === 'undefined') return;
-
-    // 1. Request real hardware audio permission via getUserMedia
-    let stream: MediaStream | null = null;
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaStreamRef.current = stream;
-      }
-    } catch (err: any) {
-      console.warn('getUserMedia hardware error:', err);
-      const errName = err?.name || '';
-      const errMsg = err?.message || '';
-
-      // Detailed OS-level diagnostic
-      let tip = '';
-      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-        tip = 'উইন্ডোজ বা ফোন সিস্টেম থেকে মাইক ব্লকড (Windows Settings > Privacy > Microphone অথবা ফোনের Quick Settings-এ Mic Access চালু করুন)।';
-      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-        tip = 'কোনো মাইক্রোফোন হার্ডওয়্যার ডিভাইস পাওয়া যায়নি। হেডফোন বা মাইক প্লাগ-ইন করুন।';
-      } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-        tip = 'মাইক্রোফোনটি অন্য কোনো অ্যাপ (যেমন Zoom/Skype/ক্যামেরা) ব্যবহার করছে।';
-      } else {
-        tip = `মাইক্রোফোন এক্সেস পাওয়া যায়নি (${errName}: ${errMsg})।`;
-      }
-
-      setErrorMsg(`${tip} অথবা নিচে সরাসরি কমান্ড লিখে বা কুইক বাটনে ক্লিক করুন।`);
-    }
-
-    if (stream) {
-      setIsListening(true);
+  // Start recording using an active, authorized stream
+  const startListeningWithStream = (stream: MediaStream) => {
+    setIsListening(true);
+    mediaStreamRef.current = stream;
 
     // 2. Start hardware MediaRecorder (Works 100% on PC and Mobile)
     try {
@@ -187,7 +192,6 @@ export default function AdminVoiceInterface({
 
       recorder.onstop = async () => {
         setIsListening(false);
-        // If WebSpeech hasn't already handled the transcript, send recorded audio
         if (!hasFinalTranscriptRef.current && audioChunksRef.current.length > 0) {
           const recordedBlob = new Blob(audioChunksRef.current, {
             type: recorder.mimeType || 'audio/webm',
@@ -203,7 +207,6 @@ export default function AdminVoiceInterface({
     } catch (recorderErr) {
       console.warn('MediaRecorder error:', recorderErr);
     }
-  }
 
     // 3. Run WebSpeech API in parallel for instant live transcription
     try {
@@ -244,13 +247,10 @@ export default function AdminVoiceInterface({
         };
 
         recognition.onerror = (event: any) => {
-          // Soft error: Do NOT block or show error if MediaRecorder is actively recording audio!
           console.log('WebSpeech soft error (MediaRecorder will handle audio stream):', event.error);
         };
 
-        recognition.onend = () => {
-          // If stopped without final transcript, the MediaRecorder onstop will process the voice
-        };
+        recognition.onend = () => {};
 
         recognitionRef.current = recognition;
         try {
@@ -262,6 +262,26 @@ export default function AdminVoiceInterface({
     } catch (e: any) {
       console.warn('SpeechRecognition setup skipped:', e);
     }
+  };
+
+  // Initialize Dual Microphone Listener
+  const startListening = async () => {
+    setErrorMsg('');
+    setLastResult(null);
+    setTranscript('');
+    setInterimTranscript('');
+    hasFinalTranscriptRef.current = false;
+
+    if (typeof window === 'undefined') return;
+
+    // If stream already exists, reuse it
+    if (mediaStreamRef.current && mediaStreamRef.current.active) {
+      startListeningWithStream(mediaStreamRef.current);
+      return;
+    }
+
+    // Explicitly request mic permission via getUserMedia
+    await requestMicPermission();
   };
 
   const toggleListening = () => {
@@ -379,6 +399,26 @@ export default function AdminVoiceInterface({
         </div>
       </div>
 
+      {/* Explicit Microphone Permission Request Bar (shows when not granted or on error) */}
+      {micPermissionState !== 'granted' && (
+        <div className="mb-3.5 bg-gradient-to-r from-blue-950/60 to-indigo-950/60 border border-blue-500/40 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-2.5 text-xs text-blue-200">
+            <Radio className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+            <span>
+              ভয়েস কমান্ড চালু করতে ব্রাউজারের অনুমতি প্রয়োজন। পাশের বাটনে ক্লিক করে অনুমতি দিন।
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={requestMicPermission}
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs px-4 py-2 rounded-xl transition-all shadow-md shadow-blue-600/30 shrink-0 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+          >
+            <Mic className="w-3.5 h-3.5" />
+            <span>মাইক্রোফোনের অনুমতি দিন (Allow Mic)</span>
+          </button>
+        </div>
+      )}
+
       {/* Main Microphone Button Interaction Area */}
       <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
         <button
@@ -407,17 +447,35 @@ export default function AdminVoiceInterface({
               {isListening && <Radio className="w-3.5 h-3.5 text-rose-400 animate-pulse" />}
               <span>
                 {isListening
-                  ? 'Listening... বলুন (যেমন: "আজকের বিক্রয় দেখাও", "কম স্টক দেখাও")'
+                  ? 'ভয়েস শুনছি... কথা বলা শেষে বাটনে বা "Submit" এ চাপুন'
                   : isProcessing
                   ? 'AI Intent Processing...'
+                  : micPermissionState === 'granted'
+                  ? 'মাইক্রোফোন সক্রিয়! কথা বলতে মাইকে চাপুন বা নিচে টাইপ করুন'
                   : 'Click mic to speak, or type any command below'}
               </span>
             </span>
-            {isListening && (
-              <span className="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-black animate-pulse">
-                MIC RECORDING ACTIVE
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {isListening && (
+                <>
+                  <span className="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-black animate-pulse">
+                    RECORDING
+                  </span>
+                  <button
+                    type="button"
+                    onClick={stopListening}
+                    className="text-[10px] bg-rose-600 hover:bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded-lg cursor-pointer transition-colors shadow-sm"
+                  >
+                    কথা শেষ / Submit
+                  </button>
+                </>
+              )}
+              {!isListening && micPermissionState === 'granted' && (
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                  MIC ALLOWED
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="min-h-[42px] bg-[#090d16] border border-slate-800 rounded-xl p-2.5 text-xs font-medium text-slate-300 flex items-center">
@@ -466,17 +524,17 @@ export default function AdminVoiceInterface({
 
       {/* Error / Notice Display */}
       {errorMsg && (
-        <div className="mt-3 bg-blue-950/40 border border-blue-500/40 text-blue-200 p-3 rounded-2xl text-xs flex items-center justify-between gap-2.5">
+        <div className="mt-3 bg-blue-950/40 border border-blue-500/40 text-blue-200 p-3 rounded-2xl text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
             <span className="leading-relaxed">{errorMsg}</span>
           </div>
           <button
             type="button"
-            onClick={startListening}
-            className="text-[11px] font-black uppercase tracking-wider bg-blue-600 text-white px-3 py-1 rounded-xl shrink-0 hover:bg-blue-500 transition-colors cursor-pointer"
+            onClick={requestMicPermission}
+            className="text-[11px] font-black uppercase tracking-wider bg-blue-600 text-white px-3 py-1.5 rounded-xl shrink-0 hover:bg-blue-500 transition-colors cursor-pointer"
           >
-            Retry Mic
+            অনুমতি দিন (Allow)
           </button>
         </div>
       )}
