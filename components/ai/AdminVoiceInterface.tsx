@@ -138,15 +138,32 @@ export default function AdminVoiceInterface({
     // 1. Request real hardware audio permission via getUserMedia
     let stream: MediaStream | null = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+      }
     } catch (err: any) {
-      console.warn('getUserMedia error:', err);
-      setErrorMsg('মাইক্রোফোন এক্সেস পাওয়া যায়নি। ব্রাউজারের Lock 🔒 আইকনে ক্লিক করে Microphone: Allow নিশ্চিত করুন।');
-      return;
+      console.warn('getUserMedia hardware error:', err);
+      const errName = err?.name || '';
+      const errMsg = err?.message || '';
+
+      // Detailed OS-level diagnostic
+      let tip = '';
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        tip = 'উইন্ডোজ বা ফোন সিস্টেম থেকে মাইক ব্লকড (Windows Settings > Privacy > Microphone অথবা ফোনের Quick Settings-এ Mic Access চালু করুন)।';
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        tip = 'কোনো মাইক্রোফোন হার্ডওয়্যার ডিভাইস পাওয়া যায়নি। হেডফোন বা মাইক প্লাগ-ইন করুন।';
+      } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+        tip = 'মাইক্রোফোনটি অন্য কোনো অ্যাপ (যেমন Zoom/Skype/ক্যামেরা) ব্যবহার করছে।';
+      } else {
+        tip = `মাইক্রোফোন এক্সেস পাওয়া যায়নি (${errName}: ${errMsg})।`;
+      }
+
+      setErrorMsg(`${tip} অথবা নিচে সরাসরি কমান্ড লিখে বা কুইক বাটনে ক্লিক করুন।`);
     }
 
-    setIsListening(true);
+    if (stream) {
+      setIsListening(true);
 
     // 2. Start hardware MediaRecorder (Works 100% on PC and Mobile)
     try {
@@ -186,6 +203,7 @@ export default function AdminVoiceInterface({
     } catch (recorderErr) {
       console.warn('MediaRecorder error:', recorderErr);
     }
+  }
 
     // 3. Run WebSpeech API in parallel for instant live transcription
     try {
