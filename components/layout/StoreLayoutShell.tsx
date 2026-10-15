@@ -6,6 +6,7 @@ import AnnouncementBar from '@/components/layout/AnnouncementBar';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import CartDrawer from '@/components/cart/CartDrawer';
+import CustomerAiChatWidget from '@/components/ai/CustomerAiChatWidget';
 
 export default function StoreLayoutShell({
   children,
@@ -26,6 +27,7 @@ export default function StoreLayoutShell({
       <main className="flex-grow">{children}</main>
       <Footer />
       <CartDrawer />
+      <CustomerAiChatWidget />
     </div>
   );
 }

@@ -76,6 +76,9 @@ function hasPermissionForPath(
   // 1. Dashboard is always accessible
   if (pathname === '/admin') return true;
 
+  // 1.1 AI Control Center is accessible to backoffice admins
+  if (pathname.startsWith('/admin/ai')) return true;
+
   // 2. Products & Catalog Group
   if (
     pathname.startsWith('/admin/products') ||
@@ -562,6 +565,30 @@ function AdminSidebar({
           >
             <LayoutGrid className="w-4 h-4 text-blue-500 shrink-0" />
             {!isCollapsed && <span>Dashboard</span>}
+          </Link>
+
+          {/* 1.1 AI Control Center */}
+          <Link
+            href="/admin/ai"
+            onClick={onCloseMobile}
+            title="AI Control Center"
+            className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
+              pathname.startsWith('/admin/ai')
+                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 text-white shadow-md shadow-blue-600/30'
+                : isDark
+                ? 'text-purple-300 hover:text-white hover:bg-slate-800/60'
+                : 'text-purple-700 hover:text-purple-900 hover:bg-purple-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              {!isCollapsed && <span>AI Control Center</span>}
+            </div>
+            {!isCollapsed && (
+              <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                AI PRO
+              </span>
+            )}
           </Link>
 
           {/* 2. Denim Products Group (RBAC: Manage Products) */}

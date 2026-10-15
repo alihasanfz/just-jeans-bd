@@ -15,9 +15,11 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 2. Sensitive API mutation protection (Upload & Products POST/PUT/DELETE)
+  // 2. Sensitive API mutation protection (Upload, Products & Admin AI POST/PUT/DELETE)
   if (
-    (pathname.startsWith('/api/upload') || pathname.startsWith('/api/products')) &&
+    (pathname.startsWith('/api/upload') ||
+      pathname.startsWith('/api/products') ||
+      (pathname.startsWith('/api/ai') && !pathname.startsWith('/api/ai/chat'))) &&
     request.method !== 'GET'
   ) {
     const adminSession = request.cookies.get('jeansbd_admin_session')?.value;
