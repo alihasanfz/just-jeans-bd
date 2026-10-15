@@ -8,12 +8,10 @@ import {
   Volume2,
   VolumeX,
   Sparkles,
-  Command,
-  ArrowRight,
-  CheckCircle2,
+  Send,
   AlertCircle,
-  Loader2,
-  ExternalLink,
+  HelpCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { VoiceIntentResult } from '@/app/api/ai/voice/route';
 
@@ -30,6 +28,7 @@ export default function AdminVoiceInterface({
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [commandInput, setCommandInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<VoiceIntentResult | null>(null);
   const [speechLanguage, setSpeechLanguage] = useState<'bn-BD' | 'en-US'>('bn-BD');
@@ -77,8 +76,12 @@ export default function AdminVoiceInterface({
         recognition.onerror = (event: any) => {
           console.warn('Speech recognition error:', event.error);
           setIsListening(false);
-          if (event.error !== 'no-speech') {
-            setErrorMsg(`Mic Error: ${event.error}. You can also type commands below.`);
+          if (event.error === 'not-allowed') {
+            setErrorMsg(
+              'Microphone permission blocked in browser. ব্রাউজারের অ্যাড্রেস বারের বাম পাশের 🔒 (Lock icon) বা সাইট সেটিংসে ক্লিক করে Microphone: "Allow" করুন। অথবা নিচের টেক্সট বক্সে কমান্ড লিখুন বা কুইক ট্রিগারে ক্লিক করুন।'
+            );
+          } else if (event.error !== 'no-speech') {
+            setErrorMsg(`Mic Notice: ${event.error}. You can also type commands or click triggers below.`);
           }
         };
 
@@ -100,7 +103,7 @@ export default function AdminVoiceInterface({
     };
   }, [speechLanguage]);
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isListening) {
       if (recognitionRef.current) {
         try {
@@ -111,15 +114,30 @@ export default function AdminVoiceInterface({
     } else {
       setErrorMsg('');
       setLastResult(null);
+
+      // Trigger browser's native microphone prompt if needed
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (err: any) {
+          console.warn('Microphone permission request failed:', err);
+          setErrorMsg(
+            'Microphone permission blocked in browser. ব্রাউজারের অ্যাড্রেস বারের বাম পাশের 🔒 (Lock icon)-এ ক্লিক করে Microphone: Allow নির্বাচন করুন। অথবা নিচের টেক্সট বক্সে কমান্ড লিখুন।'
+          );
+          return;
+        }
+      }
+
       if (recognitionRef.current) {
         try {
           recognitionRef.current.lang = speechLanguage;
           recognitionRef.current.start();
         } catch (e: any) {
-          setErrorMsg('Microphone permission required or already active.');
+          setErrorMsg('Microphone initialization error. Please use the command bar below.');
         }
       } else {
-        setErrorMsg('Web Speech API is not supported in this browser. Please use text commands.');
+        setErrorMsg('Web Speech API is not supported in this browser. Please use the command bar below.');
       }
     }
   };
@@ -128,6 +146,7 @@ export default function AdminVoiceInterface({
     if (!spokenText.trim() || isProcessing) return;
     setIsProcessing(true);
     setErrorMsg('');
+    setTranscript(spokenText);
 
     try {
       const res = await fetch('/api/ai/voice', {
@@ -162,11 +181,11 @@ export default function AdminVoiceInterface({
             onActionTrigger(result.intent, result);
           }
 
-          // If navigation requested
-          if (result.targetUrl && result.intent !== 'general_query') {
+          // If navigation requested to a different page
+          if (result.targetUrl && !result.targetUrl.startsWith('/admin/ai') && result.intent !== 'general_query') {
             setTimeout(() => {
               router.push(result.targetUrl!);
-            }, 1200);
+            }, 1000);
           }
         } else {
           throw new Error(data.error || 'Voice interpretation failed');
@@ -233,10 +252,10 @@ export default function AdminVoiceInterface({
         <button
           type="button"
           onClick={toggleListening}
-          className={`relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 ${
+          className={`relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 cursor-pointer ${
             isListening
               ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-4 ring-rose-500/30 scale-105'
-              : 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-600/30 hover:scale-105'
+              : 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-600/30 hover:scale-105 active:scale-95'
           }`}
           aria-label={isListening ? 'Stop Listening' : 'Start Voice Command'}
         >
@@ -257,7 +276,7 @@ export default function AdminVoiceInterface({
                 ? 'Listening... বলুন (যেমন: "আজকের বিক্রয় দেখাও")'
                 : isProcessing
                 ? 'AI Intent Processing...'
-                : 'Click mic or choose a quick command below'}
+                : 'Click mic to speak, or type any command below'}
             </span>
             {isListening && (
               <span className="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-black animate-pulse">
@@ -278,11 +297,52 @@ export default function AdminVoiceInterface({
         </div>
       </div>
 
-      {/* Error Notice */}
+      {/* Direct Command Text Box (Works 100% even if mic is blocked) */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (commandInput.trim()) {
+            handleVoiceCommand(commandInput.trim());
+            setCommandInput('');
+          }
+        }}
+        className="mt-3 flex items-center gap-2"
+      >
+        <input
+          type="text"
+          value={commandInput}
+          onChange={(e) => setCommandInput(e.target.value)}
+          placeholder={
+            speechLanguage === 'bn-BD'
+              ? 'অথবা সরাসরি কমান্ড লিখুন (যেমন: আজকের বিক্রয় দেখাও, কম স্টক দেখাও, এই মাসের রিপোর্ট)...'
+              : 'Or type any command (e.g. today sales, show low stock, monthly report)...'
+          }
+          className="flex-1 bg-[#090d16] border border-slate-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all font-medium"
+        />
+        <button
+          type="submit"
+          disabled={isProcessing || !commandInput.trim()}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-xs uppercase px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-blue-600/30 shrink-0 cursor-pointer"
+        >
+          <Send className="w-3.5 h-3.5" />
+          <span>Execute</span>
+        </button>
+      </form>
+
+      {/* Error / Permission Help Notice */}
       {errorMsg && (
-        <div className="mt-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 p-2.5 rounded-xl text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{errorMsg}</span>
+        <div className="mt-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 p-3 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-shake">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span className="leading-relaxed">{errorMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={toggleListening}
+            className="text-[11px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 px-3 py-1 rounded-xl shrink-0 hover:bg-amber-400 transition-colors cursor-pointer"
+          >
+            Request Mic Again
+          </button>
         </div>
       )}
 
@@ -302,31 +362,23 @@ export default function AdminVoiceInterface({
           <p className="text-xs text-slate-300 leading-relaxed">
             {speechLanguage === 'bn-BD' ? lastResult.responseSpeechBn : lastResult.responseSpeechEn}
           </p>
-
-          {lastResult.targetUrl && (
-            <button
-              onClick={() => router.push(lastResult.targetUrl!)}
-              className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-bold hover:underline pt-1"
-            >
-              <span>View in AI Control Center &rarr;</span>
-            </button>
-          )}
         </div>
       )}
 
-      {/* Quick Prompt Pills */}
-      <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap gap-1.5">
+      {/* Quick Prompt Pills (Click to execute immediately) */}
+      <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap gap-1.5 items-center">
         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider py-1 mr-1">
-          Quick Triggers:
+          Quick Triggers (Click to Run):
         </span>
         {sampleCommands.map((cmd, idx) => (
           <button
             key={idx}
+            type="button"
             onClick={() => {
               setTranscript(cmd.query);
               handleVoiceCommand(cmd.query);
             }}
-            className="text-[11px] bg-slate-800/90 hover:bg-blue-900/40 hover:text-blue-300 border border-slate-700/60 text-slate-300 px-2.5 py-1 rounded-xl transition-all active:scale-95"
+            className="text-[11px] bg-slate-800/90 hover:bg-blue-600 hover:text-white border border-slate-700/60 text-slate-300 px-3 py-1.5 rounded-xl transition-all active:scale-95 cursor-pointer font-medium"
           >
             {cmd.label}
           </button>

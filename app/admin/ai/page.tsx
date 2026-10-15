@@ -383,6 +383,21 @@ export default function AdminAiControlCenterPage() {
           <div>
             <AdminVoiceInterface
               onActionTrigger={(intent, payload) => {
+                if (intent === 'view_sales_today') {
+                  setActiveTab('reports');
+                  setReportPeriod('daily');
+                } else if (intent === 'view_low_stock') {
+                  setActiveTab('products');
+                } else if (intent === 'view_monthly_report') {
+                  setActiveTab('reports');
+                  setReportPeriod('monthly');
+                } else if (intent === 'view_pending_orders') {
+                  setActiveTab('orders');
+                } else if (intent === 'view_customers') {
+                  router.push('/admin/customers');
+                } else if (intent === 'open_tryon') {
+                  router.push('/admin/try-on');
+                }
                 AutomationEngine.logActivity({
                   actorEmail: 'hasansheikh9080@gmail.com',
                   actorRole: 'Super Admin',
