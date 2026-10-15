@@ -12,6 +12,7 @@ import {
   AlertCircle,
   HelpCircle,
   CheckCircle2,
+  Radio,
 } from 'lucide-react';
 import { VoiceIntentResult } from '@/app/api/ai/voice/route';
 
@@ -37,108 +38,99 @@ export default function AdminVoiceInterface({
 
   const recognitionRef = useRef<any>(null);
 
-  useEffect(() => {
-    // Check if browser supports Web Speech API
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  // Initialize SpeechRecognition safely
+  const startListening = () => {
+    setErrorMsg('');
+    setLastResult(null);
 
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = speechLanguage;
+    if (typeof window === 'undefined') return;
 
-        recognition.onstart = () => {
-          setIsListening(true);
-          setErrorMsg('');
-        };
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-        recognition.onresult = (event: any) => {
-          let currentInterim = '';
-          let finalTranscript = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              currentInterim += event.results[i][0].transcript;
-            }
-          }
-
-          setInterimTranscript(currentInterim);
-          if (finalTranscript) {
-            setTranscript(finalTranscript);
-            handleVoiceCommand(finalTranscript);
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          console.warn('Speech recognition error:', event.error);
-          setIsListening(false);
-          if (event.error === 'not-allowed') {
-            setErrorMsg(
-              'Microphone permission blocked in browser. ব্রাউজারের অ্যাড্রেস বারের বাম পাশের 🔒 (Lock icon) বা সাইট সেটিংসে ক্লিক করে Microphone: "Allow" করুন। অথবা নিচের টেক্সট বক্সে কমান্ড লিখুন বা কুইক ট্রিগারে ক্লিক করুন।'
-            );
-          } else if (event.error !== 'no-speech') {
-            setErrorMsg(`Mic Notice: ${event.error}. You can also type commands or click triggers below.`);
-          }
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          setInterimTranscript('');
-        };
-
-        recognitionRef.current = recognition;
-      }
+    if (!SpeechRecognition) {
+      setErrorMsg('Web Speech API is not supported in this browser. Please use the command bar below.');
+      return;
     }
 
-    return () => {
+    try {
+      // Abort any existing instance
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
         } catch {}
       }
-    };
-  }, [speechLanguage]);
 
-  const toggleListening = async () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-      setIsListening(false);
-    } else {
-      setErrorMsg('');
-      setLastResult(null);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = speechLanguage;
 
-      // Trigger browser's native microphone prompt if needed
-      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((t) => t.stop());
-        } catch (err: any) {
-          console.warn('Microphone permission request failed:', err);
+      recognition.onstart = () => {
+        setIsListening(true);
+        setErrorMsg('');
+      };
+
+      recognition.onresult = (event: any) => {
+        let currentInterim = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            currentInterim += event.results[i][0].transcript;
+          }
+        }
+
+        setInterimTranscript(currentInterim);
+        if (finalTranscript) {
+          setTranscript(finalTranscript);
+          handleVoiceCommand(finalTranscript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
           setErrorMsg(
-            'Microphone permission blocked in browser. ব্রাউজারের অ্যাড্রেস বারের বাম পাশের 🔒 (Lock icon)-এ ক্লিক করে Microphone: Allow নির্বাচন করুন। অথবা নিচের টেক্সট বক্সে কমান্ড লিখুন।'
+            'Microphone access was denied. ব্রাউজারে অনুমতি চালু করার পর পেজটি রিলোড (Ctrl+F5) দিয়ে পুনরায় মাইক বাটনে ক্লিক করুন।'
           );
-          return;
+        } else if (event.error !== 'no-speech') {
+          setErrorMsg(`Notice: ${event.error}. You can also type any command or click the triggers below.`);
         }
-      }
+      };
 
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.lang = speechLanguage;
-          recognitionRef.current.start();
-        } catch (e: any) {
-          setErrorMsg('Microphone initialization error. Please use the command bar below.');
-        }
-      } else {
-        setErrorMsg('Web Speech API is not supported in this browser. Please use the command bar below.');
-      }
+      recognition.onend = () => {
+        setIsListening(false);
+        setInterimTranscript('');
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e: any) {
+      console.warn('Recognition start exception:', e);
+      setIsListening(false);
+      setErrorMsg('Could not initialize microphone. Please reload the page or use the command bar.');
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+    }
+    setIsListening(false);
+    setInterimTranscript('');
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   };
 
@@ -181,7 +173,7 @@ export default function AdminVoiceInterface({
             onActionTrigger(result.intent, result);
           }
 
-          // If navigation requested to a different page
+          // If navigation requested to a different section
           if (result.targetUrl && !result.targetUrl.startsWith('/admin/ai') && result.intent !== 'general_query') {
             setTimeout(() => {
               router.push(result.targetUrl!);
@@ -226,16 +218,18 @@ export default function AdminVoiceInterface({
         <div className="flex items-center gap-2">
           {/* Language Switch */}
           <button
+            type="button"
             onClick={() => setSpeechLanguage((prev) => (prev === 'bn-BD' ? 'en-US' : 'bn-BD'))}
-            className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 transition-colors"
+            className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 transition-colors cursor-pointer"
           >
             {speechLanguage === 'bn-BD' ? 'বাংলা (BD)' : 'English (US)'}
           </button>
 
           {/* TTS Audio Response Toggle */}
           <button
+            type="button"
             onClick={() => setTtsEnabled((prev) => !prev)}
-            className={`p-1.5 rounded-lg border transition-colors ${
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
               ttsEnabled
                 ? 'bg-blue-600/20 border-blue-500/40 text-blue-400'
                 : 'bg-slate-800 border-slate-700 text-slate-500'
@@ -254,7 +248,7 @@ export default function AdminVoiceInterface({
           onClick={toggleListening}
           className={`relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 cursor-pointer ${
             isListening
-              ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-4 ring-rose-500/30 scale-105'
+              ? 'bg-rose-600 text-white shadow-xl shadow-rose-600/50 ring-4 ring-rose-500/40 scale-105'
               : 'bg-gradient-to-tr from-blue-700 to-indigo-600 text-white shadow-md shadow-blue-600/30 hover:scale-105 active:scale-95'
           }`}
           aria-label={isListening ? 'Stop Listening' : 'Start Voice Command'}
@@ -271,16 +265,19 @@ export default function AdminVoiceInterface({
 
         <div className="flex-1 w-full space-y-1 text-center sm:text-left">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-300">
-              {isListening
-                ? 'Listening... বলুন (যেমন: "আজকের বিক্রয় দেখাও")'
-                : isProcessing
-                ? 'AI Intent Processing...'
-                : 'Click mic to speak, or type any command below'}
+            <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+              {isListening && <Radio className="w-3.5 h-3.5 text-rose-400 animate-pulse" />}
+              <span>
+                {isListening
+                  ? 'Listening... বলুন (যেমন: "আজকের বিক্রয় দেখাও", "কম স্টক দেখাও")'
+                  : isProcessing
+                  ? 'AI Intent Processing...'
+                  : 'Click mic to speak, or type any command below'}
+              </span>
             </span>
             {isListening && (
               <span className="text-[9px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-black animate-pulse">
-                LIVE AUDIO
+                MIC RECORDING ACTIVE
               </span>
             )}
           </div>
@@ -289,7 +286,7 @@ export default function AdminVoiceInterface({
             {interimTranscript ? (
               <span className="text-amber-300 italic">{interimTranscript}...</span>
             ) : transcript ? (
-              <span className="text-white">"{transcript}"</span>
+              <span className="text-white font-bold">"{transcript}"</span>
             ) : (
               <span className="text-slate-500 italic">"আজকের বিক্রয় দেখাও" or "Show low stock jeans"</span>
             )}
@@ -297,7 +294,7 @@ export default function AdminVoiceInterface({
         </div>
       </div>
 
-      {/* Direct Command Text Box (Works 100% even if mic is blocked) */}
+      {/* Direct Command Text Box */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -329,19 +326,19 @@ export default function AdminVoiceInterface({
         </button>
       </form>
 
-      {/* Error / Permission Help Notice */}
+      {/* Error / Notice Display */}
       {errorMsg && (
-        <div className="mt-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 p-3 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-shake">
+        <div className="mt-3 bg-blue-950/40 border border-blue-500/40 text-blue-200 p-3 rounded-2xl text-xs flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
             <span className="leading-relaxed">{errorMsg}</span>
           </div>
           <button
             type="button"
-            onClick={toggleListening}
-            className="text-[11px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 px-3 py-1 rounded-xl shrink-0 hover:bg-amber-400 transition-colors cursor-pointer"
+            onClick={startListening}
+            className="text-[11px] font-black uppercase tracking-wider bg-blue-600 text-white px-3 py-1 rounded-xl shrink-0 hover:bg-blue-500 transition-colors cursor-pointer"
           >
-            Request Mic Again
+            Retry Mic
           </button>
         </div>
       )}
